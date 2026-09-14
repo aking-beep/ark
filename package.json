@@ -1,0 +1,29 @@
+{
+  "name": "ark",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "ARK — AI decision intelligence, AI economics, secure AI operations.",
+  "workspaces": ["packages/*", "apps/*"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build:packages": "npm run build --workspace @ark/core && npm run build --workspace @ark/db && npm run build --workspace @ark/ui",
+    "db:push": "npm run push --workspace @ark/db",
+    "db:seed": "npm run seed --workspace @ark/db",
+    "setup": "npm run build:packages && npm run db:push && npm run db:seed",
+    "dev": "concurrently -n consumer,business,control -c cyan,magenta,green \"npm:dev:consumer\" \"npm:dev:business\" \"npm:dev:control\"",
+    "dev:consumer": "npm run dev --workspace @ark/consumer",
+    "dev:business": "npm run dev --workspace @ark/business",
+    "dev:control": "npm run dev --workspace @ark/control",
+    "build": "npm run build:packages && npm run build --workspace @ark/consumer && npm run build --workspace @ark/business && npm run build --workspace @ark/control",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspace @ark/core",
+    "refresh:models": "node --experimental-strip-types scripts/refresh-models.ts",
+    "lint": "npm run typecheck"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "typescript": "^5.6.0",
+    "@types/node": "^22.9.0"
+  }
+}

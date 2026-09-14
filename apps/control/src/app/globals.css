@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-ink-950 text-ink-200 antialiased;
+  }
+  ::selection {
+    @apply bg-signal/30 text-ink-100;
+  }
+}
