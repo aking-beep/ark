@@ -1,0 +1,46 @@
+=== after capture 2026-09-15 ===
+
+--- SQL: workload assessment keys ---
+wl_content_drafting keys= depth,workload,suitability,architecture,model,cost,value,buildCost,security,evaluation,phases,trust
+  cost.perUnit 0.001439 turns 1
+wl_invoice_lookup keys= depth,workload,suitability,architecture,model,cost,value,buildCost,security,evaluation,phases,trust
+  cost.perUnit 0.000056 turns 0
+wl_support_triage keys= depth,workload,suitability,architecture,model,cost,value,buildCost,security,evaluation,phases,trust
+  cost.perUnit 0.006565 turns 7
+calibration_snapshots 1
+
+--- GET /api/v1/events (shape) ---
+body keys ['orgId', 'events', 'traces', 'actions', 'qualitySamples']
+has actions True
+has qualitySamples True
+notes mention sdk True
+
+--- GET /api/v1/calibration snapshot ---
+basis measured patterns 3
+calibration_snapshots after GET 2
+
+--- Control /workloads/wl_support_triage (drift?) ---
+status_len 136499
+has_estimate_drift True
+drift_figure +1813%
+
+--- Consumer valid result (legacy intake) ---
+len 78997
+has_per_month False
+has_suggested_model False
+has_copy True
+has_copied False
+has_link_contains True
+has_verdict_heading True
+has_what_it_would_look True
+
+--- Consumer garbage i ---
+has_recovery True
+has_copy False
+
+--- Consumer landing ---
+promises_monthly_cost False
+has_six_questions True
+
+--- POST ingest unapproved action ---
+{"accepted":0,"tracesClosed":0,"actionsAccepted":1,"qualityAccepted":0,"priced":0,"unpriced":0,"alerts":1,"circuitBreaks":[]}
