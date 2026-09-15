@@ -67,19 +67,6 @@ export default function Landing() {
           predicted against what the thing actually costs, and shows you the drift.
         </p>
       </section>
-
-      <section className="rounded-xl border border-ink-800 p-6">
-        <h2 className="text-base font-semibold text-ink-100">Not at work?</h2>
-        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-400">
-          The consumer version asks six questions about one thing you do and takes a minute.
-        </p>
-        <a
-          href={process.env.ARK_CONSUMER_URL ?? 'http://localhost:3000'}
-          className="mt-4 inline-flex rounded-lg border border-ink-600 px-4 py-2 text-sm text-ink-100 transition hover:border-ink-500 hover:bg-ink-800"
-        >
-          AIFit for one task
-        </a>
-      </section>
     </div>
   );
 }
