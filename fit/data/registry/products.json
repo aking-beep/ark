@@ -1,0 +1,792 @@
+[
+  {
+    "id": "claude",
+    "name": "Claude",
+    "provider": "Anthropic",
+    "category": "general_assistant",
+    "description": "General-purpose AI assistant and knowledge-work product.",
+    "status": "active",
+    "homepage": "https://claude.ai",
+    "pricing_tier": "mixed",
+    "technical_level": 0.45,
+    "deployment": [
+      "cloud"
+    ],
+    "modalities": [
+      "text",
+      "image"
+    ],
+    "capabilities": [
+      "analysis",
+      "writing",
+      "coding",
+      "research_workflows"
+    ],
+    "integrations": [
+      "claude_code"
+    ],
+    "fit_vector": {
+      "evidence_seeking": 0.8,
+      "comparison_preference": 0.78,
+      "iteration_preference": 0.88,
+      "autonomy_preference": 0.7,
+      "structure_preference": 0.82,
+      "code_comfort": 0.7,
+      "automation_appetite": 0.6,
+      "local_control_preference": 0.1,
+      "budget_sensitivity": 0.45
+    },
+    "underlying_models": [
+      "claude-fable-5-1"
+    ],
+    "evidence": [
+      {
+        "source_type": "official",
+        "title": "Anthropic Claude Fable product page",
+        "url": "https://www.anthropic.com/claude/fable",
+        "observed_at": "2026-09-12",
+        "notes": "Official Claude web assistant for writing, analysis, and coding."
+      }
+    ],
+    "last_evaluated_at": "2026-09-12",
+    "registry_version": "0.3"
+  },
+  {
+    "id": "chatgpt",
+    "name": "ChatGPT",
+    "provider": "OpenAI",
+    "category": "general_assistant",
+    "description": "General-purpose AI assistant with broad tool and multimodal workflows.",
+    "status": "active",
+    "homepage": "https://chatgpt.com",
+    "pricing_tier": "mixed",
+    "technical_level": 0.4,
+    "deployment": [
+      "cloud"
+    ],
+    "modalities": [
+      "text",
+      "image",
+      "audio"
+    ],
+    "capabilities": [
+      "analysis",
+      "research",
+      "coding",
+      "multimodal",
+      "tool_use"
+    ],
+    "integrations": [],
+    "fit_vector": {
+      "evidence_seeking": 0.75,
+      "comparison_preference": 0.75,
+      "iteration_preference": 0.82,
+      "autonomy_preference": 0.72,
+      "structure_preference": 0.76,
+      "multimodal_preference": 0.85,
+      "code_comfort": 0.7,
+      "automation_appetite": 0.65,
+      "local_control_preference": 0.1,
+      "budget_sensitivity": 0.45
+    },
+    "underlying_models": [
+      "gpt-5-6-sol"
+    ],
+    "evidence": [
+      {
+        "source_type": "official",
+        "title": "ChatGPT",
+        "url": "https://chatgpt.com",
+        "observed_at": "2026-09-12",
+        "notes": "Official ChatGPT assistant with tools and multimodal chat."
+      }
+    ],
+    "last_evaluated_at": "2026-09-12",
+    "registry_version": "0.3"
+  },
+  {
+    "id": "gemini",
+    "name": "Gemini",
+    "provider": "Google",
+    "category": "general_assistant",
+    "description": "Google AI assistant with multimodal and ecosystem-oriented workflows.",
+    "status": "active",
+    "homepage": "https://gemini.google.com",
+    "pricing_tier": "mixed",
+    "technical_level": 0.42,
+    "deployment": [
+      "cloud"
+    ],
+    "modalities": [
+      "text",
+      "image",
+      "audio",
+      "video"
+    ],
+    "capabilities": [
+      "analysis",
+      "research",
+      "multimodal",
+      "coding"
+    ],
+    "integrations": [
+      "google_workspace"
+    ],
+    "fit_vector": {
+      "evidence_seeking": 0.72,
+      "comparison_preference": 0.72,
+      "iteration_preference": 0.75,
+      "autonomy_preference": 0.65,
+      "structure_preference": 0.72,
+      "multimodal_preference": 0.92,
+      "code_comfort": 0.65,
+      "automation_appetite": 0.62,
+      "local_control_preference": 0.1,
+      "budget_sensitivity": 0.5
+    },
+    "underlying_models": [
+      "gemini-3-8-flash"
+    ],
+    "evidence": [
+      {
+        "source_type": "official",
+        "title": "Gemini",
+        "url": "https://gemini.google.com",
+        "observed_at": "2026-09-12",
+        "notes": "Official Gemini app; multimodal assistant with Google search grounding."
+      }
+    ],
+    "last_evaluated_at": "2026-09-12",
+    "registry_version": "0.3"
+  },
+  {
+    "id": "perplexity",
+    "name": "Perplexity",
+    "provider": "Perplexity",
+    "category": "research",
+    "description": "AI research/search product.",
+    "status": "active",
+    "homepage": "https://www.perplexity.ai",
+    "pricing_tier": "mixed",
+    "technical_level": 0.35,
+    "deployment": [
+      "cloud"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "web_research",
+      "citations",
+      "search"
+    ],
+    "integrations": [],
+    "fit_vector": {
+      "evidence_seeking": 0.95,
+      "comparison_preference": 0.8,
+      "iteration_preference": 0.65,
+      "autonomy_preference": 0.55,
+      "structure_preference": 0.72,
+      "code_comfort": 0.35,
+      "automation_appetite": 0.3,
+      "local_control_preference": 0.05,
+      "budget_sensitivity": 0.55
+    },
+    "underlying_models": [],
+    "evidence": [
+      {
+        "source_type": "manual_eval",
+        "title": "Seed placeholder",
+        "observed_at": "2026-09-12",
+        "notes": "Official Perplexity; source-linked web answers.",
+        "url": "https://www.perplexity.ai"
+      }
+    ],
+    "last_evaluated_at": "2026-09-12",
+    "registry_version": "0.3"
+  },
+  {
+    "id": "cursor",
+    "name": "Cursor",
+    "provider": "Anysphere",
+    "category": "ide",
+    "description": "AI-native coding environment.",
+    "status": "active",
+    "homepage": "https://www.cursor.com",
+    "pricing_tier": "mixed",
+    "technical_level": 0.78,
+    "deployment": [
+      "desktop",
+      "cloud"
+    ],
+    "modalities": [
+      "text",
+      "code"
+    ],
+    "capabilities": [
+      "coding",
+      "codebase_context",
+      "agentic_editing"
+    ],
+    "integrations": [
+      "git"
+    ],
+    "fit_vector": {
+      "evidence_seeking": 0.62,
+      "comparison_preference": 0.55,
+      "iteration_preference": 0.92,
+      "autonomy_preference": 0.78,
+      "structure_preference": 0.65,
+      "code_comfort": 0.95,
+      "automation_appetite": 0.78,
+      "local_control_preference": 0.4,
+      "budget_sensitivity": 0.45
+    },
+    "underlying_models": [],
+    "evidence": [
+      {
+        "source_type": "manual_eval",
+        "title": "Seed placeholder",
+        "observed_at": "2026-09-12",
+        "notes": "Official Cursor IDE for AI-assisted coding.",
+        "url": "https://www.cursor.com"
+      }
+    ],
+    "last_evaluated_at": "2026-09-12",
+    "registry_version": "0.3"
+  },
+  {
+    "id": "n8n",
+    "name": "n8n",
+    "provider": "n8n",
+    "category": "automation",
+    "description": "Workflow automation and orchestration platform.",
+    "status": "active",
+    "homepage": "https://n8n.io",
+    "pricing_tier": "mixed",
+    "technical_level": 0.7,
+    "deployment": [
+      "cloud",
+      "self_hosted"
+    ],
+    "modalities": [
+      "workflow"
+    ],
+    "capabilities": [
+      "automation",
+      "integrations",
+      "agent_workflows"
+    ],
+    "integrations": [
+      "many"
+    ],
+    "fit_vector": {
+      "evidence_seeking": 0.6,
+      "comparison_preference": 0.62,
+      "iteration_preference": 0.82,
+      "autonomy_preference": 0.82,
+      "structure_preference": 0.85,
+      "code_comfort": 0.68,
+      "automation_appetite": 0.98,
+      "local_control_preference": 0.72,
+      "budget_sensitivity": 0.65
+    },
+    "underlying_models": [],
+    "evidence": [
+      {
+        "source_type": "manual_eval",
+        "title": "Seed placeholder",
+        "observed_at": "2026-09-12",
+        "notes": "Official n8n workflow automation; cloud or self-hosted.",
+        "url": "https://n8n.io"
+      }
+    ],
+    "last_evaluated_at": "2026-09-12",
+    "registry_version": "0.3"
+  },
+  {
+    "id": "fable-editor",
+    "name": "Fable",
+    "provider": "Fable",
+    "category": "writing",
+    "description": "AI document editor with voice-directed editing workflows.",
+    "status": "active",
+    "homepage": "https://www.fable.la/",
+    "pricing_tier": "unknown",
+    "technical_level": 0.3,
+    "deployment": [
+      "desktop"
+    ],
+    "modalities": [
+      "text",
+      "voice"
+    ],
+    "capabilities": [
+      "writing",
+      "editing",
+      "voice_editing",
+      "collaboration"
+    ],
+    "integrations": [],
+    "fit_vector": {
+      "evidence_seeking": 0.35,
+      "comparison_preference": 0.4,
+      "iteration_preference": 0.9,
+      "autonomy_preference": 0.62,
+      "structure_preference": 0.55,
+      "multimodal_preference": 0.72,
+      "code_comfort": 0.1,
+      "automation_appetite": 0.35,
+      "local_control_preference": 0.35,
+      "budget_sensitivity": 0.5
+    },
+    "underlying_models": [],
+    "evidence": [
+      {
+        "source_type": "official",
+        "title": "Fable - Edit Any Document With Your Voice",
+        "url": "https://www.fable.la/",
+        "observed_at": "2026-09-12",
+        "notes": "Fable document editor; not Anthropic's Claude Fable model family."
+      }
+    ],
+    "last_evaluated_at": "2026-09-12",
+    "registry_version": "0.3"
+  },
+  {
+    "id": "ollama",
+    "name": "Ollama",
+    "provider": "Ollama",
+    "category": "local_open_source",
+    "description": "Local model runner for self-hosted open-weight models.",
+    "status": "active",
+    "homepage": "https://ollama.com",
+    "pricing_tier": "free",
+    "technical_level": 0.65,
+    "deployment": [
+      "local",
+      "self_hosted"
+    ],
+    "modalities": [
+      "text",
+      "image"
+    ],
+    "capabilities": [
+      "local_inference",
+      "open_weights"
+    ],
+    "integrations": [],
+    "fit_vector": {
+      "evidence_seeking": 0.45,
+      "comparison_preference": 0.5,
+      "iteration_preference": 0.7,
+      "autonomy_preference": 0.6,
+      "structure_preference": 0.5,
+      "code_comfort": 0.7,
+      "automation_appetite": 0.55,
+      "local_control_preference": 0.98,
+      "budget_sensitivity": 0.9
+    },
+    "underlying_models": [],
+    "evidence": [
+      {
+        "source_type": "official",
+        "title": "Ollama product page",
+        "url": "https://ollama.com",
+        "observed_at": "2026-09-12",
+        "notes": "Official Ollama runtime for open-weight models on a local machine."
+      }
+    ],
+    "last_evaluated_at": "2026-09-12",
+    "registry_version": "0.3"
+  },
+  {
+    "id": "claude-code",
+    "name": "Claude Code",
+    "provider": "Anthropic",
+    "category": "coding_agent",
+    "description": "Terminal and repo-native coding agent distinct from the Claude chat product.",
+    "status": "active",
+    "homepage": "https://docs.anthropic.com/en/docs/claude-code",
+    "pricing_tier": "mixed",
+    "technical_level": 0.82,
+    "deployment": [
+      "desktop",
+      "terminal"
+    ],
+    "modalities": [
+      "text",
+      "code"
+    ],
+    "capabilities": [
+      "coding",
+      "agentic_editing",
+      "repo_context"
+    ],
+    "integrations": [
+      "git",
+      "cli"
+    ],
+    "fit_vector": {
+      "evidence_seeking": 0.58,
+      "comparison_preference": 0.5,
+      "iteration_preference": 0.93,
+      "autonomy_preference": 0.88,
+      "structure_preference": 0.7,
+      "code_comfort": 0.97,
+      "automation_appetite": 0.8,
+      "integration_appetite": 0.7,
+      "local_control_preference": 0.45,
+      "budget_sensitivity": 0.4
+    },
+    "underlying_models": [
+      "claude-fable-5-1"
+    ],
+    "evidence": [
+      {
+        "source_type": "official",
+        "title": "Claude Code docs",
+        "url": "https://docs.anthropic.com/en/docs/claude-code",
+        "observed_at": "2026-09-12",
+        "notes": "Official Claude Code agent/CLI for repo work."
+      }
+    ],
+    "last_evaluated_at": "2026-09-12",
+    "registry_version": "0.3"
+  },
+  {
+    "id": "notebooklm",
+    "name": "NotebookLM",
+    "provider": "Google",
+    "category": "knowledge",
+    "description": "Source-grounded notebook for research corpora and briefing.",
+    "status": "active",
+    "homepage": "https://notebooklm.google",
+    "pricing_tier": "mixed",
+    "technical_level": 0.35,
+    "deployment": [
+      "cloud"
+    ],
+    "modalities": [
+      "text",
+      "audio"
+    ],
+    "capabilities": [
+      "source_grounding",
+      "briefing",
+      "knowledge"
+    ],
+    "integrations": [
+      "google_drive"
+    ],
+    "fit_vector": {
+      "evidence_seeking": 0.92,
+      "comparison_preference": 0.7,
+      "iteration_preference": 0.6,
+      "autonomy_preference": 0.45,
+      "structure_preference": 0.8,
+      "code_comfort": 0.2,
+      "automation_appetite": 0.25,
+      "local_control_preference": 0.08,
+      "budget_sensitivity": 0.55
+    },
+    "underlying_models": [],
+    "evidence": [
+      {
+        "source_type": "official",
+        "title": "NotebookLM",
+        "url": "https://notebooklm.google",
+        "observed_at": "2026-09-12",
+        "notes": "Official Google NotebookLM; source-grounded notebooks."
+      }
+    ],
+    "last_evaluated_at": "2026-09-12",
+    "registry_version": "0.3"
+  },
+  {
+    "id": "midjourney",
+    "name": "Midjourney",
+    "provider": "Midjourney",
+    "category": "image",
+    "description": "Image generation product for concept and campaign visuals.",
+    "status": "active",
+    "homepage": "https://www.midjourney.com",
+    "pricing_tier": "mixed",
+    "technical_level": 0.4,
+    "deployment": [
+      "cloud"
+    ],
+    "modalities": [
+      "image"
+    ],
+    "capabilities": [
+      "image_generation"
+    ],
+    "integrations": [],
+    "fit_vector": {
+      "evidence_seeking": 0.25,
+      "comparison_preference": 0.55,
+      "iteration_preference": 0.92,
+      "autonomy_preference": 0.5,
+      "structure_preference": 0.35,
+      "multimodal_preference": 0.98,
+      "code_comfort": 0.05,
+      "automation_appetite": 0.2,
+      "local_control_preference": 0.05,
+      "budget_sensitivity": 0.45
+    },
+    "underlying_models": [],
+    "evidence": [
+      {
+        "source_type": "official",
+        "title": "Midjourney",
+        "url": "https://www.midjourney.com",
+        "observed_at": "2026-09-12",
+        "notes": "Official Midjourney image generation product."
+      }
+    ],
+    "last_evaluated_at": "2026-09-12",
+    "registry_version": "0.3"
+  },
+  {
+    "id": "runway",
+    "name": "Runway",
+    "provider": "Runway",
+    "category": "video",
+    "description": "Generative video product for motion concepts and edits.",
+    "status": "active",
+    "homepage": "https://runwayml.com",
+    "pricing_tier": "mixed",
+    "technical_level": 0.5,
+    "deployment": [
+      "cloud"
+    ],
+    "modalities": [
+      "video",
+      "image"
+    ],
+    "capabilities": [
+      "video_generation",
+      "video_edit"
+    ],
+    "integrations": [],
+    "fit_vector": {
+      "evidence_seeking": 0.22,
+      "comparison_preference": 0.45,
+      "iteration_preference": 0.88,
+      "autonomy_preference": 0.55,
+      "structure_preference": 0.4,
+      "multimodal_preference": 0.96,
+      "code_comfort": 0.1,
+      "automation_appetite": 0.3,
+      "local_control_preference": 0.05,
+      "budget_sensitivity": 0.4
+    },
+    "underlying_models": [],
+    "evidence": [
+      {
+        "source_type": "official",
+        "title": "Runway",
+        "url": "https://runwayml.com",
+        "observed_at": "2026-09-12",
+        "notes": "Official Runway video generation product."
+      }
+    ],
+    "last_evaluated_at": "2026-09-12",
+    "registry_version": "0.3"
+  },
+  {
+    "id": "gamma",
+    "name": "Gamma",
+    "provider": "Gamma",
+    "category": "presentation",
+    "description": "AI presentation and narrative-deck product.",
+    "status": "active",
+    "homepage": "https://gamma.app",
+    "pricing_tier": "mixed",
+    "technical_level": 0.28,
+    "deployment": [
+      "cloud"
+    ],
+    "modalities": [
+      "text",
+      "image"
+    ],
+    "capabilities": [
+      "presentations",
+      "narrative"
+    ],
+    "integrations": [],
+    "fit_vector": {
+      "evidence_seeking": 0.4,
+      "comparison_preference": 0.5,
+      "iteration_preference": 0.78,
+      "autonomy_preference": 0.6,
+      "structure_preference": 0.86,
+      "multimodal_preference": 0.8,
+      "code_comfort": 0.1,
+      "automation_appetite": 0.35,
+      "local_control_preference": 0.08,
+      "budget_sensitivity": 0.5
+    },
+    "underlying_models": [],
+    "evidence": [
+      {
+        "source_type": "official",
+        "title": "Gamma",
+        "url": "https://gamma.app",
+        "observed_at": "2026-09-12",
+        "notes": "Official Gamma AI presentation product."
+      }
+    ],
+    "last_evaluated_at": "2026-09-12",
+    "registry_version": "0.3"
+  },
+  {
+    "id": "figma",
+    "name": "Figma",
+    "provider": "Figma",
+    "category": "design",
+    "description": "Collaborative design product with AI-assisted workflows.",
+    "status": "active",
+    "homepage": "https://www.figma.com",
+    "pricing_tier": "mixed",
+    "technical_level": 0.55,
+    "deployment": [
+      "cloud"
+    ],
+    "modalities": [
+      "image",
+      "ui"
+    ],
+    "capabilities": [
+      "design",
+      "collaboration",
+      "prototyping"
+    ],
+    "integrations": [
+      "figma"
+    ],
+    "fit_vector": {
+      "evidence_seeking": 0.35,
+      "comparison_preference": 0.6,
+      "iteration_preference": 0.9,
+      "autonomy_preference": 0.55,
+      "structure_preference": 0.7,
+      "multimodal_preference": 0.9,
+      "code_comfort": 0.35,
+      "automation_appetite": 0.4,
+      "integration_appetite": 0.75,
+      "local_control_preference": 0.12,
+      "budget_sensitivity": 0.45
+    },
+    "underlying_models": [],
+    "evidence": [
+      {
+        "source_type": "official",
+        "title": "Figma",
+        "url": "https://www.figma.com",
+        "observed_at": "2026-09-12",
+        "notes": "Official Figma design product with AI features."
+      }
+    ],
+    "last_evaluated_at": "2026-09-12",
+    "registry_version": "0.3"
+  },
+  {
+    "id": "julius",
+    "name": "Julius",
+    "provider": "Julius",
+    "category": "data_analysis",
+    "description": "Conversational data analysis product for spreadsheets and messy tables.",
+    "status": "active",
+    "homepage": "https://julius.ai",
+    "pricing_tier": "mixed",
+    "technical_level": 0.4,
+    "deployment": [
+      "cloud"
+    ],
+    "modalities": [
+      "text",
+      "tabular"
+    ],
+    "capabilities": [
+      "data_analysis",
+      "charts"
+    ],
+    "integrations": [
+      "spreadsheets"
+    ],
+    "fit_vector": {
+      "evidence_seeking": 0.85,
+      "comparison_preference": 0.7,
+      "iteration_preference": 0.75,
+      "autonomy_preference": 0.6,
+      "structure_preference": 0.88,
+      "code_comfort": 0.45,
+      "automation_appetite": 0.5,
+      "local_control_preference": 0.1,
+      "budget_sensitivity": 0.5
+    },
+    "underlying_models": [],
+    "evidence": [
+      {
+        "source_type": "official",
+        "title": "Julius",
+        "url": "https://julius.ai",
+        "observed_at": "2026-09-12",
+        "notes": "Official Julius data-analysis assistant."
+      }
+    ],
+    "last_evaluated_at": "2026-09-12",
+    "registry_version": "0.3"
+  },
+  {
+    "id": "glean",
+    "name": "Glean",
+    "provider": "Glean",
+    "category": "enterprise_search",
+    "description": "Enterprise search and knowledge assistant across workplace systems.",
+    "status": "active",
+    "homepage": "https://www.glean.com",
+    "pricing_tier": "high",
+    "technical_level": 0.5,
+    "deployment": [
+      "cloud"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "enterprise_search",
+      "connectors"
+    ],
+    "integrations": [
+      "workplace"
+    ],
+    "fit_vector": {
+      "evidence_seeking": 0.8,
+      "comparison_preference": 0.55,
+      "iteration_preference": 0.5,
+      "autonomy_preference": 0.45,
+      "structure_preference": 0.75,
+      "code_comfort": 0.25,
+      "automation_appetite": 0.4,
+      "integration_appetite": 0.95,
+      "local_control_preference": 0.15,
+      "budget_sensitivity": 0.25
+    },
+    "underlying_models": [],
+    "evidence": [
+      {
+        "source_type": "official",
+        "title": "Glean",
+        "url": "https://www.glean.com",
+        "observed_at": "2026-09-12",
+        "notes": "Official Glean workplace search assistant."
+      }
+    ],
+    "last_evaluated_at": "2026-09-12",
+    "registry_version": "0.3"
+  }
+]

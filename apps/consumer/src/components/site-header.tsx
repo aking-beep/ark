@@ -1,31 +1,18 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { ReadingLevelToggle } from '@/components/reading-level';
-import { ThemeToggle } from '@/components/theme';
+import { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Menu, X } from "lucide-react";
+import { ReadingLevelToggle } from "@/components/reading-level";
+import { ThemeToggle } from "@/components/theme";
+import { Button } from "@/components/ui/button";
 
 const links = [
-  { href: '/assess', label: 'Try it' },
-  { href: '/how-it-works', label: 'How it works' },
-  { href: '/privacy', label: 'Privacy' },
+  { href: "/assessment", label: "Try it" },
+  { href: "/methodology", label: "How it works" },
+  { href: "/privacy", label: "Privacy" },
 ];
-
-function MenuIcon({ open }: { open: boolean }) {
-  if (open) {
-    return (
-      <svg viewBox="0 0 24 24" className="size-4" aria-hidden fill="none" stroke="currentColor" strokeWidth="1.75">
-        <path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" />
-      </svg>
-    );
-  }
-  return (
-    <svg viewBox="0 0 24 24" className="size-4" aria-hidden fill="none" stroke="currentColor" strokeWidth="1.75">
-      <path strokeLinecap="round" d="M4 7h16M4 12h16M4 17h16" />
-    </svg>
-  );
-}
 
 export function SiteHeader() {
   const pathname = usePathname();
@@ -48,24 +35,26 @@ export function SiteHeader() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  aria-current={active ? 'page' : undefined}
-                  className={active ? 'font-medium text-foreground' : 'hover:text-foreground'}
+                  aria-current={active ? "page" : undefined}
+                  className={active ? "font-medium text-foreground" : "hover:text-foreground"}
                 >
                   {link.label}
                 </Link>
               );
             })}
           </nav>
-          <button
+          <Button
             type="button"
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-border md:hidden"
+            variant="outline"
+            size="icon"
+            className="min-h-11 min-w-11 md:hidden"
             aria-expanded={open}
             aria-controls="mobile-nav"
-            aria-label={open ? 'Close menu' : 'Open menu'}
+            aria-label={open ? "Close menu" : "Open menu"}
             onClick={() => setOpen((value) => !value)}
           >
-            <MenuIcon open={open} />
-          </button>
+            {open ? <X className="size-4" aria-hidden /> : <Menu className="size-4" aria-hidden />}
+          </Button>
         </div>
       </div>
       {open ? (
@@ -77,10 +66,10 @@ export function SiteHeader() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    aria-current={active ? 'page' : undefined}
+                    aria-current={active ? "page" : undefined}
                     onClick={() => setOpen(false)}
                     className={`block min-h-11 rounded-lg px-3 py-3 text-sm ${
-                      active ? 'bg-muted font-medium text-foreground' : 'text-muted-foreground'
+                      active ? "bg-muted font-medium text-foreground" : "text-muted-foreground"
                     }`}
                   >
                     {link.label}
@@ -99,12 +88,12 @@ export function SiteFooter() {
   return (
     <footer className="mt-auto border-t border-border/80 pb-[env(safe-area-inset-bottom)]">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-2 px-4 py-6 text-sm text-muted-foreground sm:flex-row sm:justify-between">
-        <p>Nothing you type here is stored. Answers live in the result link.</p>
+        <p>Free, anonymous, and for anyone. Delete your session anytime.</p>
         <div className="flex gap-4">
           <Link href="/privacy" className="hover:text-foreground">
             Privacy
           </Link>
-          <Link href="/how-it-works" className="hover:text-foreground">
+          <Link href="/methodology" className="hover:text-foreground">
             How it works
           </Link>
           <a

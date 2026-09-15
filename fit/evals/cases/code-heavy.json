@@ -1,0 +1,10 @@
+{
+  "id": "code-heavy",
+  "description": "Code + tool use should keep coding products in the ranked list.",
+  "session_file": "examples/code_heavy_session.json",
+  "expect": {
+    "categories_include": ["coding_agent", "ide", "automation"],
+    "stack_roles_filled": ["coding", "ide", "automation"],
+    "min_metric": { "code_comfort": 0.6, "automation_appetite": 0.6 }
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "session_id": "code-heavy-fixture",
+  "events": [
+    {
+      "event_type": "requested_code",
+      "scenario_id": "weekend-build",
+      "turn_id": "wb-1",
+      "strength": 1.0,
+      "evidence": "Asked AI to scaffold the MVP as working code."
+    },
+    {
+      "event_type": "delegated_action",
+      "scenario_id": "weekend-build",
+      "turn_id": "wb-2",
+      "strength": 0.9,
+      "evidence": "Let the agent run the build steps without confirming each one."
+    },
+    {
+      "event_type": "changed_constraint",
+      "scenario_id": "weekend-build",
+      "turn_id": "wb-3",
+      "strength": 1.0,
+      "evidence": "Cut scope after seeing the first implementation."
+    },
+    {
+      "event_type": "requested_code",
+      "scenario_id": "messy-data",
+      "turn_id": "md-1",
+      "strength": 0.9,
+      "evidence": "Wanted a script rather than a written explanation."
+    },
+    {
+      "event_type": "requested_integration",
+      "scenario_id": "workflow-automation",
+      "turn_id": "wa-1",
+      "strength": 1.0,
+      "evidence": "Asked for the workflow to connect to the existing stack."
+    },
+    {
+      "event_type": "requested_automation",
+      "scenario_id": "workflow-automation",
+      "turn_id": "wa-2",
+      "strength": 1.0,
+      "evidence": "Wanted the recurring work orchestrated, not documented."
+    },
+    {
+      "event_type": "corrected_output",
+      "scenario_id": "workflow-automation",
+      "turn_id": "wa-3",
+      "strength": 0.9,
+      "evidence": "Fixed the generated automation instead of restarting."
+    },
+    {
+      "event_type": "requested_evidence",
+      "scenario_id": "launch-risk",
+      "turn_id": "lr-1",
+      "strength": 0.8,
+      "evidence": "Asked for the failing test output before accepting the fix."
+    }
+  ]
+}

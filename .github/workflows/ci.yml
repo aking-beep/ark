@@ -17,3 +17,30 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run test
+
+  fit-python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -e 'fit/[dev]'
+      - run: npm run test:fit
+      - run: PYTHONPATH=fit/packages/core/src python -m evals.harness validate-seed
+        working-directory: fit
+      - run: PYTHONPATH=fit/packages/core/src python -m evals.harness run-cases
+        working-directory: fit
+
+  consumer-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: npm run build --workspace @ark/consumer
+        env:
+          API_ORIGIN: http://127.0.0.1:8472

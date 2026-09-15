@@ -1,33 +1,34 @@
-import Link from 'next/link';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export const metadata = {
-  title: 'Privacy — Fit',
-  description: 'Nothing you type in Fit is stored. Answers live in the result link.',
-};
-
-export default function Privacy() {
+export default function PrivacyPage() {
   return (
-    <div className="mx-auto max-w-3xl space-y-6 px-4 py-12">
-      <p className="text-sm font-medium uppercase tracking-[0.18em] text-primary">Privacy</p>
-      <h1 className="text-3xl font-semibold tracking-tight">Nothing is stored</h1>
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-12">
+      <h1 className="text-3xl font-semibold tracking-tight">Privacy</h1>
       <p className="text-muted-foreground">
-        This consumer app does not have an account, a database, or a session. The six answers are encoded into the
-        result URL and the verdict is recalculated each time that link is opened. If you close the tab without copying
-        the link, the answers are gone.
+        Fit runs in anonymous mode. It does not ask for your name, employer, or demographic attributes, and it
+        does not infer protected characteristics.
       </p>
-      <p className="text-muted-foreground">
-        Anyone who has the link can read what you typed. That is the trade for having nothing on a server. Do not put
-        secrets, personal data you would not put in an email, or anything you cannot share into the questions.
-      </p>
-      <p className="text-muted-foreground">
-        Two choices stay in this browser only: Simple / Detailed, and light / dark. They live in{' '}
-        <code className="rounded bg-muted px-1 py-0.5 text-sm">localStorage</code> under keys that never leave the
-        device. They are not answers.
-      </p>
-      <p className="text-sm text-muted-foreground">
-        <Link href="/assess" className="text-primary underline underline-offset-2">
-          Back to the questions
-        </Link>
+      <Card>
+        <CardHeader>
+          <CardTitle>What is stored</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm text-muted-foreground">
+          <p>A random session ID, interaction events, optional free text, and derived scores live in memory on the API process.</p>
+          <p>Share links store a score snapshot without your notes unless those notes already became evidence strings.</p>
+          <p>Feedback stores a 1–5 rating and an optional comment. Do not include identifying details.</p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Delete and export</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm text-muted-foreground">
+          <p>From results, export the session or delete it. Deletion drops events and scores for that ID.</p>
+          <p>Your answers stay in this browser until you delete the session. There is no account database.</p>
+        </CardContent>
+      </Card>
+      <p className="text-xs text-muted-foreground">
+        One limitation, stated once: this is not a personality test, clinical tool, or hiring screen.
       </p>
     </div>
   );

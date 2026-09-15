@@ -1,0 +1,8 @@
+{
+  "id": "privacy-local",
+  "description": "local_only=true must not recommend cloud-only products.",
+  "filters": { "local_only": true },
+  "expect": {
+    "no_cloud_only_products": true
+  }
+}

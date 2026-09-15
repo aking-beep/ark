@@ -6,7 +6,7 @@
 
 ## The one boundary that is load-bearing
 
-`apps/consumer` and `apps/business` do not list `@ark/db` as a dependency. This is checked by the package manager, which makes it the cheapest possible enforcement of the most important architectural constraint in the repo.
+`apps/consumer` and `apps/business` do not list `@ark/db` as a dependency. Consumer **Fit** (`apps/consumer` + `fit/`) uses a separate Python engine and FastAPI; it does not import `@ark/core`. Business and Control share the TypeScript engine in `@ark/core`.
 
 Control HTML is session-scoped to one org. Ingest and calibration take the org from a bearer token. An unauthenticated `?org=` query param is not a tenancy control.
 
