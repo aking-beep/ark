@@ -1,0 +1,30 @@
+consumer-fit-look AFTER
+viewport 1440x900 (mobile 390x844 for after-home-mobile)
+GET / title: <title>Fit — should you use AI for this?</title>
+GET / Fit wordmark: 1
+GET / Simple: 1
+GET / Detailed: 1
+GET / Find my fit: 1
+GET / How it works cards: 1
+GET /assess Let's go: 
+GET /result copy link: 1
+GET /result cost/model: 
+GET /result garbage copy: 
+GET /result garbage recovery: 1
+GET /example Don't use AI: 2
+preset diff: 0 bytes
+business still ink (sample): AIFit AIFit AIFit AIFit AIFit 
+-rw-r--r-- 1 ubuntu ubuntu  64090 Sep 15 06:27 evidence/consumer-fit-look/after-assess.png
+-rw-r--r-- 1 ubuntu ubuntu 108926 Sep 15 06:29 evidence/consumer-fit-look/after-example.png
+-rw-r--r-- 1 ubuntu ubuntu 124000 Sep 15 06:29 evidence/consumer-fit-look/after-home-mobile.png
+-rw-r--r-- 1 ubuntu ubuntu 202231 Sep 15 06:26 evidence/consumer-fit-look/after-home.png
+-rw-r--r-- 1 ubuntu ubuntu  34824 Sep 15 06:28 evidence/consumer-fit-look/after-result-broken.png
+-rw-r--r-- 1 ubuntu ubuntu 112264 Sep 15 06:27 evidence/consumer-fit-look/after-result.png
+
+click-through (after-walk.txt):
+  body bg light oklch(0.985 0.018 85)
+  body bg dark oklch(0.19 0.017 55)
+  Fit. wordmark, Simple/Detailed, Find my fit, See an example
+  wizard completed; example = Don't use AI for this; garbage copy=0
+  theme toggle and mobile menu worked
+  preset diff 0 bytes

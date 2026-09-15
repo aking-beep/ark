@@ -2,14 +2,81 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Fit tokens from aifit-engine (oklch). Light cream / terracotta;
+ * dark is the warm Fit night palette, not Control's cool ink.
+ */
+:root {
+  --background: oklch(0.985 0.018 85);
+  --foreground: oklch(0.28 0.04 45);
+  --card: oklch(0.995 0.01 85);
+  --card-foreground: oklch(0.28 0.04 45);
+  --popover: oklch(0.995 0.01 85);
+  --popover-foreground: oklch(0.28 0.04 45);
+  --primary: oklch(0.58 0.17 35);
+  --primary-foreground: oklch(0.99 0.01 85);
+  --secondary: oklch(0.94 0.04 85);
+  --secondary-foreground: oklch(0.32 0.05 45);
+  --muted: oklch(0.95 0.03 85);
+  --muted-foreground: oklch(0.48 0.04 50);
+  --accent: oklch(0.92 0.07 75);
+  --accent-foreground: oklch(0.32 0.05 45);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.9 0.03 75);
+  --input: oklch(0.9 0.03 75);
+  --ring: oklch(0.58 0.17 35);
+  --radius: 0.9rem;
+}
+
+.dark {
+  --background: oklch(0.19 0.017 55);
+  --foreground: oklch(0.95 0.012 85);
+  --card: oklch(0.23 0.018 58);
+  --card-foreground: oklch(0.95 0.012 85);
+  --popover: oklch(0.23 0.018 58);
+  --popover-foreground: oklch(0.95 0.012 85);
+  --primary: oklch(0.7 0.16 45);
+  --primary-foreground: oklch(0.18 0.03 45);
+  --secondary: oklch(0.29 0.025 60);
+  --secondary-foreground: oklch(0.95 0.012 85);
+  --muted: oklch(0.28 0.02 60);
+  --muted-foreground: oklch(0.74 0.03 75);
+  --accent: oklch(0.34 0.05 70);
+  --accent-foreground: oklch(0.96 0.012 85);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: oklch(0.7 0.16 45);
+}
+
 @layer base {
   html {
+    color-scheme: light;
+  }
+  html.dark {
     color-scheme: dark;
   }
   body {
-    @apply bg-ink-950 text-ink-200 antialiased;
+    @apply bg-background text-foreground antialiased;
   }
   ::selection {
-    @apply bg-signal/30 text-ink-100;
+    background: color-mix(in oklab, var(--primary) 28%, transparent);
+    color: var(--foreground);
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: calc(var(--radius) * 0.4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }

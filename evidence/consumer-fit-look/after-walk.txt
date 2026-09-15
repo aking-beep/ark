@@ -1,0 +1,12 @@
+HOME {"title":"Fit — should you use AI for this?","fit":"Fit.","simple":1,"detailed":1,"find":1,"example":1,"bg":"oklch(0.985 0.018 85)"}
+TOGGLE detailed=true simple=true
+HOW title=Six questions, one engine
+PRIVACY h1=Nothing is stored stored=true
+ASSESS intro h1=Should you use AI for this
+WIZARD q1=What is the task, in a sentence?
+RESULT h1=Yes — within limits copy=1 disclosure=true
+COPY clicked copied=0
+EXAMPLE h1=Don’t use AI for this copy=1
+GARBAGE h2orTitle=That link didn't work copy=0
+THEME dark=true darkBg=oklch(0.19 0.017 55) lightDarkClass=false
+MOBILE menu Try it=1

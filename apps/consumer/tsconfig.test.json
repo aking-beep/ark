@@ -4,12 +4,19 @@
     "module": "CommonJS",
     "moduleResolution": "Node",
     "outDir": "dist-test",
-    "rootDir": "src/components",
+    "rootDir": "src",
     "strict": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
     "isolatedModules": true,
     "noEmit": false
   },
-  "include": ["src/components/copy-href.ts", "src/components/copy-href.test.ts"]
+  "include": [
+    "src/components/copy-href.ts",
+    "src/components/copy-href.test.ts",
+    "src/lib/reading-level.ts",
+    "src/lib/reading-level.test.ts",
+    "src/lib/example-intake.ts",
+    "src/lib/example-intake.test.ts"
+  ]
 }

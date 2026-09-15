@@ -1,0 +1,20 @@
+consumer-fit-look BEFORE
+viewport 1440x900
+GET / title: <title>AIFit — should you use AI for this?</title>
+GET / has AIFit by ARK: 1
+GET / has Simple/Detailed: 
+GET / has cream Fit wordmark coral: 
+GET / bg-ink classes:       8 bg-ink-850
+GET /assess h1: What is the task, in a sentence?
+GET /result copy link: 1
+GET /result garbage copy link: 
+GET /result garbage recovery: 1
+preset unchanged expected
+-rw-r--r-- 1 ubuntu ubuntu  16790 Sep 15 06:23 evidence/consumer-fit-look/before-assess.html
+-rw-r--r-- 1 ubuntu ubuntu  40879 Sep 15 06:22 evidence/consumer-fit-look/before-assess.png
+-rw-r--r-- 1 ubuntu ubuntu  23007 Sep 15 06:22 evidence/consumer-fit-look/before-home.html
+-rw-r--r-- 1 ubuntu ubuntu 115424 Sep 15 06:22 evidence/consumer-fit-look/before-home.png
+-rw-r--r-- 1 ubuntu ubuntu  18368 Sep 15 06:24 evidence/consumer-fit-look/before-result-broken.html
+-rw-r--r-- 1 ubuntu ubuntu  29996 Sep 15 06:23 evidence/consumer-fit-look/before-result-broken.png
+-rw-r--r-- 1 ubuntu ubuntu  79055 Sep 15 06:23 evidence/consumer-fit-look/before-result.html
+-rw-r--r-- 1 ubuntu ubuntu 110447 Sep 15 06:23 evidence/consumer-fit-look/before-result.png

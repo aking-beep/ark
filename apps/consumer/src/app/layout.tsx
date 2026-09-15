@@ -1,32 +1,56 @@
-import type { Metadata } from 'next';
-import Link from 'next/link';
+import type { Metadata, Viewport } from 'next';
+import { Geist, Geist_Mono } from 'next/font/google';
+import { SiteFooter, SiteHeader } from '@/components/site-header';
+import { themeInitScript } from '@/components/theme';
 import './globals.css';
 
+const geistSans = Geist({
+  variable: '--font-geist-sans',
+  subsets: ['latin'],
+});
+
+const geistMono = Geist_Mono({
+  variable: '--font-geist-mono',
+  subsets: ['latin'],
+});
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#faf6ef' },
+    { media: '(prefers-color-scheme: dark)', color: '#1c1814' },
+  ],
+};
+
 export const metadata: Metadata = {
-  title: 'AIFit — should you use AI for this?',
-  description: 'A straight answer about one specific thing you do, including when the answer is no.',
+  title: 'Fit — should you use AI for this?',
+  description: 'Six questions about one task. A straight answer, including when the answer is no.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body>
-        <header className="border-b border-ink-800">
-          <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
-            <Link href="/" className="flex items-baseline gap-2">
-              <span className="font-mono text-sm font-semibold text-signal">AIFit</span>
-              <span className="text-2xs text-ink-500">by ARK</span>
-            </Link>
-            <Link href="/assess" className="text-xs text-ink-400 hover:text-ink-200">
-              Start over
-            </Link>
-          </div>
-        </header>
-        <main className="mx-auto max-w-3xl px-6 py-10">{children}</main>
-        <footer className="mx-auto max-w-3xl px-6 pb-12 text-2xs leading-relaxed text-ink-500">
-          Nothing you type here is stored. Your answers are encoded into the results link and the assessment is
-          recalculated each time it is opened.
-        </footer>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
+      <body className="flex min-h-full flex-col bg-background text-foreground">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground"
+        >
+          Skip to content
+        </a>
+        <SiteHeader />
+        <main id="main-content" tabIndex={-1} className="flex-1 outline-none">
+          {children}
+        </main>
+        <SiteFooter />
       </body>
     </html>
   );
