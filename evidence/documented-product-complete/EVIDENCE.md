@@ -45,6 +45,8 @@ No new third-party runtime dependency. `@ark/sdk` is a workspace package dependi
 
 Round 1 withheld fail-safely. The ingest POST now takes `AbortSignal` with default `timeoutMs` 10s (`packages/sdk/src/index.ts`). The consumer copy control catches a missing or rejecting clipboard and tells the user to copy the address bar by hand. Those paths are unit-tested; the after HTML still shows the copy button on the success path, not the failure message.
 
+Consumer copy-href tests compile with `tsc` then run under `node --test`. GitHub Actions is Node 20, which rejects `--experimental-strip-types`.
+
 ## Definition of done
 
 - **Cost / latency impact:** N/A as a new model call — `estimateTokens` is arithmetic. Ingest now writes extra rows (actions, quality, snapshots) on the existing SQLite file; snapshot writes are throttled to once per 60s per org/window.

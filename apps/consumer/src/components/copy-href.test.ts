@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { copyHref } from './copy-href.ts';
+import { copyHref } from './copy-href.js';
 
 test('copyHref writes the current href and nothing else', async () => {
   const written: string[] = [];
