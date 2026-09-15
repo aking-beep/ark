@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { encodeWorkloadClient } from '@/lib/encode';
+import { estimateTokens } from '@ark/core';
 
 /**
  * The business intake.
@@ -93,6 +94,7 @@ export function Intake() {
   // 3. input / output
   const [inTokens, setInTokens] = useState(1200);
   const [outTokens, setOutTokens] = useState(400);
+  const [promptPaste, setPromptPaste] = useState('');
   const [sourceSystems, setSourceSystems] = useState('');
   const [requiresExternalKnowledge, setExternal] = useState(false);
   const [mustBeStructured, setStructured] = useState(false);
@@ -267,10 +269,31 @@ export function Intake() {
       {step === 2 && (
         <Section
           title="What goes in and what comes out?"
-          help="Rough token counts. A useful shortcut: one page of text is about 700 tokens."
+          help="Paste a typical prompt if you have one. The token count is a rule of thumb (about four characters per token), labelled heuristic, and you can still type the number directly — real prompts grow once the system prompt and retrieved context are counted."
         >
+          <Field
+            label="A typical prompt"
+            hint="Optional. Used only to estimate input tokens. Nothing is stored."
+          >
+            <Area
+              value={promptPaste}
+              onChange={(v) => {
+                setPromptPaste(v);
+                const est = estimateTokens(v);
+                if (est.value > 0) setInTokens(est.value);
+              }}
+              rows={5}
+              placeholder="Paste the prompt you would actually send, including any system instructions you already know about."
+            />
+            {promptPaste.trim().length > 0 && (
+              <p className="mt-2 font-mono text-2xs text-ink-500">
+                ≈ {estimateTokens(promptPaste).value.toLocaleString()} input tokens
+                <span className="ml-2 text-ink-600">heuristic · 4 characters ≈ 1 token</span>
+              </p>
+            )}
+          </Field>
           <div className="grid gap-5 sm:grid-cols-2">
-            <Field label="Input tokens per unit" hint="Prompt, context, retrieved material.">
+            <Field label="Input tokens per unit" hint="Prompt, context, retrieved material. Edit if the paste is wrong.">
               <Num value={inTokens} onChange={setInTokens} min={1} max={2_000_000} />
             </Field>
             <Field label="Output tokens per unit" hint="Usually smaller, usually the expensive half.">

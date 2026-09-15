@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { calibration, raw } from '@ark/db';
+import { calibration, persistCalibrationSnapshot } from '@ark/db';
 import { ORG_ID, WINDOW_DAYS } from '@/lib/org';
 
 export const runtime = 'nodejs';
@@ -17,17 +17,10 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const orgId = url.searchParams.get('org') ?? ORG_ID;
   const days = Math.min(365, Math.max(1, Number(url.searchParams.get('days') ?? WINDOW_DAYS)));
-  const persist = url.searchParams.get('snapshot') === '1';
+  const force = url.searchParams.get('snapshot') === '1';
 
   const set = await calibration(orgId, days);
-
-  if (persist) {
-    await raw().execute({
-      sql: `INSERT INTO calibration_snapshots (id, org_id, generated_at, window_days, basis, payload)
-            VALUES (?,?,?,?,?,?)`,
-      args: [`cal_${Date.now()}`, orgId, Date.now(), days, set.basis, JSON.stringify(set)],
-    });
-  }
+  await persistCalibrationSnapshot(orgId, days, set, force ? 0 : 60_000);
 
   return NextResponse.json(set, {
     headers: {

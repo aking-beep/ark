@@ -2,6 +2,7 @@ import { createClient } from '@libsql/client';
 import { drizzle } from 'drizzle-orm/libsql';
 import * as schema from './schema.js';
 import path from 'node:path';
+import fs from 'node:fs';
 
 /**
  * Resolves to a file in the repo root by default so every app in the monorepo
@@ -13,10 +14,20 @@ export function databaseUrl(): string {
   return `file:${path.join(root, 'ark.db')}`;
 }
 
+/**
+ * Walk up until we find the factory config (or the thesis). Matching a
+ * directory name of "ark" fails the moment the clone is checked out as
+ * anything else — which is every cloud agent and most forks.
+ */
 function findRepoRoot(): string {
   let dir = process.cwd();
-  for (let i = 0; i < 6; i++) {
-    if (dir.endsWith('ark')) return dir;
+  for (let i = 0; i < 10; i++) {
+    if (
+      fs.existsSync(path.join(dir, 'factory.config.json')) ||
+      fs.existsSync(path.join(dir, 'docs', '00-thesis.md'))
+    ) {
+      return dir;
+    }
     const parent = path.dirname(dir);
     if (parent === dir) break;
     dir = parent;

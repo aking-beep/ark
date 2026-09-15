@@ -1,5 +1,5 @@
 {
-  "name": "@ark/db",
+  "name": "@ark/sdk",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,14 +9,13 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "push": "node dist/push.js",
-    "seed": "node dist/seed.js",
-    "test": "tsc -p tsconfig.json && node --test dist/ingest.test.js"
+    "test": "tsc -p tsconfig.json && node --test dist/index.test.js"
   },
   "dependencies": {
-    "@ark/core": "*",
-    "@libsql/client": "^0.14.0",
-    "drizzle-orm": "^0.36.0"
+    "@ark/core": "*"
   },
-  "devDependencies": { "typescript": "^5.6.0", "@types/node": "^22.9.0" }
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "@types/node": "^22.9.0"
+  }
 }

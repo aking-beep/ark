@@ -1,7 +1,8 @@
 import Link from 'next/link';
-import { assessConsumer, fetchCalibration, byId, type Verdict } from '@ark/core';
-import { Panel, Badge, BasisTag, Callout, DimensionList, fmt, type Tone } from '@ark/ui';
+import { assessConsumer, type Verdict } from '@ark/core';
+import { Panel, BasisTag, Callout, DimensionList, type Tone } from '@ark/ui';
 import { decodeIntake } from '@/lib/encode';
+import { CopyResultLink } from '@/components/copy-result-link';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,15 +53,11 @@ export default async function Result({
     );
   }
 
-  // Prefer measured priors when a Control instance is reachable. When it is
-  // not, the assessment still runs and every figure says "heuristic".
-  const calibration = await fetchCalibration({ days: 30 });
-  const a = assessConsumer(intake, { calibration });
-
+  // Consumer does not fetch calibration. The six questions do not collect
+  // volume or token shape, so a measured cost figure would still be a guess
+  // wearing someone else's telemetry. The engine is synchronous and local.
+  const a = assessConsumer(intake);
   const v = VERDICT[a.suitability.verdict];
-  const hoursPerMonth = (intake.timesPerMonth * intake.minutesEach) / 60;
-  const model = byId(a.model.primary.id);
-  const monthly = a.cost.perMonth.value;
 
   return (
     <div className="space-y-8">
@@ -69,6 +66,7 @@ export default async function Result({
         <h1 className={'mt-2 text-3xl font-semibold leading-tight ' + toneText(v.tone)}>{v.label}</h1>
         <p className="mt-3 text-base leading-relaxed text-ink-300">{v.line}</p>
         <p className="mt-3 text-sm leading-relaxed text-ink-400">{a.suitability.headline}</p>
+        <CopyResultLink />
       </section>
 
       {a.suitability.blockers.length > 0 && (
@@ -84,68 +82,21 @@ export default async function Result({
         </Callout>
       )}
 
-      {a.suitability.verdict !== 'not-ai' && (
-        <Panel title="What it would cost you" subtitle="Rough, and labelled honestly.">
-          <div className="grid gap-5 sm:grid-cols-3">
-            <div>
-              <p className="text-2xs uppercase tracking-wider text-ink-400">Per month</p>
-              <p className="mt-1 font-mono text-2xl text-ink-100">{fmt.usd(monthly, 2)}</p>
-              <p className="mt-1 text-2xs text-ink-500">
-                {fmt.int(intake.timesPerMonth)} times &times; {fmt.usd(a.cost.perUnit.value)} each
-              </p>
-            </div>
-            <div>
-              <p className="text-2xs uppercase tracking-wider text-ink-400">Your time today</p>
-              <p className="mt-1 font-mono text-2xl text-ink-100">{hoursPerMonth.toFixed(1)}h</p>
-              <p className="mt-1 text-2xs text-ink-500">per month on this task</p>
-            </div>
-            <div>
-              <p className="text-2xs uppercase tracking-wider text-ink-400">Suggested model</p>
-              <p className="mt-1 text-sm text-ink-100">{model?.displayName ?? a.model.primary.id}</p>
-              <p className="mt-1 text-2xs leading-relaxed text-ink-500">{a.model.rationale}</p>
-            </div>
-          </div>
-
-          <div className="mt-5 border-t border-ink-700 pt-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <BasisTag
-                basis={a.cost.perMonth.basis}
-                source={a.cost.perMonth.source}
-                sampleSize={a.cost.perMonth.sampleSize}
-              />
-              {a.trust.calibrated && <Badge tone="good">calibrated against real telemetry</Badge>}
-            </div>
-            <p className="mt-2 text-xs leading-relaxed text-ink-400">{a.trust.caveat}</p>
-          </div>
-
-          {a.cost.wastedOnFailures.value > 0 && (
-            <p className="mt-4 text-xs leading-relaxed text-ink-400">
-              About <span className="font-mono text-warn">{fmt.usd(a.cost.wastedOnFailures.value, 2)}</span> of
-              that is spent on attempts that fail and get retried. Every tool that quotes you a price per
-              question is leaving this out.
-            </p>
-          )}
-        </Panel>
-      )}
-
-      {(intake.involvesPersonalData || intake.involvesMoneyOrLegal) && (
-        <Callout tone="warn" title="Before you paste anything in">
-          {intake.involvesPersonalData && (
-            <p className="mb-2">
-              You said this involves other people&apos;s personal details. Those people did not agree to have
-              their information sent to an AI company. Check whether the service you use trains on your input —
-              most consumer tiers do by default, and most business tiers do not.
-            </p>
-          )}
-          {intake.involvesMoneyOrLegal && (
-            <p>
-              You said money or legal matters are involved. A language model will produce a fluent, confident,
-              plausible answer whether or not it is correct, and it does not know your jurisdiction, your
-              contract, or your balance. Treat anything it says as a draft for a person to check.
-            </p>
-          )}
-        </Callout>
-      )}
+      <Panel
+        title="What it would look like"
+        subtitle={a.architecture.label}
+        right={<BasisTag basis="heuristic" source="ARK architecture rubric" />}
+      >
+        <p className="text-sm leading-relaxed text-ink-300">{a.architecture.summary}</p>
+        <ul className="mt-4 space-y-1.5">
+          {a.architecture.components.map((c, n) => (
+            <li key={n} className="flex gap-2 text-xs leading-relaxed text-ink-400">
+              <span className="text-ink-600">&middot;</span>
+              {c}
+            </li>
+          ))}
+        </ul>
+      </Panel>
 
       {a.suitability.unlocks.length > 0 && (
         <Panel title="What would change this answer">
@@ -163,6 +114,12 @@ export default async function Result({
       )}
 
       <Panel title="How it scored" subtitle="Seven things, weighted. The weakest one usually decides the answer.">
+        <div className="mb-4">
+          <BasisTag
+            basis={a.suitability.score.basis}
+            source={a.suitability.score.source}
+          />
+        </div>
         <DimensionList dimensions={a.suitability.dimensions} spacing="tight" />
       </Panel>
 

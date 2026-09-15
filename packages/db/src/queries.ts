@@ -350,3 +350,37 @@ export async function wasteBreakdown(orgId: string, days = 30) {
     runawayTraces: n(runaway.rows[0]?.cnt),
   };
 }
+
+/**
+ * Versioned priors. Never UPDATE — when a forecast is wrong we need to know
+ * what the system believed at the time, not what it believes now.
+ */
+export async function persistCalibrationSnapshot(
+  orgId: string,
+  days: number,
+  set: CalibrationSet,
+  minIntervalMs = 60_000,
+): Promise<{ wrote: boolean }> {
+  const last = await raw().execute({
+    sql: `SELECT generated_at FROM calibration_snapshots
+          WHERE org_id=? AND window_days=? ORDER BY generated_at DESC LIMIT 1`,
+    args: [orgId, days],
+  });
+  const prev = last.rows[0]?.generated_at;
+  if (prev != null && Date.now() - Number(prev) < minIntervalMs) {
+    return { wrote: false };
+  }
+  await raw().execute({
+    sql: `INSERT INTO calibration_snapshots (id, org_id, generated_at, window_days, basis, payload)
+          VALUES (?,?,?,?,?,?)`,
+    args: [
+      `cal_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      orgId,
+      Date.now(),
+      days,
+      set.basis,
+      JSON.stringify(set),
+    ],
+  });
+  return { wrote: true };
+}

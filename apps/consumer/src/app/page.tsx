@@ -9,8 +9,7 @@ export default function Landing() {
         </h1>
         <p className="mt-4 text-base leading-relaxed text-ink-300">
           Pick one specific thing you do over and over. Answer six questions about it. You will get a straight
-          answer, a rough monthly cost, and a plain warning if the thing you described is a bad idea to hand to
-          a chatbot.
+          answer, including when the answer is no.
         </p>
         <p className="mt-4 text-base leading-relaxed text-ink-400">
           Sometimes the answer is no. Looking up a number, doing arithmetic, anything that has exactly one
@@ -29,11 +28,11 @@ export default function Landing() {
         <Point title="Six questions">
           No account, no email. The whole thing takes about a minute.
         </Point>
-        <Point title="Real prices">
-          Costs are computed from current published model rates, and every figure says where it came from.
-        </Point>
         <Point title="It can say no">
           Roughly one task in four that people bring here should not go near a language model.
+        </Point>
+        <Point title="The link is the result">
+          Nothing is stored. The answers live in the URL, which is why you can copy it and send it.
         </Point>
       </section>
 

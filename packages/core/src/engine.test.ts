@@ -228,6 +228,27 @@ describe('consumer surface uses the same engine', () => {
     assert.ok(r.security.drivers.length > 0);
     assert.ok(r.security.controls.some((c) => c.id === 'SEC-01'));
   });
+
+  test('question 6 (doesSomething) gates the agent branch', () => {
+    const r = assessConsumer({
+      id: 'c4', name: 'File a refund in the billing tool',
+      task: ['classify'], doesSomething: true, harmIfWrong: 'redo',
+    });
+    assert.ok(r.workload.actions.length > 0);
+    assert.equal(r.workload.multiStep, true);
+    assert.ok(r.workload.task.includes('act'));
+  });
+
+  test('a previously shared link without the new fields still decodes', () => {
+    const r = assessConsumer({
+      id: 'c5', name: 'Summarise long emails', description: '',
+      task: ['summarize'], timesPerMonth: 60, minutesEach: 4,
+      involvesPersonalData: false, involvesMoneyOrLegal: false,
+      needsExactAnswer: false, needsCurrentInfo: false, wouldNoticeIfWrong: 'eventually',
+    });
+    assert.equal(r.depth, 'consumer');
+    assert.equal(r.workload.actions.length, 0);
+  });
 });
 
 describe('security and evaluation', () => {
