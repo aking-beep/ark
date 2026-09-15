@@ -22,7 +22,7 @@
 
   <!-- ===== consumer ===== -->
   <rect x="34" y="254" width="232" height="150" rx="12" fill="#12151c" stroke="#333b4d"/>
-  <text x="54" y="282" fill="#e6eaf0" font-size="13.5" font-weight="600">AIFit</text>
+  <text x="54" y="282" fill="#e6eaf0" font-size="13.5" font-weight="600">MY AI</text>
   <text x="54" y="302" fill="#6b7689" font-size="11" font-family="ui-monospace, Menlo, monospace">apps/consumer &#183; :3000</text>
   <line x1="54" y1="314" x2="246" y2="314" stroke="#222836"/>
   <text x="54" y="334" fill="#c3cad6" font-size="11.5">Six questions about one task.</text>
@@ -33,7 +33,7 @@
 
   <!-- ===== business ===== -->
   <rect x="424" y="254" width="232" height="150" rx="12" fill="#12151c" stroke="#333b4d"/>
-  <text x="444" y="282" fill="#e6eaf0" font-size="13.5" font-weight="600">AIFit for teams</text>
+  <text x="444" y="282" fill="#e6eaf0" font-size="13.5" font-weight="600">MY AI for teams</text>
   <text x="444" y="302" fill="#6b7689" font-size="11" font-family="ui-monospace, Menlo, monospace">apps/business &#183; :3001</text>
   <line x1="444" y1="314" x2="636" y2="314" stroke="#222836"/>
   <text x="444" y="334" fill="#c3cad6" font-size="11.5">Eight sections about one</text>
@@ -49,7 +49,7 @@
   <line x1="834" y1="314" x2="1026" y2="314" stroke="#222836"/>
   <text x="834" y="334" fill="#c3cad6" font-size="11.5">Spend, loops, budgets, PII,</text>
   <text x="834" y="352" fill="#c3cad6" font-size="11.5">unapproved actions &#8212; and the</text>
-  <text x="834" y="370" fill="#c3cad6" font-size="11.5">drift page that grades AIFit.</text>
+  <text x="834" y="370" fill="#c3cad6" font-size="11.5">drift page that grades the teams estimate.</text>
   <rect x="834" y="382" width="192" height="84" rx="8" fill="#0d1715" stroke="#0f766e" stroke-dasharray="4 4"/>
   <text x="850" y="404" font-family="ui-monospace, Menlo, monospace" font-size="11.5" font-weight="700" fill="#5eead4">packages/db</text>
   <text x="850" y="422" fill="#96a0b2" font-size="11">Drizzle over libSQL</text>

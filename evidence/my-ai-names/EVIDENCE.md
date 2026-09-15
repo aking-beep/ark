@@ -44,7 +44,7 @@ Headless Chrome, not a phone in someone’s hand. Control pages were not screens
 
 `factory-prove.sh before` ran after edits had started. The comparable before artefacts are the HTML dumps and 1440×900 PNGs taken from the live servers *before those files were saved*, not a reconstruction. No new dependency. Playwright specs that asserted “Find my fit” / “Fit score” now assert “Find MY AI” / “MY AI score”. `deploy/runtime.test.mjs` greps chrome files for the new names, the absence of `AIFit`, and the `my-ai/` engine paths. Control PRD current copy was updated to “MY AI for teams”. Spec AC6 was added after owner follow-up (engine rename); Round 1 reviewed the chrome-only spec.
 
-Internal type names (`FitFilters`, `UserFitVector`, `myai.fit`) stay as matching-domain vocabulary, not the product name.
+Round 3 non-blocking: diagram labels in `docs/diagrams/*.svg` were updated to MY AI / MY AI for teams.
 
 ## Definition of done
 

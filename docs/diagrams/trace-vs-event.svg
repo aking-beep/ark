@@ -87,6 +87,6 @@
   <!-- footer -->
   <rect x="32" y="578" width="976" height="66" rx="10" fill="#0d0f14" stroke="#222836"/>
   <text x="52" y="601" fill="#c3cad6" font-size="12.5" font-weight="600">One column separates these two pictures: <tspan font-family="ui-monospace, Menlo, monospace" fill="#5eead4">events.turn</tspan>.</text>
-  <text x="52" y="620" fill="#6b7689" font-size="12">Every figure in AIFit is denominated in outcomes, not calls. Without the turn index there is no denominator,</text>
+  <text x="52" y="620" fill="#6b7689" font-size="12">Every figure in MY AI for teams is denominated in outcomes, not calls. Without the turn index there is no denominator,</text>
   <text x="52" y="637" fill="#6b7689" font-size="12">and the headline metric of the whole product is unavailable at any price.</text>
 </svg>
