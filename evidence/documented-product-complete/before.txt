@@ -1,0 +1,70 @@
+=== before capture 2026-09-15 ===
+
+--- SQL: workload assessment (truncated) ---
+wl_content_drafting keys= verdict,score json= {"verdict":"automate-bounded","score":81}
+wl_invoice_lookup keys= verdict,score json= {"verdict":"not-ai","score":41}
+wl_support_triage keys= verdict,score json= {"verdict":"automate-bounded","score":74}
+calibration_snapshots 0
+
+--- GET /api/v1/events (shape) ---
+{
+  "endpoint": "POST /api/v1/events",
+  "auth": "open (set ARK_INGEST_TOKEN to require one)",
+  "body": {
+    "orgId": "org_demo",
+    "events": [
+      {
+        "id": "ev_1",
+        "traceId": "tr_1",
+        "workloadId": "wl_support_triage",
+        "provider": "anthropic",
+        "modelId": "claude-haiku-4.5",
+        "turn": 0,
+        "inputTokens": 2400,
+        "outputTokens": 180,
+        "cachedInputTokens": 1800,
+        "latencyMs": 820,
+        "status": "ok"
+      }
+    ],
+    "traces": [
+      {
+        "traceId": "tr_1",
+        "workloadId": "wl_support_triage",
+        "outcome": "success",
+        "retries": 0
+      }
+    ]
+  },
+  "notes": [
+    "costUsd is optional. Omit it and Control prices the call from its own rate card.",
+    "sample is scanned for sensitive patterns and then discarded. It is never stored.",
+    "Posting the same event id twice is a no-op, so retries are safe."
+  ]
+}
+
+--- GET /api/v1/calibration snapshots side-effect ---
+basis measured patterns 3 keys ['basis', 'generatedAt', 'windowDays', 'orgId', 'patterns']
+calibration_snapshots after GET 0
+
+--- Control /workloads/wl_support_triage (drift?) ---
+status_len 77059
+has_estimate_drift False
+has_cost_per_outcome True
+has_predicted_assumed True
+
+--- Consumer valid result ---
+len 71121
+has_per_month True
+has_suggested_model True
+has_copy False
+has_copied False
+has_link_contains False
+has_verdict_heading True
+
+--- Consumer garbage i ---
+has_recovery True
+has_copy False
+
+--- Consumer landing ---
+promises_monthly_cost True
