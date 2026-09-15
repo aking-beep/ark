@@ -2,49 +2,48 @@
 
 ## What changed
 
-Fit, AIFit for teams, and Control now run as one stack: Docker starts the Python Fit API next to the three Next apps, Fit’s chrome links to the team product, and the business landing describes Fit instead of a six-question quiz. In this station the Fit UI can also reach the engine: `/v1/scenarios` went from a Next 404 to JSON.
+An operator can run Fit, AIFit for teams, and Control from one compose file (Python Fit API on 8472 plus three Next apps). Fit and AIFit for teams stay **separate products**: neither landing funnels into the other. Business still links to ARK Control (estimator↔measurement). The Fit UI reaches its engine through Next (`/v1`, `/health`).
 
 ## How it was measured
 
 Same four local processes the entrypoint would start: consumer `:3000`, business `:3001`, Control `:3002`, Fit API `:8472`. Commands in `before.txt` / `after.txt`:
 
 - `curl` `GET :3000/` and `GET :3001/` (body greps + HTML dumps)
-- `curl` `GET :8472/health`, `GET :3000/health`, `GET :3000/v1/scenarios`, `POST :3000/v1/sessions/demo`
-- `curl` `GET :3002/dashboard` (session redirect)
+- `curl` `GET :8472/health`, `GET :3000/health`, `GET :3000/v1/scenarios`
 - file greps of `deploy/Dockerfile`, `entrypoint.sh`, `docker-compose.yml`
-- screenshots at **1440×900**: `before-consumer.png` / `after-consumer.png`, `before-business.png` / `after-business.png`
+- screenshots at **1440×900**
 
-Stamps: `captures.tsv`. Before commit `6b7e3ad` (dirty=2 was spec + evidence dir, not product code). After commit `db12e35`.
+Stamps: `captures.tsv`. Before commit `6b7e3ad`. After unlink commit `84c2a17`.
 
-No Docker daemon in this station — `docker info` fails. Image contents are the files; the running processes are the same four the entrypoint launches.
+No Docker daemon in this station.
 
 ## Before / after
 
-| | Before | After |
+| | Before (main) | After (this branch) |
 |---|---|---|
-| Artefact | `before.txt`, `before-consumer.html`, `before-business.html`, `before-consumer.png`, `before-business.png` | `after.txt`, `after-consumer.html`, `after-business.html`, `after-consumer.png`, `after-business.png` |
-| Fit `/` nav | No “For teams” | “For teams” → `http://localhost:3001` (visible in `after-consumer.png`) |
-| Business `/` | “The consumer version asks six questions…” | “Fit is the five-minute personal quiz…” / Open Fit; `six questions` absent |
-| Dockerfile | `FROM node:22-bookworm-slim`, no `fit/`, EXPOSE 3000–3002 | `FROM python:3.12-slim-bookworm`, `pip3 install -e ./fit`, EXPOSE 8472 |
+| Artefact | `before.txt`, `before-consumer.html/.png`, `before-business.html/.png` | `after.txt`, `after-consumer.html/.png`, `after-business.html/.png` |
+| Fit `/` nav | No “For teams” | Still no “For teams”; no `localhost:3001` |
+| Business `/` | “six questions” + link to consumer | No “six questions”, no “Not at work?”, no “Open Fit”; Control link remains |
+| Dockerfile | Node-only, EXPOSE 3000–3002 | Python 3.12, `pip install -e ./fit`, EXPOSE 8472, no business URL ARG |
 | Entrypoint | three Next apps | `fit-api` + `uvicorn` + three Next apps |
-| Compose | no 8472 | `8472:8472`, `API_ORIGIN`, `ARK_CONSUMER_URL`, `NEXT_PUBLIC_ARK_BUSINESS_URL` |
+| Compose | no 8472 | `8472:8472`, `API_ORIGIN`; no `ARK_CONSUMER_URL` / `NEXT_PUBLIC_ARK_BUSINESS_URL` |
 | `GET :3000/v1/scenarios` | 404 HTML | 200 JSON, 8 scenarios |
-| `GET :3000/health` | 404 HTML | 200 `{"ok":true,"product":"Fit",...}` |
-| `GET :8472/health` | 200 (local process already running) | 200 (unchanged; now also in the image) |
-| Control `/dashboard` | 307 `/login` | 307 `/login` |
+| `GET :3000/health` | 404 HTML | 200 Fit JSON |
+
+Owner correction after Round 2: Fit↔teams chrome links were removed. They contradicted `docs/prd/aifit-consumer.md` (“This is not a funnel…”).
 
 ## What this does not prove
 
-The Docker image was not built or run here (no daemon). A host with Docker still has to `docker compose -f deploy/docker-compose.yml up --build` to prove the Python+Node image boots. `NEXT_PUBLIC_ARK_BUSINESS_URL` is baked at Next build time; compose runtime env cannot retarget an already-built Fit bundle. Screenshots are 1440×900, so the business “Not at work?” block is below the fold — that change is in the HTML dump, not the PNG. Thesis and ADRs that still mention six-question consumer are unchanged (out of scope).
+The Docker image was not built here (no daemon). Layouts were not redesigned in this station — Fit stays cream/Geist, teams stays the dark instrument panel; this change only removes the funnel links. Thesis/ADRs that still mention a six-question consumer are historical and unchanged.
 
 ## Deviations
 
-None from the spec’s five criteria. The `/v1` App Router proxy (`fit-proxy.ts`) was not named as its own criterion; it is how AC measurement “`GET :3000/v1/scenarios` returns JSON” is met, because Next 16 turbopack was ignoring `next.config` rewrites (before: 404). Timeout 20s; 502/504 on miss. No new runtime npm dependency.
+Spec ACs 3–5 were rewritten after owner review: products must **not** point at each other. Docker + Fit proxy unchanged. No new runtime npm dependency.
 
-Round 1 review: `curl` of the Node tarball in `deploy/Dockerfile` now uses `--max-time 120 --retry 3` so a hung `nodejs.org` fails the build instead of hanging. Mobile “For teams” also closes the menu (`setOpen(false)`). User-facing HTTP and 1440×900 screenshots are unchanged; see the curl line in `after.txt` (appended).
+Round 1: Node tarball `curl --max-time 120`. Round 2 scored 5/5 on the (now withdrawn) cross-link ACs. This evidence is for the corrected spec.
 
 ## Definition of done
 
-- **Cost / latency impact:** N/A for model cost — no new model call. Proxy adds one hop with a 20s ceiling; Fit scoring latency is unchanged.
-- **Observability for new failure modes:** Proxy returns JSON `{error}` with 502 (unreachable / unconfigured) or 504 (timeout) instead of a Next 404 page. Docker logs are four named concurrently streams including `fit-api`.
-- **Docs or ADR updated:** `docs/05-hosting.md`, `docs/06-aifit-consumer.md`, `.env.example`, README. No new ADR (compose still one service; it now includes Python).
+- **Cost / latency impact:** N/A for model cost. Proxy hop has a 20s ceiling.
+- **Observability for new failure modes:** Proxy returns JSON 502/504. Concurrently names `fit-api`.
+- **Docs or ADR updated:** `docs/05-hosting.md`, `docs/06-aifit-consumer.md`, `.env.example`. Hosting now states the products do not cross-link. No new ADR.
