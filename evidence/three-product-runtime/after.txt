@@ -1,66 +1,34 @@
-=== GET http://127.0.0.1:3000/ ===
+=== GET http://127.0.0.1:3000/ (products unlinked) ===
 status=200
-contains 'For teams': True
-contains 'AIFit for teams': True
-contains 'localhost:3001': True
+contains 'For teams': False
+contains 'AIFit for teams': False
+contains 'localhost:3001': False
 contains 'Try it': True
-len 35304
+len 34050
 
 === GET http://127.0.0.1:3001/ ===
-status=200
-contains 'six questions': False
-contains 'five-minute personal quiz': True
-contains 'Open Fit': True
-contains 'Not at work': True
-snippet: Not at work?</h2><p class="mt-2 max-w-3xl text-sm leading-relaxed text-ink-400">Fit is the five-minute personal quiz — how you ask, check, and decide — plus paste-ready setup files for ChatGPT, Claude, Gemini, and Cursor. It is not a team workload assessment.</p><a href="http://localhost:3000" class="mt-4 inline-flex rounded-lg border border-ink-600 px-4 py-2 text-sm text-ink-100 transition hover:
+status=200\ncontains 'six questions': False
+contains 'Not at work': False
+contains 'Open Fit': False
+contains 'ARK Control': True
+contains 'localhost:3000': False
 
 === GET http://127.0.0.1:8472/health ===
 {"ok":true,"version":"0.4.0","privacy":"anonymous","product":"Fit","store":"filesystem","durable":true}
 http=200
 
-=== GET http://127.0.0.1:3000/health (Fit proxy) ===
-{"ok":true,"version":"0.4.0","privacy":"anonymous","product":"Fit","store":"filesystem","durable":true}
-http=200 type=application/json
-
-=== GET http://127.0.0.1:3000/v1/scenarios (Fit proxy) ===
-http=200 type=application/json
-scenarios 8 first launch-risk
-
-=== POST http://127.0.0.1:3000/v1/sessions/demo ===
+=== GET http://127.0.0.1:3000/health ===
 http=200
-session caa800e3-1884-461a-b609-1d4f23cbec42 persona None
 
-=== GET http://127.0.0.1:3002/dashboard ===
-http=307 loc=http://127.0.0.1:3002/login
+=== GET http://127.0.0.1:3000/v1/scenarios ===
+http=200
+scenarios 8
 
-=== deploy files (after) ===
---- Dockerfile FROM/EXPOSE ---
-FROM python:3.12-slim-bookworm
-COPY fit ./fit
-RUN pip3 install --no-cache-dir -e ./fit
-ARG NEXT_PUBLIC_ARK_BUSINESS_URL=http://localhost:3001
-ENV NEXT_PUBLIC_ARK_BUSINESS_URL=$NEXT_PUBLIC_ARK_BUSINESS_URL
-ENV API_ORIGIN=http://127.0.0.1:8472
-EXPOSE 3000 3001 3002 8472
---- entrypoint ---
-export API_ORIGIN="${API_ORIGIN:-http://127.0.0.1:8472}"
-# Bind 0.0.0.0 so compose's published 8472 is reachable from the host.
-# Consumer still calls 127.0.0.1:8472 via API_ORIGIN on the same network namespace.
-exec npx concurrently -n fit-api,consumer,business,control -c yellow,cyan,magenta,green \
-  "bash -c 'cd /app/fit && PYTHONPATH=packages/core/src python3 -m uvicorn services.api.main:app --host 0.0.0.0 --port 8472'" \
---- compose ports ---
-        NEXT_PUBLIC_ARK_BUSINESS_URL: ${NEXT_PUBLIC_ARK_BUSINESS_URL:-http://localhost:3001}
-      - "8472:8472"
-      ARK_CONSUMER_URL: ${ARK_CONSUMER_URL:-http://localhost:3000}
-      NEXT_PUBLIC_ARK_BUSINESS_URL: ${NEXT_PUBLIC_ARK_BUSINESS_URL:-http://localhost:3001}
-      API_ORIGIN: http://127.0.0.1:8472
+=== deploy (no Fit↔business URLs) ===
+/workspace/deploy/Dockerfile:FROM python:3.12-slim-bookworm
+/workspace/deploy/Dockerfile:ENV API_ORIGIN=http://127.0.0.1:8472
+/workspace/deploy/Dockerfile:EXPOSE 3000 3001 3002 8472
+/workspace/deploy/docker-compose.yml:      API_ORIGIN: http://127.0.0.1:8472
 
 === docker daemon ===
 absent — image not built this station
-
-=== npm test (runtime + proxy subset already in full suite) ===
-passed in builder pass: core 51, db 18, sdk 4, runtime 6, fit-proxy 7
-
-=== round-1 fix: Dockerfile Node tarball curl has a timeout ===
-9:  && apt-get install -y --no-install-recommends ca-certificates curl xz-utils \
-10:  && curl -fsSLo /tmp/node.tar.xz --max-time 120 --retry 3 \
