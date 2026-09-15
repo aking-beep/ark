@@ -23,15 +23,15 @@ export function CopyResultLink() {
       <button
         type="button"
         onClick={onClick}
-        className="rounded-lg border border-ink-600 px-4 py-2 text-sm text-ink-100 transition hover:border-ink-500 hover:bg-ink-800"
+        className="rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition hover:bg-muted/50"
       >
         {copied ? 'Copied' : 'Copy link'}
       </button>
-      <p className="max-w-md text-2xs leading-relaxed text-ink-500">
+      <p className="max-w-md text-2xs leading-relaxed text-muted-foreground">
         This link contains your answers. Nothing is stored on a server — anyone you send it to can read what you typed.
       </p>
       {failed && (
-        <p className="w-full text-2xs leading-relaxed text-warn">
+        <p className="w-full text-2xs leading-relaxed text-destructive">
           Could not copy automatically. Select the address bar and copy the URL by hand.
         </p>
       )}

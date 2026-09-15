@@ -1,63 +1,112 @@
 import Link from 'next/link';
 
+const audiences = ['Writing', 'Summaries', 'Triage', 'Lookups', 'Team work'];
+
+const steps = [
+  {
+    title: '1. Answer six questions',
+    body: 'One specific task. About a minute. No account, no email.',
+  },
+  {
+    title: '2. Get a straight verdict',
+    body: 'The same five-rung ladder as the team product — including “don’t use AI for this.”',
+  },
+  {
+    title: '3. Copy the link',
+    body: 'Nothing is stored. Your answers live in the URL, which is why you can send it.',
+  },
+];
+
 export default function Landing() {
   return (
-    <div className="space-y-10">
-      <section>
-        <h1 className="text-3xl font-semibold leading-tight text-ink-100">
-          Should you use AI for this?
-        </h1>
-        <p className="mt-4 text-base leading-relaxed text-ink-300">
-          Pick one specific thing you do over and over. Answer six questions about it. You will get a straight
-          answer, including when the answer is no.
-        </p>
-        <p className="mt-4 text-base leading-relaxed text-ink-400">
-          Sometimes the answer is no. Looking up a number, doing arithmetic, anything that has exactly one
-          correct result — a language model is the wrong tool and will occasionally be confidently wrong at it.
-          This tool will tell you that instead of selling you something.
-        </p>
-        <Link
-          href="/assess"
-          className="mt-7 inline-flex rounded-lg bg-signal px-5 py-2.5 text-sm font-medium text-ink-950 transition hover:bg-signal-glow"
-        >
-          Check one task
-        </Link>
-      </section>
+    <div className="relative overflow-hidden">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-24 right-[-8rem] h-80 w-80 rounded-full bg-primary/20 blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute top-48 -left-24 h-72 w-72 rounded-full bg-accent blur-3xl"
+      />
+      <div className="relative mx-auto flex w-full max-w-5xl flex-col gap-12 px-4 py-12">
+        <section className="space-y-6">
+          <p className="text-sm font-medium uppercase tracking-[0.18em] text-primary">For one specific task</p>
+          <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
+            Should you use AI for this.
+          </h1>
+          <p className="max-w-2xl text-lg text-muted-foreground">
+            Pick one thing you do over and over. Answer six questions about it. You will get a straight answer,
+            including when the answer is no.
+          </p>
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            Brand new to this or already using AI at work? Switch between <strong>Simple</strong> and{' '}
+            <strong>Detailed</strong> anytime with the toggle at the top. About a minute · free · no sign-up ·
+            nothing stored.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {audiences.map((label) => (
+              <span key={label} className="rounded-full bg-secondary px-3 py-1 text-sm text-secondary-foreground">
+                {label}
+              </span>
+            ))}
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Link
+              href="/assess"
+              className="inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+            >
+              Find my fit
+            </Link>
+            <Link
+              href="/example"
+              className="inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-background px-5 text-sm font-medium text-foreground transition hover:bg-muted/50"
+            >
+              See an example
+            </Link>
+          </div>
+        </section>
 
-      <section className="grid gap-4 sm:grid-cols-3">
-        <Point title="Six questions">
-          No account, no email. The whole thing takes about a minute.
-        </Point>
-        <Point title="It can say no">
-          Roughly one task in four that people bring here should not go near a language model.
-        </Point>
-        <Point title="The link is the result">
-          Nothing is stored. The answers live in the URL, which is why you can copy it and send it.
-        </Point>
-      </section>
+        <section aria-labelledby="how-it-works" className="space-y-4">
+          <h2 id="how-it-works" className="text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            How it works
+          </h2>
+          <div className="grid gap-4 md:grid-cols-3">
+            {steps.map((step, i) => (
+              <article key={step.title} className="h-full rounded-xl border border-border bg-card p-5 shadow-panel">
+                <span className="inline-flex size-9 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                  {i + 1}
+                </span>
+                <h3 className="mt-3 text-base font-semibold">{step.title}</h3>
+                <p className="mt-2 text-sm text-muted-foreground">{step.body}</p>
+              </article>
+            ))}
+          </div>
+        </section>
 
-      <section className="rounded-xl border border-ink-800 bg-ink-850 p-5">
-        <h2 className="text-sm font-semibold text-ink-100">Why the numbers carry labels</h2>
-        <p className="mt-2 text-sm leading-relaxed text-ink-400">
-          Most tools like this produce a confident number with nothing behind it. Every figure here is tagged
-          with what it rests on — a rule of thumb, a published benchmark, or something actually measured in a
-          running system. A guess and a measurement should never look the same on screen.
-        </p>
-        <p className="mt-3 text-sm leading-relaxed text-ink-400">
-          If you run this at work and want those labels to say <span className="font-mono text-good">measured</span>{' '}
-          instead of <span className="font-mono text-warn">heuristic</span>, that is what the business version
-          and ARK Control are for.
-        </p>
-      </section>
+        <section className="grid gap-4 md:grid-cols-3">
+          <ValueCard title="It can say no">
+            Looking up a number or doing arithmetic has one correct result. A language model is the wrong tool, and
+            this one will tell you that instead of selling you something.
+          </ValueCard>
+          <ValueCard title="The link is the result">
+            Nothing is written to a server. Anyone you send the link to can read what you typed — that is the trade
+            for having nothing stored.
+          </ValueCard>
+          <ValueCard title="A guess never looks measured">
+            Every figure carries a label for what it rests on. If you run this at work and want those labels to say
+            measured, that is what the team version and ARK Control are for.
+          </ValueCard>
+        </section>
+      </div>
     </div>
   );
 }
 
-function Point({ title, children }: { title: string; children: React.ReactNode }) {
+function ValueCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-ink-800 bg-ink-850 p-4">
-      <h3 className="text-sm font-medium text-ink-100">{title}</h3>
-      <p className="mt-1.5 text-xs leading-relaxed text-ink-400">{children}</p>
-    </div>
+    <article className="rounded-xl border border-border bg-card p-5 shadow-panel">
+      <h3 className="text-base font-semibold">{title}</h3>
+      <p className="mt-2 text-sm text-muted-foreground">{children}</p>
+    </article>
   );
 }
