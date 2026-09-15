@@ -25,6 +25,10 @@ The scoring rubric used in step 4 is [`RUBRIC.md`](RUBRIC.md). The completion ba
 is [`DEFINITION_OF_DONE.md`](DEFINITION_OF_DONE.md). The optional layer for
 client-facing and regulated work is [`GOVERNANCE.md`](GOVERNANCE.md).
 
+If your agents run in remote containers rather than on one machine,
+[`05-CLOUD.md`](05-CLOUD.md) replaces step 1 and nothing else — the container is
+the station, and the isolate invariant holds by a different mechanism.
+
 ## The four invariants
 
 These hold regardless of harness, model, repo, or how urgent the work is. They
