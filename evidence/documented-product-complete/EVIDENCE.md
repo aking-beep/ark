@@ -13,7 +13,7 @@ Same commands, same encoded consumer intake (`evidence/documented-product-comple
 - `GET /workloads/wl_support_triage`
 - `GET /result?i=<intake>` and `GET /result?i=garbage` and `GET /`
 - `POST /api/v1/events` with an irreversible action and no `approvedBy`
-- `npm run test` (48 core + 7 ingest + 3 SDK + 1 copy-href)
+- `npm run test` (48 core + 7 ingest + 4 SDK + 2 copy-href)
 
 Before used `ARK_DATABASE_URL=file:/workspace/packages/db/ark.db` because `findRepoRoot` only matched a directory named `ark`. After uses the repo-root `file:/workspace/ark.db` that `npm run setup` now writes. That path change is part of the feature (zero-config shared DB).
 
@@ -42,6 +42,8 @@ Seeded telemetry, not a customer’s traces. Drift of +1813% is the synthetic mi
 `findRepoRoot` no longer matches a directory named `ark`. The clone here is `/workspace`, so `npm run setup` previously wrote `packages/db/ark.db` while the apps would each have opened a different empty file. The spec did not name this, but acceptance criterion 1 (drift on seeded data after `npm run setup && npm run dev`) cannot hold without a shared database. Declared here: look for `factory.config.json` walking up from cwd.
 
 No new third-party runtime dependency. `@ark/sdk` is a workspace package depending only on `@ark/core`.
+
+Round 1 withheld fail-safely. The ingest POST now takes `AbortSignal` with default `timeoutMs` 10s (`packages/sdk/src/index.ts`). The consumer copy control catches a missing or rejecting clipboard and tells the user to copy the address bar by hand. Those paths are unit-tested; the after HTML still shows the copy button on the success path, not the failure message.
 
 ## Definition of done
 

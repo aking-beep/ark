@@ -71,4 +71,24 @@ describe('ArkIngest', () => {
     assert.equal(ev.sample, undefined);
     assert.ok(ev.sensitiveMatches?.includes('email'));
   });
+
+  test('ingest fails closed when Control does not answer', async () => {
+    const client = new ArkIngest({
+      baseUrl: 'http://control.test',
+      timeoutMs: 30,
+      fetch: ((_url, init) => new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          const err = new Error('aborted');
+          err.name = 'AbortError';
+          reject(err);
+        });
+      })) as typeof fetch,
+    });
+    await assert.rejects(
+      () => client.ingest({
+        events: [{ id: 'e1', traceId: 't1', workloadId: 'w1', provider: 'anthropic', modelId: 'claude-haiku-4.5' }],
+      }),
+      /timed out/,
+    );
+  });
 });

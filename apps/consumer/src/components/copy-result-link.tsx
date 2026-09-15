@@ -5,10 +5,17 @@ import { copyHref } from './copy-href';
 
 export function CopyResultLink() {
   const [copied, setCopied] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   async function onClick() {
-    await copyHref(navigator.clipboard, window.location.href);
-    setCopied(true);
+    try {
+      await copyHref(navigator.clipboard, window.location.href);
+      setCopied(true);
+      setFailed(false);
+    } catch {
+      setCopied(false);
+      setFailed(true);
+    }
   }
 
   return (
@@ -23,6 +30,11 @@ export function CopyResultLink() {
       <p className="max-w-md text-2xs leading-relaxed text-ink-500">
         This link contains your answers. Nothing is stored on a server — anyone you send it to can read what you typed.
       </p>
+      {failed && (
+        <p className="w-full text-2xs leading-relaxed text-warn">
+          Could not copy automatically. Select the address bar and copy the URL by hand.
+        </p>
+      )}
     </div>
   );
 }

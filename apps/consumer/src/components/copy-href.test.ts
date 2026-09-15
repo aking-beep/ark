@@ -7,3 +7,7 @@ test('copyHref writes the current href and nothing else', async () => {
   await copyHref({ writeText: async (s) => { written.push(s); } }, 'http://localhost:3000/result?i=abc');
   assert.deepEqual(written, ['http://localhost:3000/result?i=abc']);
 });
+
+test('copyHref fails closed when the clipboard is missing', async () => {
+  await assert.rejects(() => copyHref(undefined, 'http://localhost:3000/result?i=abc'), /clipboard unavailable/);
+});

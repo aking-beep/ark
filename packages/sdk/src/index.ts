@@ -13,6 +13,8 @@ export interface ArkClientOptions {
   token?: string;
   orgId?: string;
   fetch?: typeof fetch;
+  /** Bound on the ingest POST. A hung Control must not hang the caller. */
+  timeoutMs?: number;
   /**
    * Scan `sample` locally and send labels only. Default true — the prompt
    * never has to leave the process if you set this.
@@ -63,12 +65,29 @@ export class ArkIngest {
     const url = new URL('/api/v1/events', this.opts.baseUrl);
     const headers: Record<string, string> = { 'content-type': 'application/json' };
     if (this.opts.token) headers.authorization = `Bearer ${this.opts.token}`;
-    const res = await this.fetchFn(url, { method: 'POST', headers, body: JSON.stringify(parsed) });
-    if (!res.ok && res.status !== 202) {
-      const text = await res.text().catch(() => '');
-      throw new Error(`ARK ingest failed (${res.status}): ${text.slice(0, 400)}`);
+    const timeoutMs = this.opts.timeoutMs ?? 10_000;
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), timeoutMs);
+    try {
+      const res = await this.fetchFn(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(parsed),
+        signal: ac.signal,
+      });
+      if (!res.ok && res.status !== 202) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`ARK ingest failed (${res.status}): ${text.slice(0, 400)}`);
+      }
+      return res.json() as Promise<IngestResponse>;
+    } catch (err) {
+      if (ac.signal.aborted) {
+        throw new Error(`ARK ingest timed out after ${timeoutMs}ms`);
+      }
+      throw err;
+    } finally {
+      clearTimeout(timer);
     }
-    return res.json() as Promise<IngestResponse>;
   }
 }
 

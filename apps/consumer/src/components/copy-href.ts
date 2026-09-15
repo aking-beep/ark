@@ -6,8 +6,11 @@
  * that has to be true.
  */
 export async function copyHref(
-  clipboard: { writeText: (s: string) => Promise<void> },
+  clipboard: { writeText: (s: string) => Promise<void> } | undefined,
   href: string,
 ): Promise<void> {
+  if (!clipboard || typeof clipboard.writeText !== 'function') {
+    throw new Error('clipboard unavailable');
+  }
   await clipboard.writeText(href);
 }
