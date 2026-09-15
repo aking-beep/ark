@@ -63,7 +63,7 @@ Control is org-scoped at the edge. After `npm run setup`:
 
 `npm run ingest:live` posts traces for Northwind through the same ingest path as production. Until that runs, Northwind's calibration is `calibrated` from Demo Co's patterns — fleet priors, not a thin sample of its own.
 
-Host all three surfaces with Docker: [`docs/05-hosting.md`](docs/05-hosting.md).
+Host all four processes (Fit API + three Next apps) with Docker: [`docs/05-hosting.md`](docs/05-hosting.md).
 
 ## Layout
 

@@ -9,6 +9,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Compass, FileDown, Sparkles } from "lucide-react";
+import { businessUrl } from "@/lib/ark-links";
 
 const audiences = ["Homework", "Home life", "Shop or studio", "Side hustle", "Small team"];
 
@@ -145,6 +146,17 @@ export default function HomePage() {
               a last-checked date you can inspect.
             </CardContent>
           </Card>
+        </section>
+
+        <section className="rounded-xl border border-border/80 p-6">
+          <h2 className="text-base font-semibold">Assessing a team workload?</h2>
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+            Fit is for one person. AIFit for teams takes one repeating job and returns a verdict, an
+            architecture, a cost, and a kill criterion — including no.
+          </p>
+          <a href={businessUrl} className={cn(buttonVariants({ variant: "outline" }), "mt-4 inline-flex min-h-11")}>
+            AIFit for teams
+          </a>
         </section>
       </div>
     </div>

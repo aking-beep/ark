@@ -7,11 +7,13 @@ import { Menu, X } from "lucide-react";
 import { ReadingLevelToggle } from "@/components/reading-level";
 import { ThemeToggle } from "@/components/theme";
 import { Button } from "@/components/ui/button";
+import { businessUrl } from "@/lib/ark-links";
 
-const links = [
+const links: { href: string; label: string; external?: boolean }[] = [
   { href: "/assessment", label: "Try it" },
   { href: "/methodology", label: "How it works" },
   { href: "/privacy", label: "Privacy" },
+  { href: businessUrl, label: "For teams", external: true },
 ];
 
 export function SiteHeader() {
@@ -30,13 +32,21 @@ export function SiteHeader() {
           <ThemeToggle />
           <nav aria-label="Primary" className="hidden items-center gap-3 text-sm text-muted-foreground md:flex">
             {links.map((link) => {
-              const active = pathname === link.href;
+              const active = !link.external && pathname === link.href;
+              const className = active ? "font-medium text-foreground" : "hover:text-foreground";
+              if (link.external) {
+                return (
+                  <a key={link.href} href={link.href} className={className}>
+                    {link.label}
+                  </a>
+                );
+              }
               return (
                 <Link
                   key={link.href}
                   href={link.href}
                   aria-current={active ? "page" : undefined}
-                  className={active ? "font-medium text-foreground" : "hover:text-foreground"}
+                  className={className}
                 >
                   {link.label}
                 </Link>
@@ -61,19 +71,26 @@ export function SiteHeader() {
         <nav id="mobile-nav" aria-label="Mobile" className="border-t border-border/80 px-4 py-3 md:hidden">
           <ul className="space-y-1">
             {links.map((link) => {
-              const active = pathname === link.href;
+              const active = !link.external && pathname === link.href;
+              const className = `block min-h-11 rounded-lg px-3 py-3 text-sm ${
+                active ? "bg-muted font-medium text-foreground" : "text-muted-foreground"
+              }`;
               return (
                 <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    aria-current={active ? "page" : undefined}
-                    onClick={() => setOpen(false)}
-                    className={`block min-h-11 rounded-lg px-3 py-3 text-sm ${
-                      active ? "bg-muted font-medium text-foreground" : "text-muted-foreground"
-                    }`}
-                  >
-                    {link.label}
-                  </Link>
+                  {link.external ? (
+                    <a href={link.href} className={className}>
+                      {link.label}
+                    </a>
+                  ) : (
+                    <Link
+                      href={link.href}
+                      aria-current={active ? "page" : undefined}
+                      onClick={() => setOpen(false)}
+                      className={className}
+                    >
+                      {link.label}
+                    </Link>
+                  )}
                 </li>
               );
             })}
@@ -96,6 +113,9 @@ export function SiteFooter() {
           <Link href="/methodology" className="hover:text-foreground">
             How it works
           </Link>
+          <a href={businessUrl} className="hover:text-foreground">
+            For teams
+          </a>
           <a
             href="https://github.com/aking-beep/ark"
             className="hover:text-foreground"
