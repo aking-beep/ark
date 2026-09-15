@@ -1,0 +1,95 @@
+=== phase-2-control-loop AFTER ===
+commit c691332
+
+--- GET /dashboard (no cookie) ---
+HTTP/1.1 307 Temporary Redirect
+Vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept-Encoding
+link: </_next/static/css/app/layout.css?v=1789451404972>; rel=preload; as="style"
+location: /login
+Cache-Control: no-store, must-revalidate
+X-Powered-By: Next.js
+Content-Type: text/html; charset=utf-8
+Date: Tue, 15 Sep 2026 05:50:05 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+http_code=307 redirect=http://localhost:3002/login
+login_link 2
+
+--- GET /login ---
+http_code=200
+has_sign_in 1
+
+--- POST ingest no Authorization ---
+{"error":"unauthorized"}
+http_code=401
+
+--- POST org_mismatch (demo token, northwind orgId) ---
+{"error":"org_mismatch"}
+http_code=403
+
+--- GET calibration northwind before live ingest ---
+basis calibrated orgId org_northwind patterns 3 first bounded-agent n 961
+
+--- SQL northwind events before live ---
+nw_events [(0,)]
+
+--- npm run ingest:live ---
+
+> ark@0.1.0 ingest:live
+> npm run ingest:live --workspace @ark/db
+
+
+> @ark/db@0.1.0 ingest:live
+> node dist/live-ingest.js
+
+Live-ingested 40 traces (120 events) for org_northwind.
+
+--- GET calibration northwind after live ingest ---
+basis measured orgId org_northwind patterns 1 n 40
+
+--- SQL after live ---
+nw_events [(120,)]
+nw_traces [(40,)]
+
+--- budget block canary ---
+{"accepted":1,"tracesClosed":0,"actionsAccepted":0,"qualityAccepted":0,"priced":1,"unpriced":0,"alerts":1,"circuitBreaks":[]}
+http_code=202
+second:
+{"accepted":0,"tracesClosed":0,"actionsAccepted":0,"qualityAccepted":0,"priced":0,"unpriced":0,"alerts":0,"circuitBreaks":[{"traceId":"tr_canary_2","reason":"budget_block"}]}
+http_code=202
+
+--- webhook sink ---
+POST unapproved action to fire a destination
+{"accepted":0,"tracesClosed":0,"actionsAccepted":1,"qualityAccepted":0,"priced":0,"unpriced":0,"alerts":1,"circuitBreaks":[]}
+http_code=202
+sink_bytes 453
+{"orgId":"org_northwind","kind":"budget_breach","severity":"critical","workloadId":"wl_northwind_blocked","message":"Budget breached: $1.00 against a $0.00 month ceiling. Enforcement is set to \"block\".","ts":1789451406748}
+{"orgId":"org_northwind","kind":"unapproved_action","severity":"critical","workloadId":"wl_northwind_claims","message":"\"Wire funds\" executed in Bank with no approval record. SEC-05 requires a human gate.","ts":1789451406788}
+
+deliveries [(1, 'budget_breach', None), (1, 'unapproved_action', None)]
+
+--- login dana ---
+HTTP/1.1 303 See Other
+vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch
+location: http://localhost:3002/dashboard
+set-cookie: ark_session=eyJ1c2VySWQiOiJ1c2VyX2RhbmEiLCJvcmdJZCI6Im9yZ19kZW1vIiwiZW1haWwiOiJkYW5hQHJpdmVyYmVuZC5leGFtcGxlIiwib3JnTmFtZSI6IkRlbW8gQ28iLCJleHAiOjE3OTAwNTYyMDgxMTV9.56Vr5YIoWMsPPUQyZPT7mmD8lwx0XjdqfaOs9dC8DtA; Path=/; Expires=Tue, 22 Sep 2026 05:50:08 GMT; Max-Age=604800; HttpOnly; SameSite=lax
+Date: Tue, 15 Sep 2026 05:50:08 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+demo_has_Spend 1
+demo_has_support 1
+demo_has_Freight 0
+demo_has_Northwind 0
+
+--- login sam ---
+nw_has_Freight 1
+nw_has_Support 0
+nw_has_Northwind 1
+
+--- docker compose file ---
+present
+compose_config_skipped (no docker or invalid)
