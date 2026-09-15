@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { listWorkloads, spendSummary, qualityByWorkload } from '@ark/db';
 import { Panel, Table, Td, Badge, fmt, type Tone } from '@ark/ui';
-import { ORG_ID, WINDOW_DAYS } from '@/lib/org';
+import { requireOrg, WINDOW_DAYS } from '@/lib/org';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,10 +14,11 @@ const STATUS_TONE: Record<string, Tone> = {
 };
 
 export default async function Workloads() {
+  const { orgId } = await requireOrg();
   const [workloads, spend, quality] = await Promise.all([
-    listWorkloads(ORG_ID),
-    spendSummary(ORG_ID, WINDOW_DAYS),
-    qualityByWorkload(ORG_ID, WINDOW_DAYS),
+    listWorkloads(orgId),
+    spendSummary(orgId, WINDOW_DAYS),
+    qualityByWorkload(orgId, WINDOW_DAYS),
   ]);
 
   const spendBy = new Map(spend.byWorkload.map((w) => [w.workloadId, w]));

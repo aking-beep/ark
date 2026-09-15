@@ -1,16 +1,17 @@
 import Link from 'next/link';
 import { spendSummary, wasteBreakdown, recentAlerts, qualityByWorkload } from '@ark/db';
 import { Panel, Grid, Stat, Badge, Table, Td, Sparkline, Callout, Meter, fmt } from '@ark/ui';
-import { ORG_ID, WINDOW_DAYS } from '@/lib/org';
+import { requireOrg, WINDOW_DAYS } from '@/lib/org';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Dashboard() {
+  const { orgId } = await requireOrg();
   const [spend, waste, alerts, quality] = await Promise.all([
-    spendSummary(ORG_ID, WINDOW_DAYS),
-    wasteBreakdown(ORG_ID, WINDOW_DAYS),
-    recentAlerts(ORG_ID, 8),
-    qualityByWorkload(ORG_ID, WINDOW_DAYS),
+    spendSummary(orgId, WINDOW_DAYS),
+    wasteBreakdown(orgId, WINDOW_DAYS),
+    recentAlerts(orgId, 8),
+    qualityByWorkload(orgId, WINDOW_DAYS),
   ]);
 
   if (spend.traces === 0) return <Empty />;

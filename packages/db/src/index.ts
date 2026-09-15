@@ -2,3 +2,8 @@ export * from './client.js';
 export * from './queries.js';
 export * from './ingest.js';
 export * from './sql.js';
+export * from './auth.js';
+export * from './session-token.js';
+export * from './alerts.js';
+export * from './live-ingest.js';
+export * from './northwind.js';

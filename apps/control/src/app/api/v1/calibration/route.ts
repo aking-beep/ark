@@ -1,21 +1,35 @@
 import { NextResponse } from 'next/server';
-import { calibration, persistCalibrationSnapshot } from '@ark/db';
-import { ORG_ID, WINDOW_DAYS } from '@/lib/org';
+import {
+  calibration, persistCalibrationSnapshot, orgFromBearer, bearerFrom, verifySession,
+} from '@ark/db';
+import { COOKIE, WINDOW_DAYS, sessionSecret } from '@/lib/org';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/**
- * The contract between Control and AIFit.
- *
- * AIFit calls this before every assessment. If it 404s, times out, or returns
- * thin samples, AIFit falls back to its rubric and labels the result
- * `heuristic`. The product degrades honestly instead of silently, which is the
- * whole argument for the provenance ladder existing.
- */
+function cookieValue(header: string | null, name: string): string | undefined {
+  if (!header) return undefined;
+  for (const part of header.split(';')) {
+    const [k, ...rest] = part.trim().split('=');
+    if (k === name) return decodeURIComponent(rest.join('='));
+  }
+  return undefined;
+}
+
+async function orgOf(req: Request): Promise<string | null> {
+  const fromToken = await orgFromBearer(bearerFrom(req));
+  if (fromToken) return fromToken.orgId;
+  const session = await verifySession(cookieValue(req.headers.get('cookie'), COOKIE), sessionSecret());
+  return session?.orgId ?? null;
+}
+
 export async function GET(req: Request) {
+  const orgId = await orgOf(req);
+  if (!orgId) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
+
   const url = new URL(req.url);
-  const orgId = url.searchParams.get('org') ?? ORG_ID;
   const days = Math.min(365, Math.max(1, Number(url.searchParams.get('days') ?? WINDOW_DAYS)));
   const force = url.searchParams.get('snapshot') === '1';
 
@@ -24,9 +38,7 @@ export async function GET(req: Request) {
 
   return NextResponse.json(set, {
     headers: {
-      // Priors move slowly. A minute of staleness is cheaper than hammering the
-      // database on every assessment.
-      'cache-control': 'public, max-age=60, stale-while-revalidate=300',
+      'cache-control': 'private, max-age=60, stale-while-revalidate=300',
     },
   });
 }

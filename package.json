@@ -10,6 +10,7 @@
     "build:packages": "npm run build --workspace @ark/core && npm run build --workspace @ark/db && npm run build --workspace @ark/ui && npm run build --workspace @ark/sdk",
     "db:push": "npm run push --workspace @ark/db",
     "db:seed": "npm run seed --workspace @ark/db",
+    "ingest:live": "npm run ingest:live --workspace @ark/db",
     "setup": "npm run build:packages && npm run db:push && npm run db:seed",
     "dev": "concurrently -n consumer,business,control -c cyan,magenta,green \"npm:dev:consumer\" \"npm:dev:business\" \"npm:dev:control\"",
     "dev:consumer": "npm run dev --workspace @ark/consumer",

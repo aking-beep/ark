@@ -59,4 +59,22 @@ export const DDL: string[] = [
 `CREATE TABLE IF NOT EXISTS calibration_snapshots (
   id TEXT PRIMARY KEY, org_id TEXT, generated_at INTEGER NOT NULL, window_days INTEGER NOT NULL,
   basis TEXT NOT NULL, payload TEXT NOT NULL)`,
+
+`CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, created_at INTEGER NOT NULL)`,
+
+`CREATE TABLE IF NOT EXISTS memberships (
+  user_id TEXT NOT NULL, org_id TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'member',
+  PRIMARY KEY (user_id, org_id))`,
+
+`CREATE TABLE IF NOT EXISTS org_tokens (
+  id TEXT PRIMARY KEY, org_id TEXT NOT NULL, name TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE,
+  created_at INTEGER NOT NULL)`,
+
+`CREATE TABLE IF NOT EXISTS alert_destinations (
+  id TEXT PRIMARY KEY, org_id TEXT NOT NULL, kind TEXT NOT NULL, url TEXT NOT NULL, created_at INTEGER NOT NULL)`,
+
+`CREATE TABLE IF NOT EXISTS alert_deliveries (
+  id TEXT PRIMARY KEY, org_id TEXT NOT NULL, destination_id TEXT NOT NULL, alert_kind TEXT NOT NULL,
+  ts INTEGER NOT NULL, ok INTEGER NOT NULL, status INTEGER, error TEXT)`,
 ];

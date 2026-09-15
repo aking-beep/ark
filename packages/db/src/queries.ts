@@ -282,21 +282,42 @@ export async function qualityByWorkload(orgId: string, days = 30) {
 /**
  * Emit the calibration set that AIFit consumes. This is the join between the
  * two products, and the reason Control is built first.
+ *
+ * Below the 30-trace floor we serve other orgs' patterns as `calibrated`
+ * rather than pretending a handful of own traces are a measurement. The
+ * payload never names the source org.
  */
 export async function calibration(orgId: string, days = 30): Promise<CalibrationSet> {
-  const c = raw();
-  const r = await c.execute({
+  const own = await outcomeRows(orgId, days);
+  const ownSet = buildCalibration(own, { basis: 'measured', windowDays: days, orgId });
+  if (own.length >= 30) return ownSet;
+
+  const fleet = await outcomeRows(orgId, days, { excludeSelf: true });
+  if (fleet.length === 0) return ownSet;
+  const fleetSet = buildCalibration(fleet, { basis: 'calibrated', windowDays: days, orgId });
+  return fleetSet;
+}
+
+async function outcomeRows(
+  orgId: string,
+  days: number,
+  opts: { excludeSelf?: boolean } = {},
+): Promise<OutcomeRow[]> {
+  const where = opts.excludeSelf
+    ? 't.org_id!=? AND t.started_at>=?'
+    : 't.org_id=? AND t.started_at>=?';
+  const r = await raw().execute({
     sql: `SELECT w.pattern, t.total_turns turns, t.outcome, t.retries, t.total_cost_usd cost,
                  (SELECT input_tokens FROM events e WHERE e.trace_id=t.id ORDER BY turn ASC LIMIT 1) first_in,
                  (SELECT input_tokens FROM events e WHERE e.trace_id=t.id ORDER BY turn DESC LIMIT 1) last_in,
                  (SELECT COALESCE(SUM(cached_input_tokens),0) FROM events e WHERE e.trace_id=t.id) cached,
                  (SELECT COALESCE(SUM(input_tokens),0) FROM events e WHERE e.trace_id=t.id) total_in
           FROM traces t JOIN workloads w ON w.id=t.workload_id
-          WHERE t.org_id=? AND t.started_at>=?`,
+          WHERE ${where}`,
     args: [orgId, since(days)],
   });
 
-  const rows: OutcomeRow[] = r.rows.map((x) => ({
+  return r.rows.map((x) => ({
     pattern: s(x.pattern),
     turns: n(x.turns),
     inputTokensFirstTurn: n(x.first_in),
@@ -307,8 +328,6 @@ export async function calibration(orgId: string, days = 30): Promise<Calibration
     totalInputTokens: n(x.total_in),
     costUsd: n(x.cost),
   }));
-
-  return buildCalibration(rows, { basis: 'measured', windowDays: days, orgId });
 }
 
 export async function listWorkloads(orgId: string) {

@@ -2,19 +2,20 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { listWorkloads, spendSummary, observedShape, actionAudit, qualityByWorkload } from '@ark/db';
 import { Panel, Grid, Stat, Badge, BasisTag, Table, Td, Callout, fmt } from '@ark/ui';
-import { ORG_ID, WINDOW_DAYS } from '@/lib/org';
+import { requireOrg, WINDOW_DAYS } from '@/lib/org';
 
 export const dynamic = 'force-dynamic';
 
 export default async function WorkloadDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const { orgId } = await requireOrg();
 
   const [workloads, spend, shape, actions, quality] = await Promise.all([
-    listWorkloads(ORG_ID),
-    spendSummary(ORG_ID, WINDOW_DAYS),
-    observedShape(ORG_ID, id, WINDOW_DAYS),
-    actionAudit(ORG_ID, WINDOW_DAYS),
-    qualityByWorkload(ORG_ID, WINDOW_DAYS),
+    listWorkloads(orgId),
+    spendSummary(orgId, WINDOW_DAYS),
+    observedShape(orgId, id, WINDOW_DAYS),
+    actionAudit(orgId, WINDOW_DAYS),
+    qualityByWorkload(orgId, WINDOW_DAYS),
   ]);
 
   const w = workloads.find((x) => x.id === id);

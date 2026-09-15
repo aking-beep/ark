@@ -1,6 +1,8 @@
 import { createClient } from '@libsql/client';
 import { databaseUrl } from './client.js';
 import { byId, assess, SUPPORT_TRIAGE, INVOICE_LOOKUP, CONTENT_DRAFTING, costOfCall } from '@ark/core';
+import { hashPassword, hashSecret } from './auth.js';
+import { NW_ORG, NORTHWIND_CLAIMS, NORTHWIND_BLOCKED_ID } from './northwind.js';
 
 /**
  * Seeds ~45 days of plausible telemetry.
@@ -20,7 +22,11 @@ const rnd = mulberry32(20260914);
 const client = createClient({ url: databaseUrl(), authToken: process.env.ARK_DATABASE_AUTH_TOKEN });
 
 async function run() {
-  for (const t of ['quality_samples', 'alerts', 'actions', 'events', 'traces', 'budgets', 'workloads', 'calibration_snapshots', 'orgs']) {
+  for (const t of [
+    'alert_deliveries', 'alert_destinations', 'org_tokens', 'memberships', 'users',
+    'quality_samples', 'alerts', 'actions', 'events', 'traces', 'budgets', 'workloads',
+    'calibration_snapshots', 'orgs',
+  ]) {
     await client.execute(`DELETE FROM ${t}`);
   }
 
@@ -211,6 +217,9 @@ async function run() {
   });
 
   console.log(`Seeded ${row.e} events across ${row.t} traces, ${row.a} alerts, ${budgets.length} budgets, 1 calibration snapshot.`);
+
+  await seedSecondOrg(client, now);
+  await seedAuth(client, now);
 }
 
 const round2 = (x: number) => Math.round(x * 100) / 100;
@@ -225,3 +234,81 @@ function mulberry32(seed: number) {
 }
 
 await run();
+
+async function seedSecondOrg(client: ReturnType<typeof createClient>, now: number) {
+  await client.execute({
+    sql: 'INSERT INTO orgs (id,name,created_at) VALUES (?,?,?)',
+    args: [NW_ORG, 'Northwind Logistics', now],
+  });
+  const a = assess(NORTHWIND_CLAIMS);
+  await client.execute({
+    sql: 'INSERT INTO workloads (id,org_id,name,pattern,spec,assessment,status,created_at) VALUES (?,?,?,?,?,?,?,?)',
+    args: [
+      NORTHWIND_CLAIMS.id, NW_ORG, NORTHWIND_CLAIMS.name, a.architecture.pattern,
+      JSON.stringify(NORTHWIND_CLAIMS), JSON.stringify(a), 'live', now,
+    ],
+  });
+  await client.execute({
+    sql: `INSERT INTO workloads (id,org_id,name,pattern,spec,assessment,status,created_at)
+          VALUES (?,?,?,?,?,?,?,?)`,
+    args: [NORTHWIND_BLOCKED_ID, NW_ORG, 'Blocked canary', 'bounded-agent', '{}', null, 'shadow', now],
+  });
+  await client.execute({
+    sql: 'INSERT INTO budgets (id,org_id,scope,scope_id,period,limit_usd,warn_at_pct,enforcement,created_at) VALUES (?,?,?,?,?,?,?,?,?)',
+    args: ['bg_nw_live', NW_ORG, 'workload', NORTHWIND_CLAIMS.id, 'month', 10_000, 80, 'observe', now],
+  });
+  await client.execute({
+    sql: 'INSERT INTO budgets (id,org_id,scope,scope_id,period,limit_usd,warn_at_pct,enforcement,created_at) VALUES (?,?,?,?,?,?,?,?,?)',
+    args: ['bg_nw_block', NW_ORG, 'workload', NORTHWIND_BLOCKED_ID, 'month', 0.0001, 50, 'block', now],
+  });
+  const hook = process.env.ARK_WEBHOOK_URL;
+  if (hook) {
+    await client.execute({
+      sql: 'INSERT INTO alert_destinations (id,org_id,kind,url,created_at) VALUES (?,?,?,?,?)',
+      args: ['dest_nw_hook', NW_ORG, 'webhook', hook, now],
+    });
+  }
+  const slack = process.env.ARK_SLACK_WEBHOOK_URL;
+  if (slack) {
+    await client.execute({
+      sql: 'INSERT INTO alert_destinations (id,org_id,kind,url,created_at) VALUES (?,?,?,?,?)',
+      args: ['dest_nw_slack', NW_ORG, 'slack', slack, now],
+    });
+  }
+  console.log('Seeded org_northwind with zero events (live ingest is npm run ingest:live).');
+}
+
+async function seedAuth(client: ReturnType<typeof createClient>, now: number) {
+  const demoEmail = (process.env.ARK_DEMO_EMAIL ?? 'dana@riverbend.example').toLowerCase();
+  const demoPassword = process.env.ARK_DEMO_PASSWORD ?? 'riverbend-demo';
+  const nwEmail = (process.env.ARK_NORTHWIND_EMAIL ?? 'sam@northwind.example').toLowerCase();
+  const nwPassword = process.env.ARK_NORTHWIND_PASSWORD ?? 'northwind-demo';
+  const demoToken = process.env.ARK_INGEST_TOKEN_DEMO ?? 'ark_dev_ingest_org_demo';
+  const nwToken = process.env.ARK_INGEST_TOKEN_NORTHWIND ?? 'ark_dev_ingest_org_northwind';
+
+  await client.execute({
+    sql: 'INSERT INTO users (id,email,password_hash,created_at) VALUES (?,?,?,?)',
+    args: ['user_dana', demoEmail, hashPassword(demoPassword), now],
+  });
+  await client.execute({
+    sql: 'INSERT INTO memberships (user_id,org_id,role) VALUES (?,?,?)',
+    args: ['user_dana', ORG, 'owner'],
+  });
+  await client.execute({
+    sql: 'INSERT INTO users (id,email,password_hash,created_at) VALUES (?,?,?,?)',
+    args: ['user_sam', nwEmail, hashPassword(nwPassword), now],
+  });
+  await client.execute({
+    sql: 'INSERT INTO memberships (user_id,org_id,role) VALUES (?,?,?)',
+    args: ['user_sam', NW_ORG, 'owner'],
+  });
+  await client.execute({
+    sql: 'INSERT INTO org_tokens (id,org_id,name,token_hash,created_at) VALUES (?,?,?,?,?)',
+    args: ['tok_demo', ORG, 'demo ingest', hashSecret(demoToken), now],
+  });
+  await client.execute({
+    sql: 'INSERT INTO org_tokens (id,org_id,name,token_hash,created_at) VALUES (?,?,?,?,?)',
+    args: ['tok_nw', NW_ORG, 'northwind ingest', hashSecret(nwToken), now],
+  });
+}
+

@@ -47,9 +47,20 @@ Then:
 
 - http://localhost:3000 — consumer AIFit
 - http://localhost:3001 — business AIFit
-- http://localhost:3002 — ARK Control
+- http://localhost:3002 — ARK Control (sign in; see demo accounts below)
 
-Zero config. The database is a local SQLite file (`ark.db`); nothing else is required. To see AIFit's figures flip from `heuristic` to `measured`, set `ARK_CONTROL_URL=http://localhost:3002` in the business app's environment and reload a report.
+Zero config. The database is a local SQLite file (`ark.db`); nothing else is required. To see AIFit's figures flip from `heuristic` to `measured`, set `ARK_CONTROL_URL=http://localhost:3002` and `ARK_CONTROL_TOKEN` to a Demo Co ingest token, then reload a business report.
+
+Control is org-scoped at the edge. After `npm run setup`:
+
+| Org | UI login | Ingest bearer |
+|---|---|---|
+| Demo Co | `dana@riverbend.example` / `riverbend-demo` | `ark_dev_ingest_org_demo` |
+| Northwind (no seeded events) | `sam@northwind.example` / `northwind-demo` | `ark_dev_ingest_org_northwind` |
+
+`npm run ingest:live` posts traces for Northwind through the same ingest path as production. Until that runs, Northwind's calibration is `calibrated` from Demo Co's patterns — fleet priors, not a thin sample of its own.
+
+Host all three surfaces with Docker: [`docs/05-hosting.md`](docs/05-hosting.md).
 
 ## Layout
 
@@ -80,6 +91,7 @@ npm run build          # packages, then all three apps
 npm run test           # engine, ingest, SDK, copy-link tests
 npm run typecheck      # every workspace
 npm run db:seed        # regenerate demo telemetry
+npm run ingest:live    # POST live traces for the Northwind org (not SQL-inserted)
 ```
 
 ## Reading order
@@ -89,8 +101,9 @@ npm run db:seed        # regenerate demo telemetry
 3. [`docs/02-scoring-methodology.md`](docs/02-scoring-methodology.md) — the rubric, with its limitations named
 4. [`docs/03-data-model.md`](docs/03-data-model.md) — traces, events, and why the distinction matters
 5. [`docs/04-roadmap.md`](docs/04-roadmap.md) — phases with exit criteria *and* kill criteria
-6. [`docs/adr/`](docs/adr/) — the decisions that would otherwise be re-litigated every quarter
-7. [`docs/prd/`](docs/prd/) — one per surface: who it is for, what it refuses to do
+6. [`docs/05-hosting.md`](docs/05-hosting.md) — Docker and production env
+7. [`docs/adr/`](docs/adr/) — the decisions that would otherwise be re-litigated every quarter
+8. [`docs/prd/`](docs/prd/) — one per surface: who it is for, what it refuses to do
 
 If you would rather see the five arguments than read them, [`docs/diagrams/`](docs/diagrams/) is an index of the same material: the system map above, the trace-versus-event comparison, the verdict ladder drawn from the source, the provenance ladder worked end to end, and the calibration loop.
 
