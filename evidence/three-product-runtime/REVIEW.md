@@ -32,3 +32,20 @@
 - `evidence/three-product-runtime/after-business.png` does not show the “Not at work?” copy (below the fold at 1440×900); the HTML dump does — already stated in `EVIDENCE.md`.
 - `apps/consumer/src/app/v1/[...path]/route.ts:1-15` plus `apps/consumer/src/lib/fit-proxy.ts:20-21` (`VERCEL` → `null` → 502) mean a Vercel platform rewrite for `/v1` never runs; Vercel deploy is out of spec scope.
 - `apps/consumer/src/app/page.tsx:157` landing CTA label is “AIFit for teams”, not “For teams”; chrome carries the spec’s label and `GET :3000/` still contains it.
+
+## Round 3 — 2026-09-15 — 5/5
+
+| # | Criterion | Point | Finding |
+|---|---|---|---|
+| 1 | Spec satisfied | ✅ | All five current ACs met. `deploy/Dockerfile:4-41` is Python 3.12, copies `fit/`, `pip3 install -e ./fit`, `API_ORIGIN`, EXPOSE 8472. `deploy/entrypoint.sh:14-18` starts `fit-api`/`uvicorn` plus the three Next apps; `deploy/docker-compose.yml:10-16` publishes 8472 and `API_ORIGIN` and does not set `NEXT_PUBLIC_ARK_BUSINESS_URL` or `ARK_CONSUMER_URL`. Fit chrome/landing have no “For teams” and no teams URL (`apps/consumer/src/components/site-header.tsx:11-15`, footer `:87-110`; after `GET :3000/` greps). No `ark-links`. Consumer has no `@ark/db` / `@ark/core`. Business landing has no “Not at work?”, “Open Fit”, six-questions copy, or consumer URL (`apps/business/src/app/page.tsx`); Control stays in `apps/business/src/app/layout.tsx:28-33`. `docs/05-hosting.md:20-32` and `.env.example:28-29` document 8472/`API_ORIGIN` and not Fit↔teams links. `/v1` App Router proxy is in `EVIDENCE.md` as how `GET :3000/v1/scenarios` returns JSON. |
+| 2 | Evidence proves it | ✅ | Before (`6b7e3ad`) and after unlink (`84c2a17`) measured the same way: curl on `:3000/`, `:3001/`, `:8472/health`, `:3000/health`, `:3000/v1/scenarios`; HTML dumps; 1440×900 PNGs. A reader who has not opened the diff can see “six questions” / “Not at work?” leave the business landing, Fit stay without “For teams”, Docker files gain Python/8472, and `/v1/scenarios` go from 404 HTML to JSON. “What this does not prove” is specific (no daemon; layouts not redesigned; thesis/ADRs historical). Scope change is declared in `EVIDENCE.md` Deviations. |
+| 3 | Structure holds | ✅ | Edge routes (`apps/consumer/src/app/health/route.ts:5-7`, `apps/consumer/src/app/v1/[...path]/route.ts:5-8`) call `proxyFitRequest`; they do not touch a database. Fetch to the Fit API lives in `apps/consumer/src/lib/fit-proxy.ts`. No new runtime npm dependency. Consumer still has no `@ark/db` / `@ark/core`. |
+| 4 | Fails safely | ✅ | `deploy/Dockerfile:11` curls the Node tarball with `--max-time 120 --retry 3`. The Fit proxy times out at 20s and returns JSON 502/504 (`apps/consumer/src/lib/fit-proxy.ts:49-69`). |
+| 5 | Readable | ✅ | Names (`fit-proxy`, four-process entrypoint) match the job. Comments explain why (Turbopack rewrites, `0.0.0.0` bind, Python 3.12 from `fit/pyproject.toml`, curl `--max-time`). Tests cover the proxy, deploy-file invariants, and the no-cross-link ACs (`deploy/runtime.test.mjs:39-62`). No leftover `ark-links` / `businessUrl`. |
+
+**Blocking:** none.
+
+**Non-blocking:**
+- Docker image was not built this station (no daemon) — already stated in `EVIDENCE.md`.
+- `apps/consumer/src/app/v1/[...path]/route.ts:1-15` plus `apps/consumer/src/lib/fit-proxy.ts:20-21` (`VERCEL` → `null` → 502) mean a Vercel platform rewrite for `/v1` never runs; Vercel deploy is out of spec scope.
+- Fit before/after HTML dumps are chrome-identical vs main (both lack “For teams”); the unlink vs the withdrawn Round 2 ACs is proved by the business HTML dump and by `after.txt` greps, not by a new Fit nav item disappearing from main.
