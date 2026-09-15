@@ -1,0 +1,42 @@
+=== phase-2-control-loop BEFORE ===
+commit 86e0440
+ARK_DATABASE_URL=file:/workspace/ark.db
+
+--- GET /dashboard (no cookie) ---
+HTTP/1.1 200 OK
+Vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept-Encoding
+Cache-Control: no-store, must-revalidate
+X-Powered-By: Next.js
+Content-Type: text/html; charset=utf-8
+Date: Tue, 15 Sep 2026 05:42:36 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+http_code=200 redirect=
+body_has_Spend 1
+body_has_login 0
+body_has_support_triage 1
+
+--- GET /login ---
+http_code=404
+
+--- POST /api/v1/events no Authorization ---
+{"accepted":1,"tracesClosed":0,"actionsAccepted":0,"qualityAccepted":0,"priced":1,"unpriced":0,"alerts":2,"circuitBreaks":[]}
+http_code=202
+
+--- GET /api/v1/calibration?org=org_does_not_exist ---
+{"basis":"measured","generatedAt":"2026-09-15T05:42:37.490Z","windowDays":30,"orgId":"org_does_not_exist","patterns":[]}
+http_code=200
+
+
+--- SQL orgs / event counts ---
+orgs [('org_demo', 'Demo Co')]
+workloads [('org_demo', 'wl_support_triage'), ('org_demo', 'wl_content_drafting'), ('org_demo', 'wl_invoice_lookup')]
+events_by_org [('org_demo', 11872)]
+tokens_table False
+users_table False
+alert_destinations False
+
+--- docker-compose present ---
+missing deploy/docker-compose.yml
