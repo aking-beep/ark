@@ -1,0 +1,117 @@
+{
+  "session_id": "demo-session",
+  "events": [
+    {
+      "event_type": "requested_evidence",
+      "scenario_id": "launch-risk",
+      "turn_id": "1",
+      "strength": 1.0,
+      "evidence": "Asked for severity and exploitability before recommendation."
+    },
+    {
+      "event_type": "challenged_assumption",
+      "scenario_id": "launch-risk",
+      "turn_id": "2",
+      "strength": 0.9,
+      "evidence": "Questioned engineering's definition of ready."
+    },
+    {
+      "event_type": "requested_comparison",
+      "scenario_id": "contested-research",
+      "turn_id": "1",
+      "strength": 1.0,
+      "evidence": "Asked for side-by-side source comparison."
+    },
+    {
+      "event_type": "requested_sources",
+      "scenario_id": "contested-research",
+      "turn_id": "2",
+      "strength": 1.0,
+      "evidence": "Requested primary sources."
+    },
+    {
+      "event_type": "requested_code",
+      "scenario_id": "weekend-build",
+      "turn_id": "1",
+      "strength": 0.9,
+      "evidence": "Asked AI to scaffold working code."
+    },
+    {
+      "event_type": "changed_constraint",
+      "scenario_id": "weekend-build",
+      "turn_id": "2",
+      "strength": 1.0,
+      "evidence": "Refined MVP scope after first implementation."
+    },
+    {
+      "event_type": "requested_automation",
+      "scenario_id": "workflow-automation",
+      "turn_id": "1",
+      "strength": 1.0,
+      "evidence": "Wanted the workflow orchestrated rather than documented."
+    },
+    {
+      "event_type": "delegated_action",
+      "scenario_id": "workflow-automation",
+      "turn_id": "2",
+      "strength": 0.8,
+      "evidence": "Delegated intermediate configuration work."
+    },
+    {
+      "event_type": "requested_visual",
+      "scenario_id": "campaign-create",
+      "turn_id": "1",
+      "strength": 0.8,
+      "evidence": "Requested visual concept alongside copy."
+    },
+    {
+      "event_type": "corrected_output",
+      "scenario_id": "campaign-create",
+      "turn_id": "2",
+      "strength": 1.0,
+      "evidence": "Iteratively refined visual direction."
+    },
+    {
+      "event_type": "requested_evidence",
+      "scenario_id": "messy-data",
+      "turn_id": "1",
+      "strength": 1.0,
+      "evidence": "Asked which conclusions were unsupported."
+    },
+    {
+      "event_type": "challenged_assumption",
+      "scenario_id": "messy-data",
+      "turn_id": "2",
+      "strength": 1.0,
+      "evidence": "Rejected an inferred value without evidence."
+    },
+    {
+      "event_type": "requested_step_by_step",
+      "scenario_id": "learn-fast",
+      "turn_id": "1",
+      "strength": 0.8,
+      "evidence": "Asked for a structured learning path."
+    },
+    {
+      "event_type": "chose_deep_path",
+      "scenario_id": "learn-fast",
+      "turn_id": "2",
+      "strength": 0.8,
+      "evidence": "Preferred underlying concepts over a cheat sheet."
+    },
+    {
+      "event_type": "requested_alternative",
+      "scenario_id": "executive-choice",
+      "turn_id": "1",
+      "strength": 1.0,
+      "evidence": "Asked for viable alternatives before choosing."
+    },
+    {
+      "event_type": "requested_recommendation",
+      "scenario_id": "executive-choice",
+      "turn_id": "2",
+      "strength": 1.0,
+      "evidence": "Asked AI to recommend after tradeoff analysis."
+    }
+  ]
+}

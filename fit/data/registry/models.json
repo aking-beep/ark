@@ -1,0 +1,165 @@
+[
+  {
+    "id": "claude-fable-5-1",
+    "name": "Claude Fable 5.1",
+    "provider": "Anthropic",
+    "family": "Claude Fable",
+    "availability": [
+      "claude",
+      "api",
+      "cloud marketplaces"
+    ],
+    "modalities": [
+      "text",
+      "image"
+    ],
+    "workload_scores": {
+      "deep_reasoning": 0.95,
+      "fast_reasoning": 0.7,
+      "coding": 0.96,
+      "long_context": 0.9,
+      "research": 0.92,
+      "multimodal": 0.78,
+      "agentic_execution": 0.95,
+      "cost_efficiency": 0.45,
+      "local_control": 0.1
+    },
+    "context_notes": "~1M-token context, 128K max output. Extended thinking always on. Knowledge cutoff mid-2026. Revalidate published limits before public display.",
+    "cost_notes": "Premium tier (~$10 in / $50 out per 1M tokens at seed date); 75% cheaper cached reads than Fable 5. Pricing is time-sensitive; query the official source before display.",
+    "evidence": [
+      {
+        "source_type": "official",
+        "title": "Anthropic Claude Fable",
+        "url": "https://www.anthropic.com/claude/fable",
+        "observed_at": "2026-09-12",
+        "notes": "Released Sep 2026; positioned as long-horizon agentic/reasoning workhorse."
+      },
+      {
+        "source_type": "secondary_analysis",
+        "title": "GPT-5.6 Sol vs Fable 5.1 vs Gemini 3.8 Flash (2026)",
+        "url": "https://tech-insider.org/gpt-5-6-sol-vs-fable-5-1-vs-gemini-3-8-flash-2026/",
+        "observed_at": "2026-09-12",
+        "notes": "Leads Terminal-Bench-Science (52.6%) and SWE Pro (81.2%). Third-party benchmark; re-verify before public claims."
+      }
+    ],
+    "last_evaluated_at": "2026-09-12",
+    "registry_version": "0.3"
+  },
+  {
+    "id": "gpt-5-6-sol",
+    "name": "GPT-5.6 Sol",
+    "provider": "OpenAI",
+    "family": "GPT-5.6",
+    "availability": [
+      "chatgpt",
+      "api"
+    ],
+    "modalities": [
+      "text",
+      "image",
+      "audio"
+    ],
+    "workload_scores": {
+      "deep_reasoning": 0.92,
+      "fast_reasoning": 0.9,
+      "coding": 0.9,
+      "long_context": 0.86,
+      "research": 0.9,
+      "multimodal": 0.85,
+      "agentic_execution": 0.88,
+      "cost_efficiency": 0.7,
+      "local_control": 0.1
+    },
+    "context_notes": "~1M-token context, 128K max output. Tunable effort levels up to xhigh. Broad tool surface (function calling, web/file search, code interpreter, computer use, MCP).",
+    "cost_notes": "Mid tier (~$5 in / $30 out per 1M tokens at seed date). Token-efficient for high-throughput work. Verify current pricing before display.",
+    "evidence": [
+      {
+        "source_type": "secondary_analysis",
+        "title": "Gemini 3.8 Flash vs Claude Fable 5.1 vs GPT-5.6 Sol (DEV Community)",
+        "url": "https://dev.to/hassann/gemini-38-flash-vs-claude-fable-51-vs-gpt-56-sol-which-api-should-developers-use-48b5",
+        "observed_at": "2026-09-12",
+        "notes": "Artificial Analysis Intelligence Index 59 at xhigh; leads FrontierMath Tier 1-3 and ARC-AGI-2. Third-party benchmark; re-verify before public claims."
+      }
+    ],
+    "last_evaluated_at": "2026-09-12",
+    "registry_version": "0.3"
+  },
+  {
+    "id": "gemini-3-8-flash",
+    "name": "Gemini 3.8 Flash",
+    "provider": "Google",
+    "family": "Gemini 3.8",
+    "availability": [
+      "gemini",
+      "api",
+      "google workspace"
+    ],
+    "modalities": [
+      "text",
+      "image",
+      "audio",
+      "video"
+    ],
+    "workload_scores": {
+      "deep_reasoning": 0.9,
+      "fast_reasoning": 0.95,
+      "coding": 0.82,
+      "long_context": 0.93,
+      "research": 0.9,
+      "multimodal": 0.96,
+      "agentic_execution": 0.8,
+      "cost_efficiency": 0.95,
+      "local_control": 0.12
+    },
+    "context_notes": "~1M-token context, 65K max output. thinking_level low/medium/high. Knowledge cutoff March 2026. Search-grounded and strongly multimodal.",
+    "cost_notes": "Value tier (~$0.75 in / $3.75 out per 1M tokens introductory at seed date). Verify current pricing before display.",
+    "evidence": [
+      {
+        "source_type": "secondary_analysis",
+        "title": "GPT-5.6 Sol vs Fable 5.1 vs Gemini 3.8 Flash (2026)",
+        "url": "https://tech-insider.org/gpt-5-6-sol-vs-fable-5-1-vs-gemini-3-8-flash-2026/",
+        "observed_at": "2026-09-12",
+        "notes": "Highest GPQA Diamond (95.3%) of the trio at a fraction of flagship price. Third-party benchmark; re-verify before public claims."
+      }
+    ],
+    "last_evaluated_at": "2026-09-12",
+    "registry_version": "0.3"
+  },
+  {
+    "id": "open-weight-local",
+    "name": "Open-weight (local)",
+    "provider": "community",
+    "family": "open-weights",
+    "availability": [
+      "ollama",
+      "local"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "workload_scores": {
+      "deep_reasoning": 0.65,
+      "fast_reasoning": 0.72,
+      "coding": 0.66,
+      "long_context": 0.55,
+      "research": 0.5,
+      "multimodal": 0.42,
+      "agentic_execution": 0.5,
+      "cost_efficiency": 0.95,
+      "local_control": 0.98
+    },
+    "context_notes": "Category entry for current open-weight models run locally (e.g. via Ollama). Capabilities vary by chosen model and hardware; pick a specific current model before public display.",
+    "cost_notes": "No vendor API bill; hardware-dependent. Best for privacy and offline control.",
+    "evidence": [
+      {
+        "source_type": "official",
+        "title": "Ollama \u2014 run open models locally",
+        "url": "https://ollama.com",
+        "observed_at": "2026-09-12",
+        "notes": "Represents the local open-weight option. Re-evaluate against a specific current model before public claims."
+      }
+    ],
+    "last_evaluated_at": "2026-09-12",
+    "registry_version": "0.3"
+  }
+]

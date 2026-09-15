@@ -4,7 +4,7 @@ Three products, one engine, one commitment: **a guess and a measurement never lo
 
 | Surface | Port | What it is |
 |---|---|---|
-| **AIFit** (consumer) | 3000 | Six questions about one task you do. A straight answer, including "no". |
+| **Fit** (consumer) | 3000 | Five-minute quiz: your AI style, matched tools, paste-ready setup files. |
 | **AIFit for teams** (business) | 3001 | Thirty questions about one workload. Verdict, architecture, model, controls, eval plan, cost, roadmap. |
 | **ARK Control** | 3002 | Telemetry ingest and cost governance for AI workloads in production. Measures what AIFit estimated. |
 
@@ -39,13 +39,14 @@ A prior is promoted only above that floor. Below it, the number stays `heuristic
 
 ```bash
 npm install
-npm run setup     # build packages, push schema, seed demo telemetry
-npm run dev       # all three apps
+pip install -e 'fit/[dev]'   # consumer Fit API (Python)
+npm run setup                # build ARK packages, push schema, seed Control
+npm run dev                  # Fit API + consumer + business + control
 ```
 
 Then:
 
-- http://localhost:3000 — consumer AIFit
+- http://localhost:3000 — Fit (consumer AIFit)
 - http://localhost:3001 — business AIFit
 - http://localhost:3002 — ARK Control (sign in; see demo accounts below)
 
@@ -70,25 +71,27 @@ packages/
   db/       Drizzle schema + seed for Control
   ui/       shared component vocabulary and Tailwind preset
   sdk/      ingest client — trace ids, turn indices, POST /api/v1/events
+fit/        Fit engine — Python scoring, FastAPI, registry, evals (consumer backend)
 apps/
-  consumer/ AIFit B2C   — 6 questions, no persistence, results encoded in the URL
-  business/ AIFit B2B   — 8 sections, no persistence, plus POST /api/assess
+  consumer/ Fit B2C     — adaptive quiz UI; proxies /v1 to fit API
+  business/ AIFit B2B   — 8 sections, @ark/core, plus POST /api/assess
   control/  ARK Control — ingest, dashboards, budgets, calibration endpoint
 docs/       thesis, architecture, PRDs, methodology, data model, ADRs
 ```
 
 ### The boundary that matters
 
-`apps/consumer` and `apps/business` **do not depend on `@ark/db`**. This is enforced by their `package.json` and it is deliberate: the only coupling between AIFit and Control is one documented HTTP call that is allowed to fail. `fetchCalibration()` returns `null` on timeout, non-200, or schema mismatch, and the product degrades honestly rather than breaking or — worse — silently substituting a guess for a measurement.
+`apps/consumer` and `apps/business` **do not depend on `@ark/db`**. Consumer Fit uses the Python engine under `fit/`; business uses `@ark/core`. The only coupling between **business** AIFit and Control is one documented HTTP call that is allowed to fail. `fetchCalibration()` returns `null` on timeout, non-200, or schema mismatch, and the product degrades honestly rather than breaking or — worse — silently substituting a guess for a measurement.
 
-Neither AIFit surface stores anything. Both encode the intake into the result link and recompute server-side on every view. A consumer tool that asks what you do all day and keeps a copy has to earn that; this one does not keep anything.
+Consumer Fit keeps quiz progress in the browser (`localStorage`) and scores via the Fit API. Business AIFit encodes intake into the result link and recomputes server-side on every view.
 
 ## Commands
 
 ```bash
 npm run dev            # all three apps concurrently
 npm run build          # packages, then all three apps
-npm run test           # engine, ingest, SDK, copy-link tests
+npm run test           # @ark/core, db, SDK
+npm run test:fit       # Fit Python engine (pytest)
 npm run typecheck      # every workspace
 npm run db:seed        # regenerate demo telemetry
 npm run ingest:live    # POST live traces for the Northwind org (not SQL-inserted)
@@ -102,8 +105,9 @@ npm run ingest:live    # POST live traces for the Northwind org (not SQL-inserte
 4. [`docs/03-data-model.md`](docs/03-data-model.md) — traces, events, and why the distinction matters
 5. [`docs/04-roadmap.md`](docs/04-roadmap.md) — phases with exit criteria *and* kill criteria
 6. [`docs/05-hosting.md`](docs/05-hosting.md) — Docker and production env
-7. [`docs/adr/`](docs/adr/) — the decisions that would otherwise be re-litigated every quarter
-8. [`docs/prd/`](docs/prd/) — one per surface: who it is for, what it refuses to do
+7. [`docs/06-aifit-consumer.md`](docs/06-aifit-consumer.md) — Fit consumer (merged from aifit-engine)
+8. [`docs/adr/`](docs/adr/) — the decisions that would otherwise be re-litigated every quarter
+9. [`docs/prd/`](docs/prd/) — one per surface: who it is for, what it refuses to do
 
 If you would rather see the five arguments than read them, [`docs/diagrams/`](docs/diagrams/) is an index of the same material: the system map above, the trace-versus-event comparison, the verdict ladder drawn from the source, the provenance ladder worked end to end, and the calibration loop.
 

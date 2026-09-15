@@ -1,0 +1,1308 @@
+[
+  {
+    "id": "launch-risk",
+    "title": "Going live Friday",
+    "domain": "decision",
+    "setup": "Your shop, site, or product goes live Friday. One person says it is ready. Someone else spotted a possible problem. You already told people the date.",
+    "initial_ambiguity": "You do not yet know how serious it is, or what 'ready' means.",
+    "dimensions": [
+      "evidence_seeking",
+      "clarification_tendency",
+      "recommendation_preference",
+      "depth_preference"
+    ],
+    "rounds": 3,
+    "turns": [
+      {
+        "id": "lr-1",
+        "prompt": "People want an answer in ten minutes. What do you have the AI do first?",
+        "hidden_information": "Severity and exploitability have not been established.",
+        "allow_free_text": true,
+        "choices": [
+          {
+            "id": "a",
+            "label": "Find out how bad it is and what 'ready' actually means before anyone picks a path.",
+            "events": [
+              {
+                "event_type": "requested_evidence",
+                "strength": 1.0
+              },
+              {
+                "event_type": "asked_clarification",
+                "strength": 0.8
+              }
+            ]
+          },
+          {
+            "id": "b",
+            "label": "Just recommend go / wait / patch now so the conversation has a decision.",
+            "events": [
+              {
+                "event_type": "requested_recommendation",
+                "strength": 1.0
+              },
+              {
+                "event_type": "chose_fast_path",
+                "strength": 0.9
+              }
+            ]
+          },
+          {
+            "id": "c",
+            "label": "Compare waiting vs. going live with a patch vs. having a backup plan.",
+            "events": [
+              {
+                "event_type": "requested_comparison",
+                "strength": 1.0
+              },
+              {
+                "event_type": "chose_deep_path",
+                "strength": 0.7
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lr-2",
+        "prompt": "One person still says 'ready.' Another still flags a possible problem. Next move?",
+        "allow_free_text": true,
+        "choices": [
+          {
+            "id": "a",
+            "label": "Challenge what 'ready' means and ask for the evidence behind that claim.",
+            "events": [
+              {
+                "event_type": "challenged_assumption",
+                "strength": 1.0
+              },
+              {
+                "event_type": "requested_evidence",
+                "strength": 0.8
+              }
+            ]
+          },
+          {
+            "id": "b",
+            "label": "Have the AI write the go-live recommendation and own the call.",
+            "events": [
+              {
+                "event_type": "delegated_action",
+                "strength": 0.9
+              },
+              {
+                "event_type": "requested_recommendation",
+                "strength": 0.8
+              }
+            ]
+          },
+          {
+            "id": "c",
+            "label": "Ask for a concise briefing only: decision, risk, and one backup.",
+            "events": [
+              {
+                "event_type": "requested_summary",
+                "strength": 1.0
+              },
+              {
+                "event_type": "requested_recommendation",
+                "strength": 0.6
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lr-3",
+        "prompt": "Someone wants a shared tracker standing up in an hour. How do you staff the work?",
+        "allow_free_text": true,
+        "choices": [
+          {
+            "id": "a",
+            "label": "Connect it to the existing tracker and chat stack rather than a one-off doc.",
+            "events": [
+              {
+                "event_type": "requested_integration",
+                "strength": 1.0
+              }
+            ]
+          },
+          {
+            "id": "b",
+            "label": "Keep it local and cheap. I do not want another cloud workspace.",
+            "events": [
+              {
+                "event_type": "chose_local_control",
+                "strength": 0.9
+              },
+              {
+                "event_type": "chose_lower_cost",
+                "strength": 0.8
+              }
+            ]
+          },
+          {
+            "id": "c",
+            "label": "Give me a tight one-page brief, not a war room.",
+            "events": [
+              {
+                "event_type": "requested_summary",
+                "strength": 1.0
+              },
+              {
+                "event_type": "chose_fast_path",
+                "strength": 0.6
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "contested-research",
+    "title": "People you trust disagree",
+    "domain": "research",
+    "setup": "You need to decide on a claim where people you trust disagree — a purchase, a class, a shop choice, or a briefing.",
+    "initial_ambiguity": "You do not know which sources are primary, dated, or methodologically weak.",
+    "dimensions": [
+      "evidence_seeking",
+      "comparison_preference",
+      "alternative_seeking",
+      "structure_preference"
+    ],
+    "rounds": 3,
+    "turns": [
+      {
+        "id": "cr-1",
+        "prompt": "How should the AI start the brief?",
+        "allow_free_text": true,
+        "choices": [
+          {
+            "id": "a",
+            "label": "Put the conflicting sources side by side, with dates and methods, before any conclusion.",
+            "events": [
+              {
+                "event_type": "requested_comparison",
+                "strength": 1.0
+              },
+              {
+                "event_type": "requested_sources",
+                "strength": 1.0
+              }
+            ]
+          },
+          {
+            "id": "b",
+            "label": "Pick the most likely story and write a confident one-pager.",
+            "events": [
+              {
+                "event_type": "requested_recommendation",
+                "strength": 0.8
+              },
+              {
+                "event_type": "chose_fast_path",
+                "strength": 0.8
+              }
+            ]
+          },
+          {
+            "id": "c",
+            "label": "Ask the AI to find an alternative explanation the two camps both miss.",
+            "events": [
+              {
+                "event_type": "requested_alternative",
+                "strength": 1.0
+              },
+              {
+                "event_type": "challenged_assumption",
+                "strength": 0.6
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "cr-2",
+        "prompt": "Leadership wants something they can use in 15 minutes.",
+        "allow_free_text": true,
+        "choices": [
+          {
+            "id": "a",
+            "label": "Structured brief: claim, evidence, disagreements, confidence, recommended stance.",
+            "events": [
+              {
+                "event_type": "requested_step_by_step",
+                "strength": 1.0
+              },
+              {
+                "event_type": "requested_evidence",
+                "strength": 0.7
+              }
+            ]
+          },
+          {
+            "id": "b",
+            "label": "Give me the bottom line and hide the research sausage.",
+            "events": [
+              {
+                "event_type": "requested_summary",
+                "strength": 1.0
+              },
+              {
+                "event_type": "requested_recommendation",
+                "strength": 0.8
+              }
+            ]
+          },
+          {
+            "id": "c",
+            "label": "Keep searching until a primary source settles it.",
+            "events": [
+              {
+                "event_type": "requested_sources",
+                "strength": 1.0
+              },
+              {
+                "event_type": "chose_deep_path",
+                "strength": 0.9
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "cr-3",
+        "prompt": "A stakeholder asks you to 'just make it sound settled.'",
+        "allow_free_text": true,
+        "choices": [
+          {
+            "id": "a",
+            "label": "Refuse the false certainty. Keep sources and disagreements visible.",
+            "events": [
+              {
+                "event_type": "challenged_assumption",
+                "strength": 1.0
+              },
+              {
+                "event_type": "requested_sources",
+                "strength": 0.8
+              }
+            ]
+          },
+          {
+            "id": "b",
+            "label": "Write a short executive summary with a recommended stance and residual risk.",
+            "events": [
+              {
+                "event_type": "requested_summary",
+                "strength": 0.9
+              },
+              {
+                "event_type": "requested_recommendation",
+                "strength": 0.8
+              }
+            ]
+          },
+          {
+            "id": "c",
+            "label": "Ask what 'settled' is supposed to mean before changing the brief.",
+            "events": [
+              {
+                "event_type": "asked_clarification",
+                "strength": 1.0
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "weekend-build",
+    "title": "Make it this weekend",
+    "domain": "coding",
+    "setup": "You have an idea and two days to make something usable — an app, a shop page, or a class project.",
+    "initial_ambiguity": "Scope, stack, and what 'usable' means are still undefined.",
+    "dimensions": [
+      "code_comfort",
+      "autonomy_preference",
+      "iteration_preference",
+      "quality_preference"
+    ],
+    "rounds": 3,
+    "turns": [
+      {
+        "id": "wb-1",
+        "prompt": "Saturday morning. First instruction to the AI?",
+        "allow_free_text": true,
+        "choices": [
+          {
+            "id": "a",
+            "label": "Scaffold working code for a tiny vertical slice I can run locally.",
+            "events": [
+              {
+                "event_type": "requested_code",
+                "strength": 1.0
+              },
+              {
+                "event_type": "delegated_action",
+                "strength": 0.7
+              }
+            ]
+          },
+          {
+            "id": "b",
+            "label": "Write a careful architecture and wait for my approval before any files change.",
+            "events": [
+              {
+                "event_type": "requested_step_by_step",
+                "strength": 0.8
+              },
+              {
+                "event_type": "asked_clarification",
+                "strength": 0.7
+              }
+            ]
+          },
+          {
+            "id": "c",
+            "label": "Ship something crude today; we will refine after we see it.",
+            "events": [
+              {
+                "event_type": "changed_constraint",
+                "strength": 0.8
+              },
+              {
+                "event_type": "chose_fast_path",
+                "strength": 0.8
+              },
+              {
+                "event_type": "requested_code",
+                "strength": 0.6
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "wb-2",
+        "prompt": "The first version runs but is rough. What now?",
+        "allow_free_text": true,
+        "choices": [
+          {
+            "id": "a",
+            "label": "I will keep correcting it; preserve the constraints and iterate in place.",
+            "events": [
+              {
+                "event_type": "corrected_output",
+                "strength": 1.0
+              },
+              {
+                "event_type": "changed_constraint",
+                "strength": 0.7
+              }
+            ]
+          },
+          {
+            "id": "b",
+            "label": "Do it right: tests, polish, and no known bugs before Sunday night.",
+            "events": [
+              {
+                "event_type": "chose_best_quality",
+                "strength": 1.0
+              },
+              {
+                "event_type": "requested_code",
+                "strength": 0.6
+              }
+            ]
+          },
+          {
+            "id": "c",
+            "label": "You handle the remaining implementation; ping me only for product calls.",
+            "events": [
+              {
+                "event_type": "delegated_action",
+                "strength": 1.0
+              },
+              {
+                "event_type": "requested_automation",
+                "strength": 0.4
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "wb-3",
+        "prompt": "Someone suggests wiring payments, email, and analytics before the MVP is loved.",
+        "allow_free_text": true,
+        "choices": [
+          {
+            "id": "a",
+            "label": "Yes, integrate the real stack now so we do not fake it.",
+            "events": [
+              {
+                "event_type": "requested_integration",
+                "strength": 1.0
+              },
+              {
+                "event_type": "requested_code",
+                "strength": 0.6
+              }
+            ]
+          },
+          {
+            "id": "b",
+            "label": "No. Correct the core loop first, then add integrations.",
+            "events": [
+              {
+                "event_type": "corrected_output",
+                "strength": 0.8
+              },
+              {
+                "event_type": "changed_constraint",
+                "strength": 0.8
+              }
+            ]
+          },
+          {
+            "id": "c",
+            "label": "Use the cheapest hosted glue and keep moving.",
+            "events": [
+              {
+                "event_type": "chose_cloud_service",
+                "strength": 0.8
+              },
+              {
+                "event_type": "chose_lower_cost",
+                "strength": 0.8
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "workflow-automation",
+    "title": "The thing you do every week",
+    "domain": "automation",
+    "setup": "A repeating chore eats three hours every week — invoices, school emails, inventory, or a team process.",
+    "initial_ambiguity": "You have not decided local vs cloud, cost, or how much control to keep.",
+    "dimensions": [
+      "automation_appetite",
+      "autonomy_preference",
+      "local_control_preference",
+      "budget_sensitivity"
+    ],
+    "rounds": 3,
+    "turns": [
+      {
+        "id": "wa-1",
+        "prompt": "How should this work get handled?",
+        "allow_free_text": true,
+        "choices": [
+          {
+            "id": "a",
+            "label": "Automate it. Orchestrate the steps instead of writing a better checklist.",
+            "events": [
+              {
+                "event_type": "requested_automation",
+                "strength": 1.0
+              },
+              {
+                "event_type": "delegated_action",
+                "strength": 0.6
+              }
+            ]
+          },
+          {
+            "id": "b",
+            "label": "Document a careful human process first. I do not want a bot making this call.",
+            "events": [
+              {
+                "event_type": "requested_step_by_step",
+                "strength": 0.8
+              },
+              {
+                "event_type": "asked_clarification",
+                "strength": 0.5
+              }
+            ]
+          },
+          {
+            "id": "c",
+            "label": "Use the cheapest hosted tool that mostly works.",
+            "events": [
+              {
+                "event_type": "chose_lower_cost",
+                "strength": 1.0
+              },
+              {
+                "event_type": "chose_cloud_service",
+                "strength": 0.8
+              },
+              {
+                "event_type": "requested_automation",
+                "strength": 0.6
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "wa-2",
+        "prompt": "Where should the automation live?",
+        "allow_free_text": true,
+        "choices": [
+          {
+            "id": "a",
+            "label": "Self-host or local control. I want to own the workflow.",
+            "events": [
+              {
+                "event_type": "chose_local_control",
+                "strength": 1.0
+              },
+              {
+                "event_type": "requested_automation",
+                "strength": 0.7
+              }
+            ]
+          },
+          {
+            "id": "b",
+            "label": "A cloud service is fine if it saves time this week.",
+            "events": [
+              {
+                "event_type": "chose_cloud_service",
+                "strength": 1.0
+              },
+              {
+                "event_type": "chose_fast_path",
+                "strength": 0.6
+              }
+            ]
+          },
+          {
+            "id": "c",
+            "label": "You configure it end to end; I will review the result, not the wiring.",
+            "events": [
+              {
+                "event_type": "delegated_action",
+                "strength": 1.0
+              },
+              {
+                "event_type": "requested_automation",
+                "strength": 0.8
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "wa-3",
+        "prompt": "The workflow touches email, a spreadsheet, and a ticket queue.",
+        "allow_free_text": true,
+        "choices": [
+          {
+            "id": "a",
+            "label": "Connect those systems. A checklist is not an integration.",
+            "events": [
+              {
+                "event_type": "requested_integration",
+                "strength": 1.0
+              },
+              {
+                "event_type": "requested_automation",
+                "strength": 0.8
+              }
+            ]
+          },
+          {
+            "id": "b",
+            "label": "Write a careful playbook humans follow. I will approve each exception.",
+            "events": [
+              {
+                "event_type": "requested_step_by_step",
+                "strength": 0.9
+              },
+              {
+                "event_type": "asked_clarification",
+                "strength": 0.5
+              }
+            ]
+          },
+          {
+            "id": "c",
+            "label": "Quality over glue: I would rather do it right once a week than stitch brittle tools.",
+            "events": [
+              {
+                "event_type": "chose_best_quality",
+                "strength": 0.9
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "campaign-create",
+    "title": "Get the word out",
+    "domain": "creative",
+    "setup": "You need a concept, pictures, and words from a rough idea — a sale, a fundraiser, or a launch.",
+    "initial_ambiguity": "Audience, tone, and visual direction are still fuzzy.",
+    "dimensions": [
+      "multimodal_preference",
+      "iteration_preference",
+      "alternative_seeking"
+    ],
+    "rounds": 3,
+    "turns": [
+      {
+        "id": "cc-1",
+        "prompt": "First ask to the AI?",
+        "allow_free_text": true,
+        "choices": [
+          {
+            "id": "a",
+            "label": "Show three distinct concepts with visual direction and copy, not one safe idea.",
+            "events": [
+              {
+                "event_type": "requested_alternative",
+                "strength": 1.0
+              },
+              {
+                "event_type": "requested_visual",
+                "strength": 0.9
+              }
+            ]
+          },
+          {
+            "id": "b",
+            "label": "Write the copy first. Visuals can wait.",
+            "events": [
+              {
+                "event_type": "requested_summary",
+                "strength": 0.6
+              },
+              {
+                "event_type": "chose_fast_path",
+                "strength": 0.5
+              }
+            ]
+          },
+          {
+            "id": "c",
+            "label": "Give me a storyboard and mockups I can react to.",
+            "events": [
+              {
+                "event_type": "requested_visual",
+                "strength": 1.0
+              },
+              {
+                "event_type": "requested_step_by_step",
+                "strength": 0.5
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "cc-2",
+        "prompt": "The first concept is close but not it.",
+        "allow_free_text": true,
+        "choices": [
+          {
+            "id": "a",
+            "label": "I will keep correcting direction. Keep prior constraints and iterate.",
+            "events": [
+              {
+                "event_type": "corrected_output",
+                "strength": 1.0
+              },
+              {
+                "event_type": "changed_constraint",
+                "strength": 0.8
+              }
+            ]
+          },
+          {
+            "id": "b",
+            "label": "Throw it out and generate a completely different set.",
+            "events": [
+              {
+                "event_type": "requested_alternative",
+                "strength": 1.0
+              },
+              {
+                "event_type": "requested_visual",
+                "strength": 0.6
+              }
+            ]
+          },
+          {
+            "id": "c",
+            "label": "Lock this concept and finish production-quality assets.",
+            "events": [
+              {
+                "event_type": "chose_best_quality",
+                "strength": 0.8
+              },
+              {
+                "event_type": "delegated_action",
+                "strength": 0.6
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "cc-3",
+        "prompt": "Legal wants fewer wild visuals. Growth wants more.",
+        "allow_free_text": true,
+        "choices": [
+          {
+            "id": "a",
+            "label": "Show a video and stills pair so they can react to motion, not just copy.",
+            "events": [
+              {
+                "event_type": "requested_visual",
+                "strength": 1.0
+              },
+              {
+                "event_type": "requested_alternative",
+                "strength": 0.5
+              }
+            ]
+          },
+          {
+            "id": "b",
+            "label": "Ship the safest version today.",
+            "events": [
+              {
+                "event_type": "chose_fast_path",
+                "strength": 0.8
+              },
+              {
+                "event_type": "requested_summary",
+                "strength": 0.5
+              }
+            ]
+          },
+          {
+            "id": "c",
+            "label": "I will keep correcting until both constraints are explicit.",
+            "events": [
+              {
+                "event_type": "corrected_output",
+                "strength": 1.0
+              },
+              {
+                "event_type": "changed_constraint",
+                "strength": 0.7
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "messy-data",
+    "title": "The messy numbers",
+    "domain": "analysis",
+    "setup": "You got incomplete numbers and need a recommendation — sales, a household budget, or inventory.",
+    "initial_ambiguity": "Missing values, unstated assumptions, and no data dictionary.",
+    "dimensions": [
+      "evidence_seeking",
+      "assumption_challenge",
+      "structure_preference"
+    ],
+    "rounds": 3,
+    "turns": [
+      {
+        "id": "md-1",
+        "prompt": "The AI offers an early conclusion from the spreadsheet. You\u2026",
+        "allow_free_text": true,
+        "choices": [
+          {
+            "id": "a",
+            "label": "Ask which conclusions are unsupported and where the holes are.",
+            "events": [
+              {
+                "event_type": "requested_evidence",
+                "strength": 1.0
+              },
+              {
+                "event_type": "challenged_assumption",
+                "strength": 0.8
+              },
+              {
+                "event_type": "requested_sources",
+                "strength": 0.7
+              }
+            ]
+          },
+          {
+            "id": "b",
+            "label": "Accept the inferred values and ask for the recommendation.",
+            "events": [
+              {
+                "event_type": "requested_recommendation",
+                "strength": 0.9
+              },
+              {
+                "event_type": "chose_fast_path",
+                "strength": 0.7
+              }
+            ]
+          },
+          {
+            "id": "c",
+            "label": "Demand a structured pass: quality issues, hypotheses, then options.",
+            "events": [
+              {
+                "event_type": "requested_step_by_step",
+                "strength": 1.0
+              },
+              {
+                "event_type": "requested_comparison",
+                "strength": 0.5
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "md-2",
+        "prompt": "A number looks invented. What do you do?",
+        "allow_free_text": true,
+        "choices": [
+          {
+            "id": "a",
+            "label": "Reject inferred values without evidence. Show uncertainty instead.",
+            "events": [
+              {
+                "event_type": "challenged_assumption",
+                "strength": 1.0
+              },
+              {
+                "event_type": "requested_evidence",
+                "strength": 0.8
+              }
+            ]
+          },
+          {
+            "id": "b",
+            "label": "Fill gaps with reasonable assumptions and keep moving.",
+            "events": [
+              {
+                "event_type": "chose_fast_path",
+                "strength": 0.8
+              },
+              {
+                "event_type": "requested_recommendation",
+                "strength": 0.5
+              }
+            ]
+          },
+          {
+            "id": "c",
+            "label": "Compare two analyses: one with gaps called out, one with imputed values.",
+            "events": [
+              {
+                "event_type": "requested_comparison",
+                "strength": 1.0
+              },
+              {
+                "event_type": "requested_alternative",
+                "strength": 0.6
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "md-3",
+        "prompt": "Finance asks for a dashboard wired to the live spreadsheet.",
+        "allow_free_text": true,
+        "choices": [
+          {
+            "id": "a",
+            "label": "Integrate the live source, but keep unsupported cells marked.",
+            "events": [
+              {
+                "event_type": "requested_integration",
+                "strength": 1.0
+              },
+              {
+                "event_type": "requested_evidence",
+                "strength": 0.7
+              },
+              {
+                "event_type": "requested_code",
+                "strength": 0.6
+              }
+            ]
+          },
+          {
+            "id": "b",
+            "label": "Structure a one-page findings memo instead of a dashboard.",
+            "events": [
+              {
+                "event_type": "requested_step_by_step",
+                "strength": 0.8
+              },
+              {
+                "event_type": "requested_summary",
+                "strength": 0.6
+              },
+              {
+                "event_type": "requested_visual",
+                "strength": 0.8
+              }
+            ]
+          },
+          {
+            "id": "c",
+            "label": "Recommend a decision now from what we have.",
+            "events": [
+              {
+                "event_type": "requested_recommendation",
+                "strength": 1.0
+              },
+              {
+                "event_type": "chose_fast_path",
+                "strength": 0.6
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "learn-fast",
+    "title": "Learn something new",
+    "domain": "learning",
+    "setup": "You need to understand something new well enough to decide tomorrow — a class, a tool, or a purchase.",
+    "initial_ambiguity": "You do not know how deep is deep enough.",
+    "dimensions": [
+      "structure_preference",
+      "depth_preference",
+      "clarification_tendency"
+    ],
+    "rounds": 3,
+    "turns": [
+      {
+        "id": "lf-1",
+        "prompt": "How do you want to learn this?",
+        "allow_free_text": true,
+        "choices": [
+          {
+            "id": "a",
+            "label": "A structured path: concepts, examples, then the decision I actually have to make.",
+            "events": [
+              {
+                "event_type": "requested_step_by_step",
+                "strength": 1.0
+              },
+              {
+                "event_type": "asked_clarification",
+                "strength": 0.5
+              }
+            ]
+          },
+          {
+            "id": "b",
+            "label": "Cheat sheet only. I do not need the underlying theory.",
+            "events": [
+              {
+                "event_type": "requested_summary",
+                "strength": 1.0
+              },
+              {
+                "event_type": "chose_fast_path",
+                "strength": 0.8
+              }
+            ]
+          },
+          {
+            "id": "c",
+            "label": "Go deep on the mechanisms before any recommendation.",
+            "events": [
+              {
+                "event_type": "chose_deep_path",
+                "strength": 1.0
+              },
+              {
+                "event_type": "asked_clarification",
+                "strength": 0.6
+              },
+              {
+                "event_type": "requested_visual",
+                "strength": 0.7
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lf-2",
+        "prompt": "The explanation used a term you do not know.",
+        "allow_free_text": true,
+        "choices": [
+          {
+            "id": "a",
+            "label": "Stop and clarify the term before continuing.",
+            "events": [
+              {
+                "event_type": "asked_clarification",
+                "strength": 1.0
+              }
+            ]
+          },
+          {
+            "id": "b",
+            "label": "Keep going; I will pick it up from context.",
+            "events": [
+              {
+                "event_type": "chose_fast_path",
+                "strength": 0.7
+              }
+            ]
+          },
+          {
+            "id": "c",
+            "label": "Give me an example, then the formal definition.",
+            "events": [
+              {
+                "event_type": "requested_step_by_step",
+                "strength": 0.8
+              },
+              {
+                "event_type": "chose_deep_path",
+                "strength": 0.6
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lf-3",
+        "prompt": "You will brief a non-technical exec tomorrow morning.",
+        "allow_free_text": true,
+        "choices": [
+          {
+            "id": "a",
+            "label": "A short briefing with a recommended decision and what not to fake.",
+            "events": [
+              {
+                "event_type": "requested_summary",
+                "strength": 1.0
+              },
+              {
+                "event_type": "requested_recommendation",
+                "strength": 0.8
+              }
+            ]
+          },
+          {
+            "id": "b",
+            "label": "Keep the deep path; they can handle the mechanisms.",
+            "events": [
+              {
+                "event_type": "chose_deep_path",
+                "strength": 1.0
+              },
+              {
+                "event_type": "requested_step_by_step",
+                "strength": 0.5
+              }
+            ]
+          },
+          {
+            "id": "c",
+            "label": "Ask which decision they actually have to make before teaching more.",
+            "events": [
+              {
+                "event_type": "asked_clarification",
+                "strength": 1.0
+              },
+              {
+                "event_type": "challenged_assumption",
+                "strength": 0.4
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "executive-choice",
+    "title": "A decision due today",
+    "domain": "strategy",
+    "setup": "Three decent options exist, none is clearly better, and you need a call today — for a shop, a family choice, or a team.",
+    "initial_ambiguity": "Criteria and risk tolerance have not been made explicit.",
+    "dimensions": [
+      "comparison_preference",
+      "recommendation_preference",
+      "speed_preference",
+      "alternative_seeking"
+    ],
+    "rounds": 3,
+    "turns": [
+      {
+        "id": "ec-1",
+        "prompt": "You have one hour with the AI before you have to choose.",
+        "allow_free_text": true,
+        "choices": [
+          {
+            "id": "a",
+            "label": "Compare the three paths on the same criteria, then recommend one.",
+            "events": [
+              {
+                "event_type": "requested_comparison",
+                "strength": 1.0
+              },
+              {
+                "event_type": "requested_recommendation",
+                "strength": 0.8
+              }
+            ]
+          },
+          {
+            "id": "b",
+            "label": "Find a fourth path they have not considered.",
+            "events": [
+              {
+                "event_type": "requested_alternative",
+                "strength": 1.0
+              },
+              {
+                "event_type": "challenged_assumption",
+                "strength": 0.5
+              }
+            ]
+          },
+          {
+            "id": "c",
+            "label": "Just tell me what to do. I will own the call.",
+            "events": [
+              {
+                "event_type": "requested_recommendation",
+                "strength": 1.0
+              },
+              {
+                "event_type": "chose_fast_path",
+                "strength": 0.9
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "ec-2",
+        "prompt": "Time is up. Final instruction?",
+        "allow_free_text": true,
+        "choices": [
+          {
+            "id": "a",
+            "label": "One-page decision memo: recommendation, tradeoffs, what we are not doing.",
+            "events": [
+              {
+                "event_type": "requested_summary",
+                "strength": 0.9
+              },
+              {
+                "event_type": "requested_recommendation",
+                "strength": 1.0
+              },
+              {
+                "event_type": "requested_comparison",
+                "strength": 0.6
+              }
+            ]
+          },
+          {
+            "id": "b",
+            "label": "Keep analyzing until I am more certain, even if we miss the meeting.",
+            "events": [
+              {
+                "event_type": "chose_deep_path",
+                "strength": 1.0
+              },
+              {
+                "event_type": "requested_evidence",
+                "strength": 0.5
+              }
+            ]
+          },
+          {
+            "id": "c",
+            "label": "Give me the cheapest reversible option.",
+            "events": [
+              {
+                "event_type": "chose_lower_cost",
+                "strength": 0.9
+              },
+              {
+                "event_type": "requested_recommendation",
+                "strength": 0.7
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "ec-3",
+        "prompt": "The board also wants a tooling recommendation attached to the decision.",
+        "allow_free_text": true,
+        "choices": [
+          {
+            "id": "a",
+            "label": "Prefer the lower-cost reversible stack.",
+            "events": [
+              {
+                "event_type": "chose_lower_cost",
+                "strength": 1.0
+              },
+              {
+                "event_type": "requested_recommendation",
+                "strength": 0.7
+              }
+            ]
+          },
+          {
+            "id": "b",
+            "label": "Prefer local control even if it is slower to stand up.",
+            "events": [
+              {
+                "event_type": "chose_local_control",
+                "strength": 1.0
+              }
+            ]
+          },
+          {
+            "id": "c",
+            "label": "Prefer a cloud service we can integrate with Slack and the CRM this week.",
+            "events": [
+              {
+                "event_type": "chose_cloud_service",
+                "strength": 0.9
+              },
+              {
+                "event_type": "requested_integration",
+                "strength": 1.0
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]

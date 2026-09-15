@@ -1,0 +1,9 @@
+{
+  "id": "research-heavy",
+  "description": "High source demand and verification should surface research products.",
+  "session_file": "examples/sample_session.json",
+  "expect": {
+    "min_source_demand": 0.3,
+    "stack_ids_include": ["cloud-first", "hybrid", "local-first"]
+  }
+}
