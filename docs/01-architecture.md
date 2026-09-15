@@ -2,34 +2,7 @@
 
 ## The shape
 
-```
-                    ┌──────────────────────────────────┐
-                    │          packages/core           │
-                    │  Workload schema · suitability   │
-                    │  architecture · security · eval  │
-                    │  roadmap · model catalog         │
-                    │  token economics · provenance    │
-                    └───────────────┬──────────────────┘
-                                    │  imported by all three
-            ┌───────────────────────┼───────────────────────┐
-            │                       │                       │
-   ┌────────▼────────┐    ┌─────────▼────────┐    ┌─────────▼────────┐
-   │ apps/consumer   │    │  apps/business   │    │   apps/control   │
-   │ AIFit  :3000    │    │  AIFit  :3001    │    │   ARK Control    │
-   │ 6 questions     │    │  8 sections      │    │      :3002       │
-   │ no persistence  │    │  no persistence  │    │  ┌────────────┐  │
-   └────────┬────────┘    └─────────┬────────┘    │  │ packages/db│  │
-            │                       │             │  │  (Drizzle) │  │
-            │  GET /api/v1/calibration            │  └──────┬─────┘  │
-            └───────────────────────┴─────────────►         │        │
-                    (may fail; returns null)      └─────────┼────────┘
-                                                            │
-                                                  ┌─────────▼─────────┐
-                                                  │ POST /api/v1/events│
-                                                  │  traces + events   │
-                                                  │  from your runtime │
-                                                  └────────────────────┘
-```
+![Three surfaces, one engine, one wire between them](diagrams/system-map.svg)
 
 ## The one boundary that is load-bearing
 
@@ -57,11 +30,7 @@ This matters because the failure mode it prevents is the dangerous one. If AIFit
 
 ## The turn index
 
-One design decision does most of the work in this system: events carry a `turn` index within a trace.
-
-A trace is one unit of business work — one ticket triaged, one refund processed. An event is one model call. Without the turn index, an agent that loops nineteen times looks identical to nineteen separate successful outcomes, and the cost-per-outcome figure — the headline metric of the entire product — is silently wrong by a factor of nineteen in the flattering direction.
-
-With it, `MAX(total_turns)` per trace makes runaway loops visible, p95 turns becomes a real operational signal, and the calibration prior for `turnsPerOutcome` has something to be computed from.
+One design decision does most of the work in step 4 above: events carry a `turn` index within a trace. It is what makes `MAX(total_turns)` per trace a runaway-loop detector, p95 turns an operational signal, and `turnsPerOutcome` a thing that can be computed at all. The argument for it, drawn against the alternative, is in [Data model § The distinction the whole system rests on](03-data-model.md#the-distinction-the-whole-system-rests-on).
 
 ## Sensitive data handling in ingest
 

@@ -19,26 +19,31 @@ Four rungs, ordered:
 
 **Sample floor: 30 traces per pattern.** Below it, `resolveCallShape` returns the rubric prior and states the observed count in its `source` string, so the report can say "only 11 observations for bounded-agent, below the 30 needed to trust them" rather than silently using them or silently ignoring them.
 
+![The four rungs, and weakestBasis worked on a payback figure](diagrams/provenance-ladder.svg)
+
 ## Suitability: seven weighted dimensions
 
-| Dimension | Weight | What drives it |
-|---|---|---|
-| Task fit | 0.22 | Selected task shapes. `calculate`/`lookup` alone → near zero and a hard blocker. Linguistic or judgement work → high. |
-| Determinism demand | 0.18 | `exact` is the strongest single negative signal in the rubric. |
-| Error tolerance | 0.15 | Cost of a wrong answer, adjusted by whether anyone would notice. |
-| Volume | 0.15 | Units per month against build cost. |
-| Data sensitivity | 0.12 | Data classes in scope and the regimes they trigger. |
-| Action risk | 0.10 | Write access × blast radius. |
-| Team readiness | 0.08 | Engineers, prior ML operations experience, security review, out-of-hours coverage. |
+| Dimension | Key | Weight | What drives it |
+|---|---|---|---|
+| Task fit | `taskFit` | 0.22 | Selected task shapes. `calculate`/`lookup` alone → 5 and a hard blocker. Mixed → 55. Linguistic or judgement work → 85. |
+| Tolerance for variation | `determinism` | 0.16 | `exact` → 15, and it is the strongest single negative signal in the rubric. `tolerant` → 80, `subjective` → 90. |
+| Cost of being wrong | `errorTolerance` | 0.16 | `none` → 20, `low` → 45, `medium` → 78, `high` → 92. |
+| Data readiness | `data` | 0.14 | Whether retrieval is needed and how many source systems it implies. No retrieval → 85. Retrieval with no named source → 30. |
+| Volume economics | `volume` | 0.14 | Units per month against build cost, banded at 50 / 400 / 2,000 / 10,000. |
+| Value per unit | `value` | 0.10 | Minutes per unit today. Unsupplied → a neutral 50 and an `unlocks` entry telling you to go and measure it. |
+| Risk load | `risk` | 0.08 | Starts at 90 and is debited: −9 per sensitive data class, −7 per write action, −20 per irreversible action, −20 for `full` autonomy, −8 for `bounded`. |
+
+Weights sum to 1.00 and live in `packages/core/src/assess/suitability.ts`. They were chosen, not fitted — see limitation 7.
 
 ### Why the weighted average is not the whole answer
 
-A pure weighted average lets a high volume score paper over a workload that must be exactly right. It does not get to. Certain conditions are **hard blockers** that cap the verdict regardless of total score:
+A pure weighted average lets a high volume score paper over a workload that must be exactly right. It does not get to. Five conditions are **hard blockers**, and the presence of any one of them caps the verdict at `not-yet` regardless of total score:
 
-- Every selected task shape is deterministic → verdict is `not-ai`, full stop.
-- Zero error tolerance combined with "nobody would notice if it were subtly wrong" → capped at `assisted`.
-- An irreversible action combined with `full` autonomy → capped, with the combination named as the blocker.
-- No out-of-hours coverage → autonomous patterns are removed from consideration before scoring.
+1. Every selected task shape is deterministic. This one short-circuits ahead of the blocker check entirely and returns `not-ai`.
+2. Zero error tolerance combined with autonomy beyond `approve` — pick one: accept a defect rate, or keep a human in the approval path.
+3. Fewer than 50 units a month for work done on someone else's behalf. This is a buy-or-do-manually decision, not a build.
+4. An irreversible action under `bounded` or `full` autonomy, with the offending actions named.
+5. `credentials` among the data classes. Redact or vault before a prompt is ever constructed.
 
 Blockers are listed by name in the report. A capped verdict with no explanation would be indistinguishable from a low score, and the user would tune the wrong variable.
 
@@ -46,7 +51,13 @@ Blockers are listed by name in the report. A capped verdict with no explanation 
 
 `not-ai` → `not-yet` → `assisted` → `automate-bounded` → `automate`
 
+Eight gates, evaluated in order, first match wins. The diagram below is `decideVerdict()` drawn line for line, including the two gates that return "no" and the fact that they are checked first.
+
+![The eight verdict gates, in evaluation order](diagrams/verdict-ladder.svg)
+
 `not-yet` is the interesting rung: the workload is plausible but something described makes it a poor *first* thing to hand over. Every `not-yet` report carries an ordered `unlocks` list — the specific changes that would move it up — because "not yet" without "here is what would change it" is an unhelpful answer dressed as a rigorous one.
+
+The fall-through at gate 8 is `automate-bounded` rather than `automate`. A rubric's default should be its cautious answer, because the default is what a novel workload gets.
 
 ## Architecture selection
 

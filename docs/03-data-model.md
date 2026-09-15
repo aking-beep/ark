@@ -12,6 +12,8 @@ Every other telemetry product in this category logs events and calls it a day. T
 
 Cost per outcome — the headline number in every AIFit report — is `SUM(events.cost) / COUNT(DISTINCT traces)`. Without the trace, the denominator is wrong, and it is wrong in the flattering direction, which is the direction nobody checks.
 
+![The same nineteen model calls, read with and without a turn index](diagrams/trace-vs-event.svg)
+
 ## Tables
 
 | Table | Grain | Why it exists |
@@ -82,7 +84,7 @@ Nine kinds: `loop_runaway`, `circuit_break`, `off_allowlist`, `sensitive_data`, 
 
 They split cleanly into three groups — cost (`loop_runaway`, `circuit_break`, `budget_*`), correctness (`quality_regression`, `stale_pricing`), and safety (`off_allowlist`, `sensitive_data`, `unapproved_action`). Every security control the business report emits with `blocking: true` maps to one of these, which is what lets the `verifiedBy` column say something specific instead of "monitor this".
 
-A `sensitive_data` alert records the *class* of thing found and the workload it was found in. It does not record the value. The ingest endpoint scans the optional `sample` field and discards it. A control that logs the PII it found in order to warn you about PII is not a control.
+A `sensitive_data` alert records the *class* of thing found and the workload it was found in. It does not record the value, and there is no column it could be written to. The reasoning is in [Architecture § Sensitive data handling in ingest](01-architecture.md#sensitive-data-handling-in-ingest).
 
 ### `qualitySamples`
 
@@ -104,6 +106,4 @@ The endpoint is deliberately permissive about content and strict about shape: un
 
 ## Portability
 
-Drizzle over `@libsql/client`, with no SQLite-specific column types anywhere in the schema. Timestamps are integers, JSON columns are text. Nothing in the query layer assumes single-writer semantics.
-
-The move to Turso is a URL change and the move to Postgres is a driver swap. See [ADR-0004](adr/0004-sqlite-first.md).
+No SQLite-specific column type appears anywhere above. That is a constraint on this file rather than a coincidence: timestamps are integers and JSON columns are text so that the move to Turso is a URL change and the move to Postgres is a driver swap. The four conditions that would trigger either move are enumerated in [ADR-0004](adr/0004-sqlite-first.md).

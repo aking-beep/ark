@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 664" width="1080" height="664" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Inter, sans-serif">
+  <rect width="1080" height="664" rx="14" fill="#08090c"/>
+
+  <text x="34" y="44" fill="#e6eaf0" font-size="21" font-weight="600">Where every number on the report comes from</text>
+  <text x="34" y="68" fill="#6b7689" font-size="13">Four rungs, one component, and one rule that stops the good ones from laundering the bad ones.</text>
+
+  <!-- ================= LEFT: the ladder ================= -->
+  <text x="34" y="106" fill="#4a5468" font-size="11" letter-spacing="1.6">THE LADDER</text>
+
+  <!-- measured -->
+  <rect x="34" y="118" width="440" height="76" rx="10" fill="#0d1715" stroke="#0f766e"/>
+  <rect x="34" y="118" width="4" height="76" rx="2" fill="#5eead4"/>
+  <text x="56" y="144" font-family="ui-monospace, Menlo, monospace" font-size="13" font-weight="700" fill="#5eead4">measured</text>
+  <text x="56" y="165" fill="#c3cad6" font-size="12">Your telemetry, above the 30-trace floor.</text>
+  <text x="56" y="182" fill="#6b7689" font-size="11.5">Can contradict the rubric, and regularly does.</text>
+  <text x="456" y="148" text-anchor="end" fill="#0f766e" font-size="26" font-weight="700" font-family="ui-monospace, Menlo, monospace">4</text>
+
+  <!-- calibrated -->
+  <rect x="34" y="202" width="440" height="76" rx="10" fill="#0e1510" stroke="#14532d"/>
+  <rect x="34" y="202" width="4" height="76" rx="2" fill="#4ade80"/>
+  <text x="56" y="228" font-family="ui-monospace, Menlo, monospace" font-size="13" font-weight="700" fill="#4ade80">calibrated</text>
+  <text x="56" y="249" fill="#c3cad6" font-size="12">Measured on systems like yours &#8212; not yours.</text>
+  <text x="56" y="266" fill="#6b7689" font-size="11.5">Cannot overrule the rubric. It is still someone else's traffic.</text>
+  <text x="456" y="232" text-anchor="end" fill="#14532d" font-size="26" font-weight="700" font-family="ui-monospace, Menlo, monospace">3</text>
+
+  <!-- benchmark -->
+  <rect x="34" y="286" width="440" height="76" rx="10" fill="#0e1018" stroke="#312e81"/>
+  <rect x="34" y="286" width="4" height="76" rx="2" fill="#818cf8"/>
+  <text x="56" y="312" font-family="ui-monospace, Menlo, monospace" font-size="13" font-weight="700" fill="#818cf8">benchmark</text>
+  <text x="56" y="333" fill="#c3cad6" font-size="12">A published figure: list price, context window, third-party eval.</text>
+  <text x="56" y="350" fill="#6b7689" font-size="11.5">True as printed. Says nothing about your workload.</text>
+  <text x="456" y="316" text-anchor="end" fill="#312e81" font-size="26" font-weight="700" font-family="ui-monospace, Menlo, monospace">2</text>
+
+  <!-- heuristic -->
+  <rect x="34" y="370" width="440" height="76" rx="10" fill="#161006" stroke="#78350f"/>
+  <rect x="34" y="370" width="4" height="76" rx="2" fill="#fbbf24"/>
+  <text x="56" y="396" font-family="ui-monospace, Menlo, monospace" font-size="13" font-weight="700" fill="#fbbf24">heuristic</text>
+  <text x="56" y="417" fill="#c3cad6" font-size="12">A rule of thumb from the rubric.</text>
+  <text x="56" y="434" fill="#6b7689" font-size="11.5">Defensible. Arguable. Not observed. Most numbers start here.</text>
+  <text x="456" y="400" text-anchor="end" fill="#78350f" font-size="26" font-weight="700" font-family="ui-monospace, Menlo, monospace">1</text>
+
+  <rect x="34" y="464" width="440" height="72" rx="10" fill="#0d0f14" stroke="#222836"/>
+  <text x="56" y="489" fill="#c3cad6" font-size="12.5" font-weight="600">One component renders all four.</text>
+  <text x="56" y="509" fill="#6b7689" font-size="11.5"><tspan font-family="ui-monospace, Menlo, monospace" fill="#96a0b2">BasisTag</tspan> lives in <tspan font-family="ui-monospace, Menlo, monospace" fill="#96a0b2">packages/ui</tspan>, so a redesign cannot quietly</text>
+  <text x="56" y="526" fill="#6b7689" font-size="11.5">drop it from one surface. A figure with no tag is lying by omission.</text>
+
+  <!-- ================= RIGHT: weakestBasis worked ================= -->
+  <text x="516" y="106" fill="#4a5468" font-size="11" letter-spacing="1.6">THE RULE, APPLIED &#8212; RIVERBEND'S PAYBACK FIGURE</text>
+
+  <rect x="516" y="118" width="530" height="328" rx="12" fill="#12151c" stroke="#222836"/>
+
+  <text x="538" y="148" fill="#96a0b2" font-size="12">Three inputs feed one derived number:</text>
+
+  <!-- input 1 -->
+  <rect x="538" y="162" width="486" height="52" rx="8" fill="#0d0f14" stroke="#0f766e"/>
+  <text x="556" y="184" fill="#e6eaf0" font-size="12.5">Cost per successful outcome</text>
+  <text x="556" y="203" font-family="ui-monospace, Menlo, monospace" font-size="12" fill="#5eead4">$0.1371</text>
+  <text x="620" y="203" fill="#6b7689" font-size="11">from 881 of Riverbend's own traces</text>
+  <rect x="916" y="176" width="90" height="22" rx="11" fill="#0d1715" stroke="#0f766e"/>
+  <text x="961" y="191" text-anchor="middle" font-family="ui-monospace, Menlo, monospace" font-size="10" fill="#5eead4">measured</text>
+
+  <!-- input 2 -->
+  <rect x="538" y="224" width="486" height="52" rx="8" fill="#0d0f14" stroke="#312e81"/>
+  <text x="556" y="246" fill="#e6eaf0" font-size="12.5">Model list price</text>
+  <text x="556" y="265" font-family="ui-monospace, Menlo, monospace" font-size="12" fill="#818cf8">$0.80 / $4.00 per 1M</text>
+  <text x="700" y="265" fill="#6b7689" font-size="11">published, verified 2026-09-14</text>
+  <rect x="916" y="238" width="90" height="22" rx="11" fill="#0e1018" stroke="#312e81"/>
+  <text x="961" y="253" text-anchor="middle" font-family="ui-monospace, Menlo, monospace" font-size="10" fill="#818cf8">benchmark</text>
+
+  <!-- input 3 -->
+  <rect x="538" y="286" width="486" height="66" rx="8" fill="#0d0f14" stroke="#78350f"/>
+  <text x="556" y="308" fill="#e6eaf0" font-size="12.5">Displacement factor</text>
+  <text x="556" y="327" font-family="ui-monospace, Menlo, monospace" font-size="12" fill="#fbbf24">0.60</text>
+  <text x="600" y="327" fill="#6b7689" font-size="11">how much of Dana's hour this actually removes</text>
+  <text x="556" y="344" fill="#96a0b2" font-size="11">A default. Nobody measured it &#8212; and the page says so in those words.</text>
+  <rect x="916" y="300" width="90" height="22" rx="11" fill="#161006" stroke="#78350f"/>
+  <text x="961" y="315" text-anchor="middle" font-family="ui-monospace, Menlo, monospace" font-size="10" fill="#fbbf24">heuristic</text>
+
+  <path d="M 781 356 L 781 380" stroke="#333b4d" stroke-width="1.5"/>
+  <path d="M -7,-5 L 7,0 L -7,5 Z" transform="translate(781,384) rotate(90)" fill="#333b4d"/>
+
+  <rect x="538" y="392" width="486" height="42" rx="8" fill="#161006" stroke="#78350f"/>
+  <text x="556" y="418" fill="#e6eaf0" font-size="12.5">Payback: <tspan font-family="ui-monospace, Menlo, monospace" fill="#fbbf24">4.2 months</tspan></text>
+  <rect x="916" y="402" width="90" height="22" rx="11" fill="#161006" stroke="#78350f"/>
+  <text x="961" y="417" text-anchor="middle" font-family="ui-monospace, Menlo, monospace" font-size="10" fill="#fbbf24">heuristic</text>
+
+  <rect x="516" y="464" width="530" height="72" rx="10" fill="#0d0f14" stroke="#222836"/>
+  <text x="538" y="489" fill="#c3cad6" font-size="12.5" font-weight="600">The weakest link governs the whole.</text>
+  <text x="538" y="509" fill="#6b7689" font-size="11.5">A <tspan fill="#5eead4">measured</tspan> cost multiplied by a <tspan fill="#fbbf24">heuristic</tspan> assumption is a <tspan fill="#fbbf24">heuristic</tspan> result.</text>
+  <text x="538" y="526" fill="#6b7689" font-size="11.5">Presenting it any other way would be laundering, which is the failure this exists to stop.</text>
+
+  <!-- footer -->
+  <rect x="34" y="550" width="1012" height="80" rx="10" fill="#0d0f14" stroke="#222836"/>
+  <text x="56" y="576" fill="#c3cad6" font-size="12.5" font-weight="600">Below 30 traces for a pattern, <tspan font-family="ui-monospace, Menlo, monospace" fill="#5eead4">resolveCallShape</tspan> refuses the measurement and says why.</text>
+  <text x="56" y="597" fill="#6b7689" font-size="12">The report then reads "only 11 observations for bounded-agent, below the 30 needed to trust them" &#8212;</text>
+  <text x="56" y="616" fill="#6b7689" font-size="12">rather than silently using eleven traces, or silently hiding that eleven exist.</text>
+</svg>

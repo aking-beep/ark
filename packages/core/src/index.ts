@@ -7,4 +7,5 @@ export * from './economics/value.js';
 export * from './calibration/priors.js';
 export * from './calibration/client.js';
 export * from './assess/index.js';
+export * from './url-codec.js';
 export * from './fixtures.js';

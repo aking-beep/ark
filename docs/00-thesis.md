@@ -26,6 +26,10 @@ Four rungs — `heuristic`, `benchmark`, `calibrated`, `measured` — rendered b
 
 This is not a disclaimer. A disclaimer is a paragraph at the bottom that absolves the tool of everything above it. This is per-figure, inline, and it changes as the underlying evidence changes. The same cost estimate reads `heuristic` before Control is running and `measured` with a sample size of 881 after.
 
+The mechanism that performs that promotion is a loop, and it runs in both directions — the rubric informs the estimate, and the telemetry then grades the rubric:
+
+![How a guess becomes a measurement](diagrams/calibration-loop.svg)
+
 ### 2. The engine can return "no"
 
 `not-ai` is a first-class verdict. A workload composed only of `calculate` and `lookup` receives a recommendation for a rules engine and a scheduled job, with the LLM alternative explicitly rejected and the reasoning written down.

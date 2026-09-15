@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 660" width="1040" height="660" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Inter, sans-serif">
+  <rect width="1040" height="660" rx="14" fill="#08090c"/>
+
+  <text x="32" y="44" fill="#e6eaf0" font-size="21" font-weight="600">One hour of Riverbend Supply's support inbox</text>
+  <text x="32" y="68" fill="#6b7689" font-size="13">The same 19 model calls, read two ways. Only one of the two readings can be put in front of a CFO.</text>
+
+  <!-- ===================== LEFT: without turn index ===================== -->
+  <rect x="32" y="92" width="470" height="470" rx="12" fill="#12151c" stroke="#7f1d1d" stroke-width="1"/>
+  <rect x="32" y="92" width="470" height="38" rx="12" fill="#171b24"/>
+  <rect x="32" y="118" width="470" height="12" fill="#171b24"/>
+  <text x="52" y="117" fill="#f87171" font-size="13" font-weight="600">WITHOUT a turn index — what a proxy log sees</text>
+
+  <text x="52" y="156" fill="#96a0b2" font-size="12">events table, no grouping column</text>
+
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" fill="#6b7689">
+    <rect x="52" y="168" width="430" height="20" rx="4" fill="#171b24"/>
+    <text x="62" y="182" fill="#96a0b2">ev_4401  claude-haiku-4.5   2,410 in   181 out   ok</text>
+    <rect x="52" y="192" width="430" height="20" rx="4" fill="#0d0f14"/>
+    <text x="62" y="206" fill="#96a0b2">ev_4402  claude-haiku-4.5   3,180 in   204 out   ok</text>
+    <rect x="52" y="216" width="430" height="20" rx="4" fill="#171b24"/>
+    <text x="62" y="230" fill="#96a0b2">ev_4403  claude-haiku-4.5   4,090 in   198 out   ok</text>
+    <rect x="52" y="240" width="430" height="20" rx="4" fill="#0d0f14"/>
+    <text x="62" y="254" fill="#96a0b2">ev_4404  claude-haiku-4.5   4,970 in   221 out   ok</text>
+    <text x="62" y="278" fill="#4a5468">   . . . fifteen more rows, all status = ok . . .</text>
+    <rect x="52" y="288" width="430" height="20" rx="4" fill="#171b24"/>
+    <text x="62" y="302" fill="#96a0b2">ev_4419  claude-haiku-4.5  18,640 in   176 out   ok</text>
+  </g>
+
+  <line x1="52" y1="326" x2="482" y2="326" stroke="#222836" stroke-width="1"/>
+
+  <text x="52" y="352" fill="#c3cad6" font-size="13" font-weight="600">The rollup this permits</text>
+  <text x="52" y="376" fill="#96a0b2" font-size="12.5">19 calls &#183; 100% status ok &#183; $0.137 total spend</text>
+
+  <rect x="52" y="392" width="430" height="70" rx="8" fill="#0d0f14" stroke="#222836"/>
+  <text x="70" y="418" fill="#6b7689" font-size="11">Cost per call</text>
+  <text x="70" y="444" fill="#c3cad6" font-size="20" font-weight="600" font-family="ui-monospace, Menlo, monospace">$0.0072</text>
+  <text x="250" y="418" fill="#6b7689" font-size="11">Tickets triaged, apparently</text>
+  <text x="250" y="444" fill="#c3cad6" font-size="20" font-weight="600" font-family="ui-monospace, Menlo, monospace">19</text>
+
+  <rect x="52" y="474" width="430" height="70" rx="8" fill="#1a0f12" stroke="#7f1d1d"/>
+  <text x="70" y="498" fill="#f87171" font-size="11.5" font-weight="600">The number that reaches the board deck</text>
+  <text x="70" y="521" fill="#e6eaf0" font-size="12.5">"AI triage costs us seven-tenths of a cent a ticket."</text>
+  <text x="70" y="538" fill="#96a0b2" font-size="11.5">Wrong by 19&#215;, in the flattering direction, with no error bar.</text>
+
+  <!-- ===================== RIGHT: with turn index ===================== -->
+  <rect x="538" y="92" width="470" height="470" rx="12" fill="#12151c" stroke="#0f766e" stroke-width="1"/>
+  <rect x="538" y="92" width="470" height="38" rx="12" fill="#171b24"/>
+  <rect x="538" y="118" width="470" height="12" fill="#171b24"/>
+  <text x="558" y="117" fill="#5eead4" font-size="13" font-weight="600">WITH a turn index — what ARK Control records</text>
+
+  <text x="558" y="156" fill="#96a0b2" font-size="12">one trace = one ticket; each event carries its turn</text>
+
+  <!-- trace bracket -->
+  <rect x="558" y="166" width="14" height="146" rx="5" fill="#0f766e" opacity="0.45"/>
+  <text x="566" y="243" fill="#5eead4" font-size="9.5" font-weight="700" transform="rotate(-90 566 243)" text-anchor="middle">tr_8841</text>
+
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5">
+    <rect x="582" y="168" width="406" height="20" rx="4" fill="#171b24"/>
+    <text x="592" y="182" fill="#5eead4">turn 0</text><text x="646" y="182" fill="#96a0b2">ev_4401   2,410 in   "classify this ticket"</text>
+    <rect x="582" y="192" width="406" height="20" rx="4" fill="#0d0f14"/>
+    <text x="592" y="206" fill="#5eead4">turn 1</text><text x="646" y="206" fill="#96a0b2">ev_4402   3,180 in   + transcript of turn 0</text>
+    <rect x="582" y="216" width="406" height="20" rx="4" fill="#171b24"/>
+    <text x="592" y="230" fill="#5eead4">turn 2</text><text x="646" y="230" fill="#96a0b2">ev_4403   4,090 in   + transcript of turns 0-1</text>
+    <rect x="582" y="240" width="406" height="20" rx="4" fill="#0d0f14"/>
+    <text x="592" y="254" fill="#5eead4">turn 3</text><text x="646" y="254" fill="#96a0b2">ev_4404   4,970 in   + transcript of turns 0-2</text>
+    <text x="592" y="278" fill="#4a5468">  . . . the agent re-reads the order history 15 more times . . .</text>
+    <rect x="582" y="288" width="406" height="20" rx="4" fill="#171b24"/>
+    <text x="592" y="302" fill="#fbbf24">turn 18</text><text x="646" y="302" fill="#96a0b2">ev_4419  18,640 in   gives up, escalates to Dana</text>
+  </g>
+
+  <line x1="558" y1="326" x2="988" y2="326" stroke="#222836" stroke-width="1"/>
+
+  <text x="558" y="352" fill="#c3cad6" font-size="13" font-weight="600">The rollup this permits</text>
+  <text x="558" y="376" fill="#96a0b2" font-size="12.5">1 trace &#183; outcome = escalated &#183; 19 turns against a ceiling of 25</text>
+
+  <rect x="558" y="392" width="430" height="70" rx="8" fill="#0d0f14" stroke="#222836"/>
+  <text x="576" y="418" fill="#6b7689" font-size="11">Cost per successful outcome</text>
+  <text x="576" y="444" fill="#5eead4" font-size="20" font-weight="600" font-family="ui-monospace, Menlo, monospace">$0.137</text>
+  <text x="756" y="418" fill="#6b7689" font-size="11">Tickets actually triaged</text>
+  <text x="756" y="444" fill="#f87171" font-size="20" font-weight="600" font-family="ui-monospace, Menlo, monospace">0</text>
+
+  <rect x="558" y="474" width="430" height="70" rx="8" fill="#0d1715" stroke="#0f766e"/>
+  <text x="576" y="498" fill="#5eead4" font-size="11.5" font-weight="600">The alert this makes possible</text>
+  <text x="576" y="521" fill="#e6eaf0" font-size="12.5">loop_runaway &#183; wl_support_triage &#183; 19 turns, no outcome</text>
+  <text x="576" y="538" fill="#96a0b2" font-size="11.5">Dana is paged before the pattern repeats four thousand times.</text>
+
+  <!-- footer -->
+  <rect x="32" y="578" width="976" height="66" rx="10" fill="#0d0f14" stroke="#222836"/>
+  <text x="52" y="601" fill="#c3cad6" font-size="12.5" font-weight="600">One column separates these two pictures: <tspan font-family="ui-monospace, Menlo, monospace" fill="#5eead4">events.turn</tspan>.</text>
+  <text x="52" y="620" fill="#6b7689" font-size="12">Every figure in AIFit is denominated in outcomes, not calls. Without the turn index there is no denominator,</text>
+  <text x="52" y="637" fill="#6b7689" font-size="12">and the headline metric of the whole product is unavailable at any price.</text>
+</svg>

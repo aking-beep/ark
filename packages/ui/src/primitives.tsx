@@ -248,6 +248,69 @@ export function Sparkline({
   );
 }
 
+/* -------------------------------------------------------------- dimensions */
+
+export interface DimensionRow {
+  key: string;
+  label: string;
+  /** 0..100 */
+  score: number;
+  weight: number;
+  reasoning?: string;
+}
+
+/**
+ * The seven suitability dimensions, rendered identically on both AIFit surfaces.
+ *
+ * The thresholds below are the only reason this component exists. They were
+ * previously inlined in the consumer result page and the business report page,
+ * which meant the two surfaces could drift into colouring the same score
+ * differently — a rendering bug that would read to a user as the engine
+ * disagreeing with itself. One engine, two surfaces, one threshold.
+ */
+export const DIMENSION_DANGER_BELOW = 40;
+export const DIMENSION_WARN_BELOW = 65;
+
+export function dimensionTone(score: number): Tone {
+  if (score < DIMENSION_DANGER_BELOW) return 'danger';
+  if (score < DIMENSION_WARN_BELOW) return 'warn';
+  return 'good';
+}
+
+export function DimensionList({
+  dimensions,
+  showWeight = false,
+  spacing = 'roomy',
+}: {
+  dimensions: DimensionRow[];
+  showWeight?: boolean;
+  spacing?: 'tight' | 'roomy';
+}) {
+  return (
+    <ul className={spacing === 'tight' ? 'space-y-3' : 'space-y-4'}>
+      {dimensions.map((d) => (
+        <li key={d.key}>
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-sm text-ink-200">
+              {d.label}
+              {showWeight && (
+                <span className="ml-2 font-mono text-2xs text-ink-600">
+                  weight {d.weight.toFixed(2)}
+                </span>
+              )}
+            </span>
+            <span className="font-mono text-xs text-ink-400">{Math.round(d.score)}</span>
+          </div>
+          <Meter pct={d.score} tone={dimensionTone(d.score)} className="mt-1.5" />
+          {d.reasoning && (
+            <p className="mt-1.5 max-w-3xl text-2xs leading-relaxed text-ink-500">{d.reasoning}</p>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /* ------------------------------------------------------------------ tables */
 
 export function Table({

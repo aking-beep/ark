@@ -1,0 +1,42 @@
+---
+description: Software factory — isolate, build, prove, ship. Applies to all work in this repo.
+alwaysApply: true
+---
+
+This repo runs a software factory. Work moves through four steps and the order
+is fixed. The rules live in `factory/` at the repo root — **read the step
+document before executing the step.** This rule file is a loader; it does not
+restate the rules and cannot be relied on as a summary of them.
+
+- `factory/CONTRACT.md` — the four steps, the four invariants. Read once.
+- `factory/01-ISOLATE.md` — worktree stations. `bash scripts/factory-new.sh <slug>`
+- `factory/02-BUILD.md` — the layer rule and the seven build rules.
+- `factory/03-PROVE.md` — before/after evidence. `bash scripts/factory-prove.sh <slug> before|after`
+- `factory/04-SHIP.md` + `factory/RUBRIC.md` — the 5/5 review loop and the gate.
+
+Role prompts are in `agents/`. Adopt `agents/builder.md` when building.
+
+## What must hold in this editor
+
+**Never edit the main checkout while a station is open.** Your changes belong in
+`worktrees/<slug>/`. Open that directory as the workspace, or confirm your path
+starts with it before writing. Editing the root checkout by habit is the most
+common way work is lost here.
+
+**Capture the before state before your first edit**, not after. A baseline taken
+after editing is not a baseline.
+
+**You are not the reviewer.** Do not score your own diff against the rubric and
+do not merge on your own assessment. Review happens in a separate context with
+only the spec, the diff, and `evidence/<slug>/` — in this editor that means a new
+chat that has not seen the build, given those three inputs and
+`agents/reviewer.md`.
+
+**Nothing merges below 5/5**, and the gate runs first:
+`python3 scripts/factory-gate.py <slug>`, then `bash scripts/factory-ship.sh <slug>`.
+
+## Scope
+
+One feature per station. If you find an unrelated bug, write it down for a
+separate feature rather than fixing it here — a diff that fixes two things gets
+reviewed for one.

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { assessConsumer, fetchCalibration, byId, type Verdict } from '@ark/core';
-import { Panel, Badge, BasisTag, Callout, Meter, fmt, type Tone } from '@ark/ui';
+import { Panel, Badge, BasisTag, Callout, DimensionList, fmt, type Tone } from '@ark/ui';
 import { decodeIntake } from '@/lib/encode';
 
 export const dynamic = 'force-dynamic';
@@ -163,24 +163,7 @@ export default async function Result({
       )}
 
       <Panel title="How it scored" subtitle="Seven things, weighted. The weakest one usually decides the answer.">
-        <ul className="space-y-3">
-          {a.suitability.dimensions.map((d) => (
-            <li key={d.key}>
-              <div className="flex items-baseline justify-between gap-3">
-                <span className="text-sm text-ink-200">{d.label}</span>
-                <span className="font-mono text-xs text-ink-400">{Math.round(d.score)}</span>
-              </div>
-              <Meter
-                pct={d.score}
-                tone={d.score < 40 ? 'danger' : d.score < 65 ? 'warn' : 'good'}
-                className="mt-1.5"
-              />
-              {d.reasoning && (
-                <p className="mt-1 text-2xs leading-relaxed text-ink-500">{d.reasoning}</p>
-              )}
-            </li>
-          ))}
-        </ul>
+        <DimensionList dimensions={a.suitability.dimensions} spacing="tight" />
       </Panel>
 
       {a.trust.unknowns.length > 0 && (

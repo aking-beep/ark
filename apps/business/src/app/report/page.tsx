@@ -8,7 +8,7 @@ import {
   type RiskLevel,
 } from '@ark/core';
 import {
-  Panel, Grid, Stat, Badge, BasisTag, Callout, Meter, Table, Td, fmt, type Tone,
+  Panel, Grid, Stat, Badge, BasisTag, Callout, DimensionList, Table, Td, fmt, type Tone,
 } from '@ark/ui';
 import { decodeWorkload } from '@/lib/encode';
 
@@ -445,27 +445,7 @@ export default async function Report({
       )}
 
       <Panel title="How it scored" subtitle="Seven weighted dimensions. The weakest one usually decides the verdict.">
-        <ul className="space-y-4">
-          {a.suitability.dimensions.map((d) => (
-            <li key={d.key}>
-              <div className="flex items-baseline justify-between gap-3">
-                <span className="text-sm text-ink-200">
-                  {d.label}
-                  <span className="ml-2 font-mono text-2xs text-ink-600">
-                    weight {d.weight.toFixed(2)}
-                  </span>
-                </span>
-                <span className="font-mono text-xs text-ink-400">{Math.round(d.score)}</span>
-              </div>
-              <Meter
-                pct={d.score}
-                tone={d.score < 40 ? 'danger' : d.score < 65 ? 'warn' : 'good'}
-                className="mt-1.5"
-              />
-              <p className="mt-1.5 max-w-3xl text-2xs leading-relaxed text-ink-500">{d.reasoning}</p>
-            </li>
-          ))}
-        </ul>
+        <DimensionList dimensions={a.suitability.dimensions} showWeight />
       </Panel>
 
       {/* ---------------------------------------------------------------- */}

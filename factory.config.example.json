@@ -1,0 +1,8 @@
+{
+  "_comment": "Copy to factory.config.json at the repo root and edit. The gate runs these commands in the station and fails on any non-zero exit. Node example shown; use whatever the repo actually runs.",
+  "checks": {
+    "typecheck": "npm run typecheck",
+    "lint": "npm run lint",
+    "test": "npm run test"
+  }
+}

@@ -8,6 +8,8 @@ Three products, one engine, one commitment: **a guess and a measurement never lo
 | **AIFit for teams** (business) | 3001 | Thirty questions about one workload. Verdict, architecture, model, controls, eval plan, cost, roadmap. |
 | **ARK Control** | 3002 | Telemetry ingest and cost governance for AI workloads in production. Measures what AIFit estimated. |
 
+![Three surfaces, one engine, one wire between them](docs/diagrams/system-map.svg)
+
 ## The sequencing argument
 
 Most tools in this category are estimators: they take a description of a workload and emit a confident cost figure derived from published token prices and an assumed call shape. The figure is wrong for a specific and predictable reason — the two variables that dominate real spend are *turns per outcome* and *failure rate*, and neither can be known before the system runs. An agent that averages seven turns in a demo and nineteen in production produces a bill at nearly three times the forecast, and no amount of care with the price-per-token column will catch it.
@@ -87,7 +89,9 @@ npm run db:seed        # regenerate demo telemetry
 4. [`docs/03-data-model.md`](docs/03-data-model.md) — traces, events, and why the distinction matters
 5. [`docs/04-roadmap.md`](docs/04-roadmap.md) — phases with exit criteria *and* kill criteria
 6. [`docs/adr/`](docs/adr/) — the decisions that would otherwise be re-litigated every quarter
-7. [`docs/prd/`](docs/prd/) — one per surface: who it is for, what is in scope, what is refused
+7. [`docs/prd/`](docs/prd/) — one per surface: who it is for, what it refuses to do
+
+If you would rather see the five arguments than read them, [`docs/diagrams/`](docs/diagrams/) is an index of the same material: the system map above, the trace-versus-event comparison, the verdict ladder drawn from the source, the provenance ladder worked end to end, and the calibration loop.
 
 ## Licence
 
