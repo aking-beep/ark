@@ -1,18 +1,14 @@
-# Web App
+# Fit (AIFit consumer)
 
-Create the Next.js application here during Week 3.
+The public Fit product — adaptive AI style quiz and setup files. Merged from [aifit-engine](https://github.com/aking-beep/aifit-engine) into the ARK monorepo.
 
-Recommended setup:
+- **UI:** this app (`@ark/consumer`, port **3000**)
+- **Engine + API:** [`fit/`](../../fit/) (Python, port **8472** in dev)
 
 ```bash
-npx create-next-app@latest apps/web --ts --eslint --app
+# from repo root
+npm run dev:fit-api    # terminal 1
+npm run dev:consumer   # terminal 2
 ```
 
-Pages:
-
-- `/` — hook + methodology disclaimer
-- `/assessment` — game flow
-- `/results/[sessionId]` — Interaction Signature + AI Stack + Model Match + Persona
-- `/methodology` — scoring explanation and limitations
-
-Do not duplicate scoring logic in the browser. Call the API.
+See [`docs/06-aifit-consumer.md`](../../docs/06-aifit-consumer.md) and [`fit/README.md`](../../fit/README.md).

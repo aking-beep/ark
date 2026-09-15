@@ -28,9 +28,11 @@ def repo_root() -> Path:
     if env:
         return Path(env)
     here = Path(__file__).resolve()
-    for parent in [here.parent, *here.parents]:
+    candidates = [here.parent, *here.parents, Path.cwd(), Path.cwd() / "fit"]
+    for parent in candidates:
         if (parent / "data/registry/products.json").exists():
             return parent
+    # Last resort: source tree when running from packages/core/src/aifit/engine.py
     return here.parents[4]
 
 

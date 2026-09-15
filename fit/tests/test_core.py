@@ -2,7 +2,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from aifit.engine import registry_errors, score_session
+from aifit.engine import registry_errors, repo_root, score_session
 from aifit.events import classify_free_text
 from aifit.exports import export_persona
 from aifit.fit import rank_products
@@ -10,6 +10,11 @@ from aifit.metrics import build_user_vector, score_metrics
 from aifit.models import AssessmentSession, FitFilters, ProductRecord
 from aifit.persona import generate_persona
 from aifit.scenarios import load_scenarios
+
+
+def test_repo_root_finds_registry():
+    root = repo_root()
+    assert (root / "data/registry/products.json").exists(), root
 
 
 def test_metrics_are_bounded():
