@@ -39,9 +39,9 @@ A prior is promoted only above that floor. Below it, the number stays `heuristic
 
 ```bash
 npm install
-pip install -e 'fit/[dev]'   # consumer Fit API (Python)
+pip install -e 'my-ai/[dev]'   # consumer MY AI API (Python)
 npm run setup                # build ARK packages, push schema, seed Control
-npm run dev                  # Fit API + consumer + business + control
+npm run dev                  # MY AI API + consumer + business + control
 ```
 
 Then:
@@ -63,7 +63,7 @@ Control is org-scoped at the edge. After `npm run setup`:
 
 `npm run ingest:live` posts traces for Northwind through the same ingest path as production. Until that runs, Northwind's calibration is `calibrated` from Demo Co's patterns — fleet priors, not a thin sample of its own.
 
-Host all four processes (Fit API + three Next apps) with Docker: [`docs/05-hosting.md`](docs/05-hosting.md).
+Host all four processes (MY AI API + three Next apps) with Docker: [`docs/05-hosting.md`](docs/05-hosting.md).
 
 ## Layout
 
@@ -73,9 +73,9 @@ packages/
   db/       Drizzle schema + seed for Control
   ui/       shared component vocabulary and Tailwind preset
   sdk/      ingest client — trace ids, turn indices, POST /api/v1/events
-fit/        Fit engine — Python scoring, FastAPI, registry, evals (consumer backend)
+my-ai/      MY AI engine — Python scoring, FastAPI, registry, evals (consumer backend)
 apps/
-  consumer/ MY AI       — adaptive quiz UI; proxies /v1 to fit API
+  consumer/ MY AI       — adaptive quiz UI; proxies /v1 to MY AI API
   business/ MY AI for teams — 8 sections, @ark/core, plus POST /api/assess
   control/  ARK Control — ingest, dashboards, budgets, calibration endpoint
 docs/       thesis, architecture, PRDs, methodology, data model, ADRs
@@ -83,18 +83,18 @@ docs/       thesis, architecture, PRDs, methodology, data model, ADRs
 
 ### The boundary that matters
 
-`apps/consumer` and `apps/business` **do not depend on `@ark/db`**. Consumer MY AI uses the Python engine under `fit/`; business uses `@ark/core`. The only coupling between **business** MY AI for teams and Control is one documented HTTP call that is allowed to fail. `fetchCalibration()` returns `null` on timeout, non-200, or schema mismatch, and the product degrades honestly rather than breaking or — worse — silently substituting a guess for a measurement.
+`apps/consumer` and `apps/business` **do not depend on `@ark/db`**. Consumer MY AI uses the Python engine under `my-ai/`; business uses `@ark/core`. The only coupling between **business** MY AI for teams and Control is one documented HTTP call that is allowed to fail. `fetchCalibration()` returns `null` on timeout, non-200, or schema mismatch, and the product degrades honestly rather than breaking or — worse — silently substituting a guess for a measurement.
 
-Consumer MY AI keeps quiz progress in the browser (`localStorage`) and scores via the Fit API. Business MY AI for teams encodes intake into the result link and recomputes server-side on every view.
+Consumer MY AI keeps quiz progress in the browser (`localStorage`) and scores via the MY AI API. Business MY AI for teams encodes intake into the result link and recomputes server-side on every view.
 
 ## Commands
 
 ```bash
-npm run dev            # Fit API + consumer + business + control
+npm run dev            # MY AI API + consumer + business + control
 npm run dev:ark        # business (:3001) and Control (:3002) only
 npm run build          # packages, then all three apps
 npm run test           # @ark/core, db, SDK
-npm run test:fit       # Fit Python engine (pytest)
+npm run test:my-ai     # MY AI Python engine (pytest)
 npm run typecheck      # every workspace
 npm run db:seed        # regenerate demo telemetry
 npm run ingest:live    # POST live traces for the Northwind org (not SQL-inserted)

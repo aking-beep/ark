@@ -1,7 +1,7 @@
-import { proxyFitRequest } from "@/lib/fit-proxy";
+import { proxyMyAiRequest } from "@/lib/my-ai-proxy";
 
 export const dynamic = "force-dynamic";
 
 export function GET(request: Request) {
-  return proxyFitRequest("/health", request);
+  return proxyMyAiRequest("/health", request);
 }

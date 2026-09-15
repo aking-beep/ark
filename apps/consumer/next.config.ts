@@ -6,7 +6,7 @@ const api =
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1"],
   // Rewrites are a production fallback. Turbopack dev does not always honour them,
-  // so app/health and app/v1/[...path] proxy via fit-proxy.ts (timeout + 502/504).
+  // so app/health and app/v1/[...path] proxy via my-ai-proxy.ts (timeout + 502/504).
   async rewrites() {
     if (!api) return [];
     return [
