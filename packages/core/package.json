@@ -9,7 +9,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsc -p tsconfig.json && node --test dist/engine.test.js dist/golden/set.test.js dist/economics/prompt-tokens.test.js dist/ingest/schema.test.js"
+    "test": "tsc -p tsconfig.json && node --test dist/engine.test.js dist/golden/set.test.js dist/economics/prompt-tokens.test.js dist/ingest/schema.test.js dist/ops/budget-enforcement.test.js"
   },
   "dependencies": { "zod": "^3.23.8" },
   "devDependencies": { "typescript": "^5.6.0", "@types/node": "^22.9.0" }

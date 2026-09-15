@@ -1,17 +1,16 @@
 import { NextResponse } from 'next/server';
-import { applyIngest } from '@ark/db';
-import { IngestBody, allowlist, authorize } from '@/lib/ingest';
+import { applyIngest, deliverAlerts, orgFromBearer, bearerFrom } from '@ark/db';
+import { IngestBody, allowlist } from '@/lib/ingest';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/** Above this many turns in a single trace, something is looping. */
 const TURN_CEILING = Number(process.env.ARK_TURN_CEILING ?? 25);
-/** Above this cost for a single unit of work, stop and look. */
 const TRACE_COST_CEILING = Number(process.env.ARK_TRACE_COST_CEILING ?? 1.0);
 
 export async function POST(req: Request) {
-  if (!authorize(req)) {
+  const caller = await orgFromBearer(bearerFrom(req));
+  if (!caller) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
@@ -27,29 +26,33 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'invalid body', issues: parsed.error.issues }, { status: 422 });
   }
 
-  const result = await applyIngest(parsed.data, {
-    allowlist: allowlist(),
-    turnCeiling: TURN_CEILING,
-    traceCostCeiling: TRACE_COST_CEILING,
-  });
+  if (parsed.data.orgId && parsed.data.orgId !== caller.orgId) {
+    return NextResponse.json({ error: 'org_mismatch' }, { status: 403 });
+  }
 
-  return NextResponse.json(
+  const result = await applyIngest(
+    { ...parsed.data, orgId: caller.orgId },
     {
-      ...result,
-      /**
-       * The caller is expected to act on this. Control can observe a runaway
-       * loop but it cannot reach into your process and stop it — the SDK that
-       * posts events is what enforces the break.
-       */
+      allowlist: allowlist(),
+      turnCeiling: TURN_CEILING,
+      traceCostCeiling: TRACE_COST_CEILING,
     },
-    { status: 202 },
   );
+
+  const { alertRecords, ...publicResult } = result;
+  try {
+    await deliverAlerts(caller.orgId, alertRecords ?? []);
+  } catch {
+    // Destinations are best-effort. The batch is already persisted.
+  }
+
+  return NextResponse.json(publicResult, { status: 202 });
 }
 
 export async function GET() {
   return NextResponse.json({
     endpoint: 'POST /api/v1/events',
-    auth: process.env.ARK_INGEST_TOKEN ? 'Bearer token required' : 'open (set ARK_INGEST_TOKEN to require one)',
+    auth: 'Bearer org ingest token (see org_tokens). Open only before the first token is seeded.',
     body: {
       orgId: 'org_demo',
       events: [{
@@ -70,10 +73,11 @@ export async function GET() {
       }],
     },
     notes: [
+      'orgId in the body must match the token, or be omitted.',
       'costUsd is optional. Omit it and Control prices the call from its own rate card.',
       'sample is scanned for sensitive patterns and then discarded. It is never stored.',
       'Posting the same event id twice is a no-op, so retries are safe.',
-      'actions and qualitySamples are optional. An irreversible action with no approvedBy raises unapproved_action.',
+      'A budget in block refuses further events and returns circuitBreaks.reason budget_block.',
       'Prefer @ark/sdk — it assigns trace ids and turn indices so cost per outcome stays honest.',
     ],
   });

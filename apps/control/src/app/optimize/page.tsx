@@ -2,15 +2,16 @@ import Link from 'next/link';
 import { substitutionOpportunities, spendSummary, wasteBreakdown } from '@ark/db';
 import { Panel, Grid, Stat, Badge, BasisTag, Callout, Table, Td, fmt } from '@ark/ui';
 import { byId } from '@ark/core';
-import { ORG_ID, WINDOW_DAYS } from '@/lib/org';
+import { requireOrg, WINDOW_DAYS } from '@/lib/org';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Optimize() {
+  const { orgId } = await requireOrg();
   const [opps, spend, waste] = await Promise.all([
-    substitutionOpportunities(ORG_ID, WINDOW_DAYS),
-    spendSummary(ORG_ID, WINDOW_DAYS),
-    wasteBreakdown(ORG_ID, WINDOW_DAYS),
+    substitutionOpportunities(orgId, WINDOW_DAYS),
+    spendSummary(orgId, WINDOW_DAYS),
+    wasteBreakdown(orgId, WINDOW_DAYS),
   ]);
 
   // Only count the best option per workload, or the total double-counts.

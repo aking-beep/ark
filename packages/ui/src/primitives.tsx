@@ -172,7 +172,7 @@ export function BasisTag({
 const BASIS_MEANING: Record<string, string> = {
   heuristic: 'A rule of thumb. Nobody measured this. Treat it as a starting hypothesis.',
   benchmark: 'Published vendor or third-party figures, not your workload.',
-  calibrated: 'Adjusted using your own telemetry, but the sample is still thin.',
+  calibrated: 'Derived from measurements on systems like yours, not yours.',
   measured: 'Observed in your own running system.',
 };
 

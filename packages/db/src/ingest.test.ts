@@ -114,6 +114,38 @@ describe('applyIngest', () => {
     assert.ok(kinds.rows.length >= 1);
   });
 
+  test('a blocked budget refuses a follow-up event', async () => {
+    await client.execute({
+      sql: `INSERT INTO workloads (id,org_id,name,pattern,spec,assessment,status,created_at)
+            VALUES (?,?,?,?,?,?,?,?)`,
+      args: ['wl_block', 'org_demo', 'Block', 'bounded-agent', '{}', null, 'live', Date.now()],
+    });
+    await client.execute({
+      sql: `INSERT INTO budgets (id,org_id,scope,scope_id,period,limit_usd,warn_at_pct,enforcement,created_at)
+            VALUES (?,?,?,?,?,?,?,?,?)`,
+      args: ['bg_block', 'org_demo', 'workload', 'wl_block', 'month', 0.0001, 50, 'block', Date.now()],
+    });
+    const first = await applyIngest(IngestBody.parse({
+      orgId: 'org_demo',
+      events: [{
+        id: 'ev_block_1', traceId: 'tr_block', workloadId: 'wl_block',
+        provider: 'anthropic', modelId: 'claude-haiku-4.5', turn: 0, costUsd: 1,
+      }],
+    }), opts);
+    assert.equal(first.accepted, 1);
+    const second = await applyIngest(IngestBody.parse({
+      orgId: 'org_demo',
+      events: [{
+        id: 'ev_block_2', traceId: 'tr_block_2', workloadId: 'wl_block',
+        provider: 'anthropic', modelId: 'claude-haiku-4.5', turn: 0, costUsd: 1,
+      }],
+    }), opts);
+    assert.equal(second.accepted, 0);
+    assert.ok(second.circuitBreaks.some((b) => b.reason === 'budget_block'));
+    const stored = await client.execute({ sql: 'SELECT id FROM events WHERE id=?', args: ['ev_block_2'] });
+    assert.equal(stored.rows.length, 0);
+  });
+
   test('sample is not stored', async () => {
     await applyIngest(IngestBody.parse({
       events: [{

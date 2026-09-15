@@ -1,13 +1,14 @@
 import { calibration } from '@ark/db';
 import { Panel, Table, Td, Badge, BasisTag, Callout, fmt } from '@ark/ui';
-import { ORG_ID, WINDOW_DAYS } from '@/lib/org';
+import { requireOrg, WINDOW_DAYS } from '@/lib/org';
 
 export const dynamic = 'force-dynamic';
 
 const MIN_SAMPLE = 30;
 
 export default async function Calibration() {
-  const set = await calibration(ORG_ID, WINDOW_DAYS);
+  const { orgId } = await requireOrg();
+  const set = await calibration(orgId, WINDOW_DAYS);
   const usable = set.patterns.filter((p) => p.sampleSize >= MIN_SAMPLE);
 
   return (
@@ -40,7 +41,7 @@ export default async function Calibration() {
       <Panel
         title="Observed priors by architecture pattern"
         subtitle={`Window: ${set.windowDays} days · generated ${new Date(set.generatedAt).toLocaleString()}`}
-        right={<BasisTag basis={set.basis} source={`org ${set.orgId ?? ORG_ID}`} />}
+        right={<BasisTag basis={set.basis} source={`org ${set.orgId ?? orgId}`} />}
       >
         <Table head={['Pattern', 'Turns', 'p95 turns', 'Ctx growth', 'Failure', 'Retries', 'Cache', 'Cost/outcome', 'n']}>
           {set.patterns.map((p) => {
@@ -77,11 +78,10 @@ export default async function Calibration() {
 
       <Panel title="Consumed by AIFit" subtitle="Both AIFit surfaces fetch this on every assessment.">
         <pre className="overflow-x-auto rounded-lg bg-ink-900 p-4 font-mono text-2xs leading-relaxed text-ink-300">
-{`GET /api/v1/calibration?org=${ORG_ID}&days=${WINDOW_DAYS}
+{`GET /api/v1/calibration?days=${WINDOW_DAYS}
+Authorization: Bearer <org ingest token>
 
-# AIFit reads ARK_CONTROL_URL and calls this endpoint. When it is
-# unreachable, every estimate falls back to the rubric and is labelled
-# "heuristic" — the product degrades honestly rather than silently.`}
+# Org is taken from the token, never from an unauthenticated query param.`}
         </pre>
       </Panel>
     </div>

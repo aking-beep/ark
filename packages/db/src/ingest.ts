@@ -5,6 +5,10 @@ import {
   type ActionInput,
   priceEvent,
   sensitiveLabels,
+  budgetAction,
+  strictestAction,
+  type BudgetEnforcement,
+  type BudgetAction,
 } from '@ark/core';
 import { raw } from './queries.js';
 
@@ -39,6 +43,7 @@ export interface IngestResult {
   unpriced: number;
   alerts: number;
   circuitBreaks: CircuitBreak[];
+  alertRecords?: IngestAlert[];
 }
 
 const n = (v: unknown) => Number(v ?? 0);
@@ -53,10 +58,22 @@ export async function applyIngest(body: IngestBody, opts: ApplyIngestOpts): Prom
   const { orgId, events, traces, actions, qualitySamples } = body;
   const qualityMin = opts.qualityMinSamples ?? 20;
   const alerts: IngestAlert[] = [];
+  const breakers: CircuitBreak[] = [];
   let priced = 0;
   let unpriced = 0;
+  let accepted = 0;
+  const actionByWorkload = new Map<string, BudgetAction>();
 
   for (const e of events) {
+    const act = await workloadBudgetAction(c, orgId, e.workloadId, actionByWorkload);
+    if (act === 'block') {
+      pushBreak(breakers, e.traceId, 'budget_block');
+      continue;
+    }
+    if (act === 'throttle') {
+      pushBreak(breakers, e.traceId, 'budget_throttle');
+    }
+
     const ts = e.ts ?? Date.now();
     const { costUsd, priced: wasPriced } = priceEvent(e);
     wasPriced ? priced++ : unpriced++;
@@ -90,10 +107,13 @@ export async function applyIngest(body: IngestBody, opts: ApplyIngestOpts): Prom
     });
 
     alerts.push(...eventAlerts(e, { costUsd, wasPriced, matches, offAllowlist }));
+    accepted++;
   }
 
-  const breakers: CircuitBreak[] = [];
-  const touched = [...new Set(events.map((e) => e.traceId))];
+  const touched = [...new Set(events.filter((e) => {
+    const act = actionByWorkload.get(e.workloadId);
+    return act !== 'block';
+  }).map((e) => e.traceId))];
   for (const traceId of touched) {
     const r = await c.execute({
       sql: 'SELECT workload_id, total_turns, total_cost_usd FROM traces WHERE id = ?',
@@ -171,7 +191,7 @@ export async function applyIngest(body: IngestBody, opts: ApplyIngestOpts): Prom
     if (qreg) alerts.push(qreg);
   }
 
-  if (events.length > 0) {
+  if (accepted > 0) {
     alerts.push(...(await budgetAlerts(c, orgId)));
   }
 
@@ -186,7 +206,7 @@ export async function applyIngest(body: IngestBody, opts: ApplyIngestOpts): Prom
   }
 
   return {
-    accepted: events.length,
+    accepted,
     tracesClosed: traces.length,
     actionsAccepted: actions.length,
     qualityAccepted: qualitySamples.length,
@@ -194,6 +214,7 @@ export async function applyIngest(body: IngestBody, opts: ApplyIngestOpts): Prom
     unpriced,
     alerts: alerts.length,
     circuitBreaks: breakers,
+    alertRecords: alerts,
   };
 }
 
@@ -314,6 +335,48 @@ async function budgetAlerts(c: Client, orgId: string): Promise<IngestAlert[]> {
     }
   }
   return out;
+}
+
+function pushBreak(breakers: CircuitBreak[], traceId: string, reason: string) {
+  if (breakers.some((b) => b.traceId === traceId && b.reason === reason)) return;
+  breakers.push({ traceId, reason });
+}
+
+function monthStartMs(): number {
+  const start = new Date();
+  start.setDate(1);
+  start.setHours(0, 0, 0, 0);
+  return start.getTime();
+}
+
+async function workloadBudgetAction(
+  c: Client,
+  orgId: string,
+  workloadId: string,
+  cache: Map<string, BudgetAction>,
+): Promise<BudgetAction> {
+  const hit = cache.get(workloadId);
+  if (hit) return hit;
+  const rows = await c.execute({ sql: 'SELECT * FROM budgets WHERE org_id=?', args: [orgId] });
+  const actions: BudgetAction[] = [];
+  const from = monthStartMs();
+  for (const b of rows.rows) {
+    const scope = s(b.scope);
+    const scopeId = b.scope_id ? s(b.scope_id) : null;
+    if (scope === 'workload' && scopeId !== workloadId) continue;
+    if (scope !== 'org' && scope !== 'workload') continue;
+    const where = scope === 'workload' ? 'AND workload_id=?' : '';
+    const args: Array<string | number> = [orgId, from];
+    if (scope === 'workload') args.push(scopeId ?? '');
+    const spentR = await c.execute({
+      sql: `SELECT COALESCE(SUM(cost_usd),0) spent FROM events WHERE org_id=? AND ts>=? ${where}`,
+      args,
+    });
+    actions.push(budgetAction(n(spentR.rows[0]?.spent), n(b.limit_usd), s(b.enforcement) as BudgetEnforcement));
+  }
+  const act = strictestAction(actions);
+  cache.set(workloadId, act);
+  return act;
 }
 
 export type { ActionInput };

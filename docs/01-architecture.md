@@ -8,6 +8,8 @@
 
 `apps/consumer` and `apps/business` do not list `@ark/db` as a dependency. This is checked by the package manager, which makes it the cheapest possible enforcement of the most important architectural constraint in the repo.
 
+Control HTML is session-scoped to one org. Ingest and calibration take the org from a bearer token. An unauthenticated `?org=` query param is not a tenancy control.
+
 The consequence is that AIFit can only reach Control through one documented HTTP call:
 
 ```ts

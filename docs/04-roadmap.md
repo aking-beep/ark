@@ -22,15 +22,11 @@ The rubric is currently defensible as *judgement*. That is honest but it is not 
 **Exit:** a report can be defended line by line to a sceptical engineer without reaching for "that's a heuristic."
 **Kill:** if the golden set shows the verdict ladder disagreeing with informed human judgement more than ~30% of the time, stop building surfaces and rebuild the rubric.
 
-## Phase 2 — The loop closes for someone other than me (weeks 5–12)
+## Phase 2 — The loop closes for someone other than me
 
-Everything in Phase 0 and 1 is demonstrable on seeded data. That is not the same as a customer's traces.
+Shipped in-repo: Control sessions and org-bound ingest tokens; webhook/Slack alert delivery; budget `throttle`/`block` on ingest; a second org whose traces arrive only via ingest; fleet `calibrated` priors below the 30-trace floor; Docker compose for all three surfaces.
 
-- Three workloads instrumented in production by someone who did not write this code.
-- The drift page rendering real predicted-vs-observed, and the first uncomfortable number published.
-- `calibrated` basis actually earned — priors from comparable systems, not just the customer's own, which is what makes the second customer's first assessment better than the first customer's was.
-- Alert routing (webhook, Slack) and budget enforcement past `observe`.
-- Multi-tenant auth. Currently org-scoped in the schema and not enforced at the edge.
+Still required to call the phase **done** against a real customer: three workloads instrumented in production by someone who did not write this code, and a drift figure they check rather than one we show them on seed data.
 
 **Exit:** a customer's report reads `measured` on cost, and the drift figure is something they check rather than something we show them.
 **Kill:** if instrumenting a real workload takes more than a day of a customer engineer's time, the SDK is the product problem and nothing after this matters.

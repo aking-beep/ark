@@ -161,3 +161,43 @@ export type Event = typeof events.$inferSelect;
 export type Action = typeof actions.$inferSelect;
 export type Budget = typeof budgets.$inferSelect;
 export type Alert = typeof alerts.$inferSelect;
+
+export const users = sqliteTable('users', {
+  id: text('id').primaryKey(),
+  email: text('email').notNull().unique(),
+  passwordHash: text('password_hash').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+});
+
+export const memberships = sqliteTable('memberships', {
+  userId: text('user_id').notNull(),
+  orgId: text('org_id').notNull(),
+  role: text('role').notNull().default('member'),
+});
+
+export const orgTokens = sqliteTable('org_tokens', {
+  id: text('id').primaryKey(),
+  orgId: text('org_id').notNull(),
+  name: text('name').notNull(),
+  tokenHash: text('token_hash').notNull().unique(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+});
+
+export const alertDestinations = sqliteTable('alert_destinations', {
+  id: text('id').primaryKey(),
+  orgId: text('org_id').notNull(),
+  kind: text('kind', { enum: ['webhook', 'slack'] }).notNull(),
+  url: text('url').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+});
+
+export const alertDeliveries = sqliteTable('alert_deliveries', {
+  id: text('id').primaryKey(),
+  orgId: text('org_id').notNull(),
+  destinationId: text('destination_id').notNull(),
+  alertKind: text('alert_kind').notNull(),
+  ts: integer('ts', { mode: 'timestamp' }).notNull(),
+  ok: integer('ok', { mode: 'boolean' }).notNull(),
+  status: integer('status'),
+  error: text('error'),
+});

@@ -1,6 +1,6 @@
 import { budgetStatus, recentAlerts, actionAudit } from '@ark/db';
 import { Panel, Badge, Meter, Table, Td, Callout, fmt, type Tone } from '@ark/ui';
-import { ORG_ID, WINDOW_DAYS } from '@/lib/org';
+import { requireOrg, WINDOW_DAYS } from '@/lib/org';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,10 +14,11 @@ const ENFORCEMENT_MEANING: Record<string, string> = {
 };
 
 export default async function Budgets() {
+  const { orgId } = await requireOrg();
   const [budgets, alerts, actions] = await Promise.all([
-    budgetStatus(ORG_ID),
-    recentAlerts(ORG_ID, 40),
-    actionAudit(ORG_ID, WINDOW_DAYS),
+    budgetStatus(orgId),
+    recentAlerts(orgId, 40),
+    actionAudit(orgId, WINDOW_DAYS),
   ]);
 
   const unapproved = actions.filter((a) => a.unapproved > 0);

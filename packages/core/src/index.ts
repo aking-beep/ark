@@ -13,3 +13,4 @@ export * from './fixtures.js';
 export * from './ingest/schema.js';
 export * from './ingest/sensitive.js';
 export * from './golden/set.js';
+export * from './ops/budget-enforcement.js';

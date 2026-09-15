@@ -1,0 +1,22 @@
+services:
+  ark:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+      - "3002:3002"
+    environment:
+      ARK_DATABASE_URL: file:/data/ark.db
+      ARK_SESSION_SECRET: ${ARK_SESSION_SECRET:-change-me-in-production}
+      ARK_CONTROL_URL: http://127.0.0.1:3002
+      ARK_CONTROL_TOKEN: ${ARK_CONTROL_TOKEN:-ark_dev_ingest_org_demo}
+      ARK_WEBHOOK_URL: ${ARK_WEBHOOK_URL:-}
+      ARK_SLACK_WEBHOOK_URL: ${ARK_SLACK_WEBHOOK_URL:-}
+      NODE_ENV: production
+    volumes:
+      - ark-data:/data
+
+volumes:
+  ark-data:
