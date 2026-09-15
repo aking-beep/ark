@@ -30,9 +30,27 @@ fi
 # Branch from a freshly fetched origin, never from whatever is checked out here.
 # 01-ISOLATE.md explains why: a stale base is how a feature silently reverts
 # someone else's merged work.
-echo "→ fetching origin"
-git fetch origin "$BASE"
-git worktree add -b "$SLUG" "$WT" "origin/$BASE"
+#
+# A repo with no remote yet is a legitimate state — the first week of a project —
+# so fall back to the local base branch and say so, rather than dying on a fetch
+# that could never have worked.
+if git remote get-url origin >/dev/null 2>&1; then
+  echo "→ fetching origin"
+  git fetch origin "$BASE"
+  START="origin/$BASE"
+else
+  echo "note: no 'origin' remote — branching from local $BASE"
+  START="$BASE"
+fi
+
+if ! git rev-parse --verify --quiet "$START" >/dev/null; then
+  echo "no such base branch: $START" >&2
+  echo "  this repo's default branch may not be '$BASE'." >&2
+  echo "  set it: export FACTORY_BASE_BRANCH=\$(git rev-parse --abbrev-ref HEAD)" >&2
+  exit 1
+fi
+
+git worktree add -b "$SLUG" "$WT" "$START"
 
 mkdir -p "evidence/$SLUG" specs
 
@@ -65,7 +83,7 @@ fi
 cat <<EOF
 
 station ready
-  worktree   $WT   (branch $SLUG, based on origin/$BASE)
+  worktree   $WT   (branch $SLUG, based on $START)
   port       $PORT
   spec       specs/$SLUG.md      ← write and approve this before building
   evidence   evidence/$SLUG/
