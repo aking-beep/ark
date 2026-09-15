@@ -2,45 +2,47 @@
 
 ## What changed
 
-One sentence, in user terms. Not "refactored the upload handler" but "files over
-10 MB now fail with a message instead of hanging." TODO
+Fit, AIFit for teams, and Control now run as one stack: Docker starts the Python Fit API next to the three Next apps, Fit’s chrome links to the team product, and the business landing describes Fit instead of a six-question quiz. In this station the Fit UI can also reach the engine: `/v1/scenarios` went from a Next 404 to JSON.
 
 ## How it was measured
 
-The exact command, route, viewport, or procedure — such that a reviewer could
-repeat it and get the same thing. State the conditions that would change the
-result: data set, machine, warm or cold cache. TODO
+Same four local processes the entrypoint would start: consumer `:3000`, business `:3001`, Control `:3002`, Fit API `:8472`. Commands in `before.txt` / `after.txt`:
+
+- `curl` `GET :3000/` and `GET :3001/` (body greps + HTML dumps)
+- `curl` `GET :8472/health`, `GET :3000/health`, `GET :3000/v1/scenarios`, `POST :3000/v1/sessions/demo`
+- `curl` `GET :3002/dashboard` (session redirect)
+- file greps of `deploy/Dockerfile`, `entrypoint.sh`, `docker-compose.yml`
+- screenshots at **1440×900**: `before-consumer.png` / `after-consumer.png`, `before-business.png` / `after-business.png`
+
+Stamps: `captures.tsv`. Before commit `6b7e3ad` (dirty=2 was spec + evidence dir, not product code). After commit `db12e35`.
+
+No Docker daemon in this station — `docker info` fails. Image contents are the files; the running processes are the same four the entrypoint launches.
 
 ## Before / after
 
 | | Before | After |
 |---|---|---|
-| Artefact | `before.png` | `after.png` |
-| Measurement | TODO | TODO |
-
-Capture timestamps and commit SHAs are in `captures.tsv`, written by
-`scripts/factory-prove.sh`.
+| Artefact | `before.txt`, `before-consumer.html`, `before-business.html`, `before-consumer.png`, `before-business.png` | `after.txt`, `after-consumer.html`, `after-business.html`, `after-consumer.png`, `after-business.png` |
+| Fit `/` nav | No “For teams” | “For teams” → `http://localhost:3001` (visible in `after-consumer.png`) |
+| Business `/` | “The consumer version asks six questions…” | “Fit is the five-minute personal quiz…” / Open Fit; `six questions` absent |
+| Dockerfile | `FROM node:22-bookworm-slim`, no `fit/`, EXPOSE 3000–3002 | `FROM python:3.12-slim-bookworm`, `pip3 install -e ./fit`, EXPOSE 8472 |
+| Entrypoint | three Next apps | `fit-api` + `uvicorn` + three Next apps |
+| Compose | no 8472 | `8472:8472`, `API_ORIGIN`, `ARK_CONSUMER_URL`, `NEXT_PUBLIC_ARK_BUSINESS_URL` |
+| `GET :3000/v1/scenarios` | 404 HTML | 200 JSON, 8 scenarios |
+| `GET :3000/health` | 404 HTML | 200 `{"ok":true,"product":"Fit",...}` |
+| `GET :8472/health` | 200 (local process already running) | 200 (unchanged; now also in the image) |
+| Control `/dashboard` | 307 `/login` | 307 `/login` |
 
 ## What this does not prove
 
-The honest limit. One browser only. Happy path only. Mocked provider. Seeded
-data, not production shapes. Load untested.
-
-This line is what earns trust in everything above it — an evidence document that
-claims to prove everything is a document to distrust. TODO
+The Docker image was not built or run here (no daemon). A host with Docker still has to `docker compose -f deploy/docker-compose.yml up --build` to prove the Python+Node image boots. `NEXT_PUBLIC_ARK_BUSINESS_URL` is baked at Next build time; compose runtime env cannot retarget an already-built Fit bundle. Screenshots are 1440×900, so the business “Not at work?” block is below the fold — that change is in the HTML dump, not the PNG. Thesis and ADRs that still mention six-question consumer are unchanged (out of scope).
 
 ## Deviations
 
-Anything done differently from the spec, and why. Any dependency added that the
-spec did not authorize, and what it replaced. Any test changed, and why the old
-one was wrong. If none: say "none".
+None from the spec’s five criteria. The `/v1` App Router proxy (`fit-proxy.ts`) was not named as its own criterion; it is how AC measurement “`GET :3000/v1/scenarios` returns JSON” is met, because Next 16 turbopack was ignoring `next.config` rewrites (before: 404). Timeout 20s; 502/504 on miss. No new runtime npm dependency.
 
 ## Definition of done
 
-Items from `factory/DEFINITION_OF_DONE.md` that need a written answer here.
-"Not applicable" is legitimate **with a reason**; "not applicable" because nobody
-measured is the failure the list exists to prevent.
-
-- **Cost / latency impact:** TODO
-- **Observability for new failure modes:** TODO
-- **Docs or ADR updated:** TODO
+- **Cost / latency impact:** N/A for model cost — no new model call. Proxy adds one hop with a 20s ceiling; Fit scoring latency is unchanged.
+- **Observability for new failure modes:** Proxy returns JSON `{error}` with 502 (unreachable / unconfigured) or 504 (timeout) instead of a Next 404 page. Docker logs are four named concurrently streams including `fit-api`.
+- **Docs or ADR updated:** `docs/05-hosting.md`, `docs/06-aifit-consumer.md`, `.env.example`, README. No new ADR (compose still one service; it now includes Python).
