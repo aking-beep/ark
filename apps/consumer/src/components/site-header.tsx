@@ -78,7 +78,7 @@ export function SiteHeader() {
               return (
                 <li key={link.href}>
                   {link.external ? (
-                    <a href={link.href} className={className}>
+                    <a href={link.href} className={className} onClick={() => setOpen(false)}>
                       {link.label}
                     </a>
                   ) : (

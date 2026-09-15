@@ -41,6 +41,8 @@ The Docker image was not built or run here (no daemon). A host with Docker still
 
 None from the spec’s five criteria. The `/v1` App Router proxy (`fit-proxy.ts`) was not named as its own criterion; it is how AC measurement “`GET :3000/v1/scenarios` returns JSON” is met, because Next 16 turbopack was ignoring `next.config` rewrites (before: 404). Timeout 20s; 502/504 on miss. No new runtime npm dependency.
 
+Round 1 review: `curl` of the Node tarball in `deploy/Dockerfile` now uses `--max-time 120 --retry 3` so a hung `nodejs.org` fails the build instead of hanging. Mobile “For teams” also closes the menu (`setOpen(false)`). User-facing HTTP and 1440×900 screenshots are unchanged; see the curl line in `after.txt` (appended).
+
 ## Definition of done
 
 - **Cost / latency impact:** N/A for model cost — no new model call. Proxy adds one hop with a 20s ceiling; Fit scoring latency is unchanged.

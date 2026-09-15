@@ -60,3 +60,7 @@ absent — image not built this station
 
 === npm test (runtime + proxy subset already in full suite) ===
 passed in builder pass: core 51, db 18, sdk 4, runtime 6, fit-proxy 7
+
+=== round-1 fix: Dockerfile Node tarball curl has a timeout ===
+9:  && apt-get install -y --no-install-recommends ca-certificates curl xz-utils \
+10:  && curl -fsSLo /tmp/node.tar.xz --max-time 120 --retry 3 \

@@ -5,9 +5,11 @@ FROM python:3.12-slim-bookworm
 WORKDIR /app
 
 ARG NODE_VERSION=22.14.0
+# --max-time so a hung nodejs.org does not stall `docker compose up --build`.
 RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates curl xz-utils \
-  && curl -fsSLo /tmp/node.tar.xz "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
+  && curl -fsSLo /tmp/node.tar.xz --max-time 120 --retry 3 \
+       "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
   && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
   && rm /tmp/node.tar.xz \
   && apt-get purge -y xz-utils \

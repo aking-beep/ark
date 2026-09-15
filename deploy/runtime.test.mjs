@@ -16,6 +16,7 @@ describe("three-product docker runtime", () => {
     assert.match(docker, /API_ORIGIN=http:\/\/127\.0\.0\.1:8472/);
     assert.match(docker, /EXPOSE 3000 3001 3002 8472/);
     assert.match(docker, /NEXT_PUBLIC_ARK_BUSINESS_URL/);
+    assert.match(docker, /curl[\s\S]*--max-time/);
   });
 
   test("entrypoint starts Fit API with the three Next apps", () => {
