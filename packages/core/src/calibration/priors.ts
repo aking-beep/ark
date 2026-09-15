@@ -3,18 +3,18 @@ import { Pattern } from '../assess/architecture.js';
 import { Estimate, estimate, Basis } from '../schema/provenance.js';
 
 /**
- * The feedback loop. This module is why Control is built before AIFit.
+ * The feedback loop. This module is why Control is built before MY AI for teams.
  *
- * AIFit ships with rules of thumb for how many turns a pattern takes, how
+ * MY AI for teams ships with rules of thumb for how many turns a pattern takes, how
  * often calls fail, how much context an agent accumulates. Those are guesses.
  * ARK Control observes the same quantities in production and emits a
- * CalibrationSet. AIFit then prefers observed values over its own priors, and
+ * CalibrationSet. MY AI for teams then prefers observed values over its own priors, and
  * re-labels the resulting estimates from `heuristic` to `calibrated` or
  * `measured`.
  *
  * The practical consequence: the assessment product gets more accurate as the
  * telemetry product collects more data, and nothing else in the market has
- * that loop closed. Without it, AIFit is a well-organised opinion.
+ * that loop closed. Without it, MY AI for teams is a well-organised opinion.
  */
 
 export const PatternPrior = z.object({
@@ -27,7 +27,7 @@ export const PatternPrior = z.object({
   /** Observed cost per successful outcome, USD. */
   costPerOutcomeUsd: z.number().optional(),
   sampleSize: z.number(),
-  /** p50/p95 spread, so AIFit can show a range rather than a false point. */
+  /** p50/p95 spread, so MY AI for teams can show a range rather than a false point. */
   p95TurnsPerOutcome: z.number().optional(),
 });
 export type PatternPrior = z.infer<typeof PatternPrior>;

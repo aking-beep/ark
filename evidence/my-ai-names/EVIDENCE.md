@@ -38,7 +38,7 @@ Owner follow-up after Round 1: also rename the engine so the names make sense ac
 
 ## What this does not prove
 
-Headless Chrome, not a phone in someone’s hand. Control pages were not screenshotted; AC3 is proven by source strings and `deploy/runtime.test.mjs`. Historical ADRs, thesis, and past evidence directories still say “AIFit” / `fit/` as the name of a past decision. Layout and scoring did not change. HTTP `/v1/*` paths are unchanged. Docker image was not rebuilt here (no daemon).
+Headless Chrome, not a phone in someone’s hand. Control pages were not screenshotted; AC3 is proven by source strings and `deploy/runtime.test.mjs`. Historical ADRs and past evidence directories still say “AIFit” / `fit/` as the name of a past decision. Layout and scoring did not change. HTTP `/v1/*` paths are unchanged. Docker image was not rebuilt here (no daemon).
 
 ## Deviations
 
@@ -50,4 +50,4 @@ Internal type names (`FitFilters`, `UserFitVector`, `myai.fit`) stay as matching
 
 - **Cost / latency impact:** N/A — copy, titles, and path/package rename only; no new network call, query, or model.
 - **Observability for new failure modes:** Proxy still returns JSON 502/504; messages now say MY AI API. Timeouts unchanged (20s).
-- **Docs or ADR updated:** README, hosting, consumer docs, PRDs, `.env.example`, CI. No new ADR; architecture of scoring did not change.
+- **Docs or ADR updated:** README, hosting, consumer docs, PRDs, thesis, architecture, data model, roadmap, `.env.example`, CI, and product-name comments in `@ark/core` / `@ark/db` / `@ark/ui`. No new ADR; architecture of scoring did not change. ADR titles stay historical.

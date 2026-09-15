@@ -6,7 +6,7 @@ Phases carry exit criteria and kill criteria. The kill criteria are the part tha
 
 Three apps, one engine, one database, seeded telemetry, `npm run setup && npm run dev`.
 
-Working: the full assessment path on both AIFit surfaces including `not-ai` verdicts and hard blockers; the business report across all eight sections; `POST /api/assess`; Control ingest, pricing, detection, dashboards and budgets; the calibration endpoint; and the `heuristic → measured` promotion verified end to end against seeded data.
+Working: the full assessment path on MY AI and MY AI for teams including `not-ai` verdicts and hard blockers; the business report across all eight sections; `POST /api/assess`; Control ingest, pricing, detection, dashboards and budgets; the calibration endpoint; and the `heuristic → measured` promotion verified end to end against seeded data.
 
 **Exit:** met.
 

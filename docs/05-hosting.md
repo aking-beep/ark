@@ -62,4 +62,4 @@ Point `ARK_DATABASE_URL` at Turso/libSQL (and `ARK_DATABASE_AUTH_TOKEN`) when mo
 
 ## What this is not
 
-A managed AWS/Vercel/Railway account. The compose file is the portable unit. Wire a reverse proxy and TLS in front of the four ports, or run process replicas sharing one libSQL URL. Consumer Fit on Vercel uses `vercel.consumer.json` (web + API services) instead of this image.
+A managed AWS/Vercel/Railway account. The compose file is the portable unit. Wire a reverse proxy and TLS in front of the four ports, or run process replicas sharing one libSQL URL. Consumer MY AI on Vercel uses `vercel.consumer.json` (web + API services) instead of this image.

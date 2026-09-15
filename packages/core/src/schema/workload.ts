@@ -5,7 +5,7 @@ import { z } from 'zod';
  *
  * Not "a company" and not "a use case" — a specific repeating job that
  * currently consumes human time, described precisely enough to reason about.
- * Both AIFit surfaces produce one of these; ARK Control attributes cost to one.
+ * Both MY AI products produce one of these; ARK Control attributes cost to one.
  */
 
 export const TaskShape = z.enum([

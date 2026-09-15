@@ -1,7 +1,7 @@
 import { CalibrationSet } from './priors.js';
 
 /**
- * How AIFit reaches ARK Control.
+ * How MY AI for teams reaches ARK Control.
  *
  * Deliberately a network call rather than a shared database import. The two
  * products must be separable — a customer can buy the assessment without

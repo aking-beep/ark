@@ -10,7 +10,7 @@
 
 Control HTML is session-scoped to one org. Ingest and calibration take the org from a bearer token. An unauthenticated `?org=` query param is not a tenancy control.
 
-The consequence is that AIFit can only reach Control through one documented HTTP call:
+The consequence is that MY AI for teams can only reach Control through one documented HTTP call:
 
 ```ts
 const calibration = await fetchCalibration({ days: 30 });
@@ -19,7 +19,7 @@ const assessment = assess(workload, { depth: 'business', calibration });
 
 `fetchCalibration` returns `CalibrationSet | null`. It returns `null` on: no `ARK_CONTROL_URL` set, a 2.5s timeout, any non-200, or a response that fails schema validation. It never throws and it never partially applies.
 
-This matters because the failure mode it prevents is the dangerous one. If AIFit could reach the database directly, a partial read or a stale connection would silently produce numbers that *look* measured. Across an HTTP boundary with a strict schema and a null return, the only two states are "measured, with a sample size" and "heuristic, and the page says so."
+This matters because the failure mode it prevents is the dangerous one. If MY AI for teams could reach the database directly, a partial read or a stale connection would silently produce numbers that *look* measured. Across an HTTP boundary with a strict schema and a null return, the only two states are "measured, with a sample size" and "heuristic, and the page says so."
 
 ## Data flow, end to end
 
@@ -27,8 +27,8 @@ This matters because the failure mode it prevents is the dangerous one. If AIFit
 2. **Control prices and rolls up.** Each event is priced against the model catalog. Unpriceable events (unknown model, off-allowlist provider) are accepted, flagged, and counted — never dropped, because the traffic happened whether or not the catalog knows about it.
 3. **Control detects.** Turn ceiling breached → `loop_runaway`. Trace cost ceiling breached → `circuit_break`. Provider outside the allowlist → `off_allowlist`. Prompt sample matching a sensitive-data detector → `sensitive_data`. Model price past its `asOf` window → `stale_pricing`.
 4. **Control computes priors.** Per architecture pattern, over a rolling window: turns per outcome, context growth per turn, failure rate, retries per failure, cache hit rate, cost per outcome, p95 turns, sample size.
-5. **AIFit consumes.** `GET /api/v1/calibration?days=30` returns those priors with `basis: "measured"`. Patterns below the 30-trace floor are returned but marked, and `resolveCallShape` declines to use them.
-6. **Control closes the loop.** `/workloads/[id]` compares what AIFit predicted against what the workload actually costs and renders the drift as a percentage. This is the page that keeps the rubric honest, and it is the reason the estimate has a name and a date attached to it.
+5. **MY AI for teams consumes.** `GET /api/v1/calibration?days=30` returns those priors with `basis: "measured"`. Patterns below the 30-trace floor are returned but marked, and `resolveCallShape` declines to use them.
+6. **Control closes the loop.** `/workloads/[id]` compares what MY AI for teams predicted against what the workload actually costs and renders the drift as a percentage. This is the page that keeps the rubric honest, and it is the reason the estimate has a name and a date attached to it.
 
 ## The turn index
 
