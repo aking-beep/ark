@@ -50,6 +50,8 @@ Then:
 - http://localhost:3001 — business AIFit
 - http://localhost:3002 — ARK Control (sign in; see demo accounts below)
 
+Fit (consumer) uses Next 16 nested under `apps/consumer`. Business and Control stay on Next 15 / React 18. After a consumer install, restart those two apps so they are not left on a stale `.next` from a previous `next dev`. `npm run dev:ark` starts only those two.
+
 Zero config. The database is a local SQLite file (`ark.db`); nothing else is required. To see AIFit's figures flip from `heuristic` to `measured`, set `ARK_CONTROL_URL=http://localhost:3002` and `ARK_CONTROL_TOKEN` to a Demo Co ingest token, then reload a business report.
 
 Control is org-scoped at the edge. After `npm run setup`:
@@ -88,7 +90,8 @@ Consumer Fit keeps quiz progress in the browser (`localStorage`) and scores via 
 ## Commands
 
 ```bash
-npm run dev            # all three apps concurrently
+npm run dev            # Fit API + consumer + business + control
+npm run dev:ark        # business (:3001) and Control (:3002) only
 npm run build          # packages, then all three apps
 npm run test           # @ark/core, db, SDK
 npm run test:fit       # Fit Python engine (pytest)
