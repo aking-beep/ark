@@ -1,13 +1,13 @@
-# AIFit consumer (Fit)
+# MY AI (consumer)
 
-Consumer AIFit is **Fit** — the project formerly at [github.com/aking-beep/aifit-engine](https://github.com/aking-beep/aifit-engine), now living in this monorepo.
+Consumer **MY AI** is the project formerly at [github.com/aking-beep/aifit-engine](https://github.com/aking-beep/aifit-engine), now living in this monorepo.
 
 | Path | Role |
 |---|---|
 | `apps/consumer/` | Next.js UI (port **3000**) |
 | `fit/` | Python engine, FastAPI (`/v1`), registry data, evals, tests |
 
-Business AIFit and ARK Control still use the TypeScript `@ark/core` engine. Consumer does not.
+MY AI for teams and ARK Control still use the TypeScript `@ark/core` engine. Consumer does not.
 
 ## Run locally
 
@@ -28,7 +28,7 @@ Or both with the rest of ARK:
 npm run setup && npm run dev  # fit-api + consumer + business + control
 ```
 
-Next.js proxies `/health` and `/v1/*` to the Fit API (`API_ORIGIN`, default `http://127.0.0.1:8472` off Vercel) through `apps/consumer/src/lib/fit-proxy.ts`. Docker compose publishes 8472 and starts uvicorn next to the three Next apps — see [Hosting](05-hosting.md). Fit does not link to AIFit for teams; they are separate products.
+Next.js proxies `/health` and `/v1/*` to the scoring API (`API_ORIGIN`, default `http://127.0.0.1:8472` off Vercel) through `apps/consumer/src/lib/fit-proxy.ts`. Docker compose publishes 8472 and starts uvicorn next to the three Next apps — see [Hosting](05-hosting.md). MY AI does not link to MY AI for teams; they are separate products.
 
 ## Tests
 

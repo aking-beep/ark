@@ -16,7 +16,7 @@ export default async function Calibration() {
       <header>
         <h1 className="text-xl font-semibold text-ink-100">Calibration</h1>
         <p className="mt-1 max-w-3xl text-sm leading-relaxed text-ink-400">
-          This is the join between the two products, and the reason Control is built before AIFit. AIFit ships
+          This is the join between the two products, and the reason Control is built before MY AI for teams. MY AI for teams ships
           with rules of thumb about how many turns a pattern takes and how often it fails. Control measures
           those same quantities in production and hands them back, so the assessment stops guessing.
         </p>
@@ -26,13 +26,13 @@ export default async function Calibration() {
         {usable.length ? (
           <>
             {usable.length} of {set.patterns.length} patterns clear the {MIN_SAMPLE}-trace floor and will
-            override AIFit&apos;s rubric. Estimates for those patterns are labelled{' '}
+            override MY AI for teams&apos; rubric. Estimates for those patterns are labelled{' '}
             <span className="font-mono text-good">measured</span> rather than{' '}
             <span className="font-mono text-warn">heuristic</span>.
           </>
         ) : (
           <>
-            No pattern has {MIN_SAMPLE} traces yet, so AIFit keeps using its own priors and keeps saying so.
+            No pattern has {MIN_SAMPLE} traces yet, so MY AI for teams keeps using its own priors and keeps saying so.
             Thin samples are worse than honest rules of thumb, because they look like evidence.
           </>
         )}
@@ -71,12 +71,12 @@ export default async function Calibration() {
           })}
         </Table>
         <p className="mt-3 text-2xs leading-relaxed text-ink-500">
-          The p95 column exists so AIFit can show a range rather than a false point estimate. The gap between
+          The p95 column exists so MY AI for teams can show a range rather than a false point estimate. The gap between
           the mean and the p95 turn count is where agent budgets go to die.
         </p>
       </Panel>
 
-      <Panel title="Consumed by AIFit" subtitle="Both AIFit surfaces fetch this on every assessment.">
+      <Panel title="Consumed by MY AI for teams" subtitle="The teams assessment fetches this on every report.">
         <pre className="overflow-x-auto rounded-lg bg-ink-900 p-4 font-mono text-2xs leading-relaxed text-ink-300">
 {`GET /api/v1/calibration?days=${WINDOW_DAYS}
 Authorization: Bearer <org ingest token>

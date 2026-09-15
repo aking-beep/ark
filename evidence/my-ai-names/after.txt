@@ -1,0 +1,7 @@
+curl -sS GET http://127.0.0.1:3000/ and http://127.0.0.1:3001/
+after-consumer title MY AI —: True
+after-consumer Find MY AI: True
+after-consumer Find my fit: False
+after-consumer Fit —: False
+after-business MY AI for teams: True
+after-business AIFit for teams: False

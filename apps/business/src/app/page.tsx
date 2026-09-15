@@ -4,7 +4,7 @@ export default function Landing() {
   return (
     <div className="space-y-12">
       <section className="max-w-3xl">
-        <p className="font-mono text-2xs uppercase tracking-widest text-signal">AIFit for teams</p>
+        <p className="font-mono text-2xs uppercase tracking-widest text-signal">MY AI for teams</p>
         <h1 className="mt-3 text-4xl font-semibold leading-tight text-ink-100">
           Should your team build this, and what happens when it runs?
         </h1>

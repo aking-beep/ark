@@ -26,7 +26,7 @@ from aifit.persona import generate_persona
 from aifit.registry import load_models, load_products
 from aifit.scenarios import load_scenarios
 
-app = FastAPI(title="Fit API", version="0.4.0")
+app = FastAPI(title="MY AI API", version="0.4.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -135,7 +135,7 @@ def health():
         "ok": True,
         "version": "0.4.0",
         "privacy": "anonymous",
-        "product": "Fit",
+        "product": "MY AI",
         "store": RESULT_STORE.backend,
         "durable": RESULT_STORE.durable,
     }

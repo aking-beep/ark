@@ -233,7 +233,7 @@ export function ResultsView({
           </div>
           {maturity ? (
             <div className="w-full rounded-xl border px-4 py-3 text-left sm:w-auto sm:text-right">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Fit score</p>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">MY AI score</p>
               <p className="text-3xl font-semibold">{maturity.score}</p>
               <p className="text-sm capitalize text-muted-foreground">{maturity.band}</p>
               <p className="mt-1 max-w-[16rem] text-xs text-muted-foreground sm:ml-auto">
@@ -303,7 +303,7 @@ export function ResultsView({
           Use your persona now
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Type something you actually need help with. Fit adds your{" "}
+          Type something you actually need help with. MY AI adds your{" "}
           <span className="font-medium text-foreground">{personaTitle}</span> style and hands it to the AI you pick —
           ready to send.
         </p>
@@ -361,7 +361,7 @@ export function ResultsView({
           </Button>
         </div>
         <p className="mt-3 text-xs text-muted-foreground">
-          Nothing is sent to Fit — your message goes to the AI you choose. For Gemini and “Any AI” we copy it so you can
+          Nothing is sent to MY AI — your message goes to the AI you choose. For Gemini and “Any AI” we copy it so you can
           paste it in.
         </p>
       </section>

@@ -17,14 +17,14 @@ Then:
 
 | Surface | URL |
 |---|---|
-| Fit (consumer) | http://localhost:3000 |
-| Fit API (Python) | http://localhost:8472/health |
-| AIFit business | http://localhost:3001 |
+| MY AI (consumer) | http://localhost:3000 |
+| Scoring API (Python) | http://localhost:8472/health |
+| MY AI for teams | http://localhost:3001 |
 | ARK Control | http://localhost:3002 |
 
 Consumer Next proxies `/health` and `/v1/*` to the Fit API at `API_ORIGIN` (default `http://127.0.0.1:8472` inside the container). From a browser, use the consumer origin for the quiz; 8472 is for operators.
 
-Fit and AIFit for teams are **separate products**. They do not link to each other. The only product-to-product wire in this stack is business → Control (`ARK_CONTROL_URL`), which is the estimator↔measurement loop.
+MY AI and MY AI for teams are **separate products**. They do not link to each other. The only product-to-product wire in this stack is business → Control (`ARK_CONTROL_URL`), which is the estimator↔measurement loop.
 
 | Variable | Default | Who reads it |
 |---|---|---|
