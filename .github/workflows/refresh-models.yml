@@ -1,0 +1,21 @@
+name: Model catalog audit
+
+# Promotional rates lapse with nobody changing a line of code. This is the
+# weekly reminder that the catalog is a dated artefact, not a scrape.
+on:
+  schedule:
+    - cron: '0 8 * * 1'
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: npm run build:packages
+      - run: npm run refresh:models

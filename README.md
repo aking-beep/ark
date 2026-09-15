@@ -58,6 +58,7 @@ packages/
   core/     the engine — schema, scoring, economics, model catalog, calibration client
   db/       Drizzle schema + seed for Control
   ui/       shared component vocabulary and Tailwind preset
+  sdk/      ingest client — trace ids, turn indices, POST /api/v1/events
 apps/
   consumer/ AIFit B2C   — 6 questions, no persistence, results encoded in the URL
   business/ AIFit B2B   — 8 sections, no persistence, plus POST /api/assess
@@ -76,7 +77,7 @@ Neither AIFit surface stores anything. Both encode the intake into the result li
 ```bash
 npm run dev            # all three apps concurrently
 npm run build          # packages, then all three apps
-npm run test           # engine tests (node --test)
+npm run test           # engine, ingest, SDK, copy-link tests
 npm run typecheck      # every workspace
 npm run db:seed        # regenerate demo telemetry
 ```

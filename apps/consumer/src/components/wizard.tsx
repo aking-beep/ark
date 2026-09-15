@@ -8,6 +8,9 @@ import { encodeIntakeClient } from '@/lib/encode';
  * Six questions in plain language. Each one maps onto a field the business
  * engine already understands, so this is a genuinely narrower intake rather
  * than a separate, weaker product.
+ *
+ * Volume and hourly rate are deliberately not asked. Any cost figure built
+ * from those would be fabricated; the report suppresses the section instead.
  */
 
 const SHAPES = [
@@ -31,20 +34,16 @@ export function Wizard() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [task, setTask] = useState<string[]>([]);
-  const [timesPerMonth, setTimes] = useState(20);
-  const [minutesEach, setMinutes] = useState(15);
-  const [involvesPersonalData, setPersonal] = useState(false);
-  const [involvesMoneyOrLegal, setMoney] = useState(false);
   const [needsExactAnswer, setExact] = useState(false);
+  const [harmIfWrong, setHarm] = useState<'nothing' | 'redo' | 'serious'>('redo');
   const [needsCurrentInfo, setCurrent] = useState(false);
-  const [wouldNoticeIfWrong, setNotice] = useState<'immediately' | 'eventually' | 'never'>('eventually');
+  const [doesSomething, setDoes] = useState(false);
 
   const canAdvance = useMemo(() => {
     if (step === 0) return name.trim().length > 1;
     if (step === 1) return task.length > 0;
-    if (step === 2) return timesPerMonth > 0 && minutesEach > 0;
     return true;
-  }, [step, name, task, timesPerMonth, minutesEach]);
+  }, [step, name, task]);
 
   function submit() {
     const encoded = encodeIntakeClient({
@@ -52,13 +51,10 @@ export function Wizard() {
       name: name.trim(),
       description: description.trim(),
       task,
-      timesPerMonth,
-      minutesEach,
-      involvesPersonalData,
-      involvesMoneyOrLegal,
       needsExactAnswer,
+      harmIfWrong,
       needsCurrentInfo,
-      wouldNoticeIfWrong,
+      doesSomething,
     });
     router.push(`/result?i=${encoded}`);
   }
@@ -78,7 +74,7 @@ export function Wizard() {
 
       {step === 0 && (
         <Question
-          title="What is the task?"
+          title="What is the task, in a sentence?"
           help="One specific thing you do repeatedly. Not &ldquo;marketing&rdquo; — something like &ldquo;write the weekly update email to clients&rdquo;."
         >
           <input
@@ -99,7 +95,7 @@ export function Wizard() {
       )}
 
       {step === 1 && (
-        <Question title="What kind of work is it?" help="Pick everything that applies.">
+        <Question title="What kind of work is it?" help="Pick everything that applies. Maths and looking-up-a-known-answer are what trigger a no.">
           <div className="grid gap-2 sm:grid-cols-2">
             {SHAPES.map((s) => {
               const on = task.includes(s.id);
@@ -126,75 +122,109 @@ export function Wizard() {
 
       {step === 2 && (
         <Question
-          title="How often, and how long does it take you?"
-          help="Rough numbers are fine. This is what decides whether automating it is worth anyone's time."
+          title="Does it need to be exactly right, or approximately right?"
+          help="Exactly right means there is one correct answer you could look up or calculate. Approximately right means a band of answers would be fine."
         >
-          <div className="grid gap-5 sm:grid-cols-2">
-            <Number label="Times per month" value={timesPerMonth} onChange={setTimes} min={1} max={100000} suffix="/mo" />
-            <Number label="Minutes each time" value={minutesEach} onChange={setMinutes} min={1} max={480} suffix="min" />
+          <div className="space-y-2">
+            {[
+              { on: true, label: 'Exactly right', help: 'A number, a record, a fact — either correct or it is not.' },
+              { on: false, label: 'Approximately right', help: 'Tone, a summary, a first draft. Several answers would do.' },
+            ].map((o) => (
+              <button
+                key={String(o.on)}
+                type="button"
+                onClick={() => setExact(o.on)}
+                className={
+                  'w-full rounded-lg border px-4 py-3 text-left transition ' +
+                  (needsExactAnswer === o.on
+                    ? 'border-signal bg-signal/10 text-ink-100'
+                    : 'border-ink-700 bg-ink-850 text-ink-300 hover:border-ink-600')
+                }
+              >
+                <span className="block text-sm">{o.label}</span>
+                <span className="mt-0.5 block text-2xs text-ink-500">{o.help}</span>
+              </button>
+            ))}
           </div>
-          <p className="mt-4 text-sm text-ink-400">
-            That is roughly{' '}
-            <span className="font-mono text-ink-100">
-              {((timesPerMonth * minutesEach) / 60).toFixed(1)} hours
-            </span>{' '}
-            a month.
-          </p>
         </Question>
       )}
 
       {step === 3 && (
-        <Question title="What goes into it?" help="This decides what warnings you get, and whether you should be sending this anywhere at all.">
-          <Toggle
-            on={involvesPersonalData}
-            set={setPersonal}
-            label="It involves other people's personal details"
-            help="Names, emails, addresses, anything about a specific identifiable person."
-          />
-          <Toggle
-            on={involvesMoneyOrLegal}
-            set={setMoney}
-            label="It involves money, contracts or anything legal"
-            help="Invoices, payments, agreements, tax, medical or financial advice."
-          />
+        <Question
+          title="What happens if it is wrong?"
+          help="This is the question most people get wrong about AI, and it matters more than volume."
+        >
+          <div className="space-y-2">
+            {[
+              { id: 'nothing' as const, label: 'Almost nothing', help: 'A draft nobody sends without reading. Cheap to redo.' },
+              { id: 'redo' as const, label: 'Someone has to fix it', help: 'Caught downstream, annoying, not dangerous.' },
+              { id: 'serious' as const, label: 'Money, safety, or legal consequences', help: 'A wrong answer becomes an incident.' },
+            ].map((o) => (
+              <button
+                key={o.id}
+                type="button"
+                onClick={() => setHarm(o.id)}
+                className={
+                  'w-full rounded-lg border px-4 py-3 text-left transition ' +
+                  (harmIfWrong === o.id
+                    ? 'border-signal bg-signal/10 text-ink-100'
+                    : 'border-ink-700 bg-ink-850 text-ink-300 hover:border-ink-600')
+                }
+              >
+                <span className="block text-sm">{o.label}</span>
+                <span className="mt-0.5 block text-2xs text-ink-500">{o.help}</span>
+              </button>
+            ))}
+          </div>
         </Question>
       )}
 
       {step === 4 && (
-        <Question title="What does a good answer need?">
-          <Toggle
-            on={needsExactAnswer}
-            set={setExact}
-            label="There is exactly one correct answer"
-            help="A number, a record, a fact that is either right or wrong — not a judgement call."
-          />
-          <Toggle
-            on={needsCurrentInfo}
-            set={setCurrent}
-            label="It depends on current or private information"
-            help="Today's prices, this week's news, your own documents — things a model cannot know on its own."
-          />
+        <Question
+          title="Does it need information from somewhere else, or just what you give it?"
+          help="Somewhere else means today&rsquo;s prices, your documents, a database — things a model cannot know on its own."
+        >
+          <div className="space-y-2">
+            {[
+              { on: false, label: 'Just what I give it', help: 'The whole job is in the text you paste in.' },
+              { on: true, label: 'It needs information from somewhere else', help: 'Files, a system of record, the current state of the world.' },
+            ].map((o) => (
+              <button
+                key={String(o.on)}
+                type="button"
+                onClick={() => setCurrent(o.on)}
+                className={
+                  'w-full rounded-lg border px-4 py-3 text-left transition ' +
+                  (needsCurrentInfo === o.on
+                    ? 'border-signal bg-signal/10 text-ink-100'
+                    : 'border-ink-700 bg-ink-850 text-ink-300 hover:border-ink-600')
+                }
+              >
+                <span className="block text-sm">{o.label}</span>
+                <span className="mt-0.5 block text-2xs text-ink-500">{o.help}</span>
+              </button>
+            ))}
+          </div>
         </Question>
       )}
 
       {step === 5 && (
         <Question
-          title="If the answer were subtly wrong, would you notice?"
-          help="This is the question most people get wrong about AI, and it matters more than cost."
+          title="Does it just produce an answer, or does it do something?"
+          help="Doing something means it changes a record, sends a message, moves money, files a ticket. This is the question that decides whether an agent is even on the table."
         >
           <div className="space-y-2">
             {[
-              { id: 'immediately', label: 'Yes, immediately', help: 'You read every word before it goes anywhere.' },
-              { id: 'eventually', label: 'Eventually', help: 'It would surface in a day or two, probably.' },
-              { id: 'never', label: 'Probably never', help: 'It goes straight out, or nobody checks.' },
+              { on: false, label: 'It just produces an answer', help: 'Text, a label, a summary. A person decides what happens next.' },
+              { on: true, label: 'It does something', help: 'It takes an action in another system, not just writes words.' },
             ].map((o) => (
               <button
-                key={o.id}
+                key={String(o.on)}
                 type="button"
-                onClick={() => setNotice(o.id as typeof wouldNoticeIfWrong)}
+                onClick={() => setDoes(o.on)}
                 className={
                   'w-full rounded-lg border px-4 py-3 text-left transition ' +
-                  (wouldNoticeIfWrong === o.id
+                  (doesSomething === o.on
                     ? 'border-signal bg-signal/10 text-ink-100'
                     : 'border-ink-700 bg-ink-850 text-ink-300 hover:border-ink-600')
                 }
@@ -236,54 +266,5 @@ function Question({ title, help, children }: { title: string; help?: string; chi
       {help && <p className="mt-2 text-sm leading-relaxed text-ink-400" dangerouslySetInnerHTML={{ __html: help }} />}
       <div className="mt-6">{children}</div>
     </div>
-  );
-}
-
-function Number({
-  label, value, onChange, min, max, suffix,
-}: { label: string; value: number; onChange: (n: number) => void; min: number; max: number; suffix: string }) {
-  return (
-    <label className="block">
-      <span className="text-xs text-ink-400">{label}</span>
-      <div className="mt-1.5 flex items-center gap-2">
-        <input
-          type="number"
-          value={value}
-          min={min}
-          max={max}
-          onChange={(e) => onChange(Math.max(min, Math.min(max, globalThis.Number(e.target.value) || min)))}
-          className="w-full rounded-lg border border-ink-700 bg-ink-850 px-4 py-2.5 font-mono text-base text-ink-100 focus:border-signal focus:outline-none"
-        />
-        <span className="shrink-0 text-xs text-ink-500">{suffix}</span>
-      </div>
-    </label>
-  );
-}
-
-function Toggle({
-  on, set, label, help,
-}: { on: boolean; set: (b: boolean) => void; label: string; help: string }) {
-  return (
-    <button
-      type="button"
-      onClick={() => set(!on)}
-      className={
-        'mb-2 flex w-full items-start gap-3 rounded-lg border px-4 py-3 text-left transition ' +
-        (on ? 'border-signal bg-signal/10' : 'border-ink-700 bg-ink-850 hover:border-ink-600')
-      }
-    >
-      <span
-        className={
-          'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border text-2xs ' +
-          (on ? 'border-signal bg-signal text-ink-950' : 'border-ink-600')
-        }
-      >
-        {on ? '✓' : ''}
-      </span>
-      <span>
-        <span className={'block text-sm ' + (on ? 'text-ink-100' : 'text-ink-300')}>{label}</span>
-        <span className="mt-0.5 block text-2xs leading-relaxed text-ink-500">{help}</span>
-      </span>
-    </button>
   );
 }

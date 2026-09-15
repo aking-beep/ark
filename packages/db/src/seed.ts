@@ -44,7 +44,7 @@ async function run() {
     await client.execute({
       sql: 'INSERT INTO workloads (id,org_id,name,pattern,spec,assessment,status,created_at) VALUES (?,?,?,?,?,?,?,?)',
       args: [def.w.id, ORG, def.w.name, a.architecture.pattern, JSON.stringify(def.w),
-             JSON.stringify({ verdict: a.suitability.verdict, score: a.suitability.score.value }),
+             JSON.stringify(a),
              def.status, now - DAYS * 864e5],
     });
 
@@ -199,7 +199,18 @@ async function run() {
 
   const counts = await client.execute('SELECT (SELECT COUNT(*) FROM events) e, (SELECT COUNT(*) FROM traces) t, (SELECT COUNT(*) FROM alerts) a');
   const row = counts.rows[0]!;
-  console.log(`Seeded ${row.e} events across ${row.t} traces, ${row.a} alerts, ${budgets.length} budgets.`);
+
+  // Versioned snapshot of the priors this seed actually produced. Never
+  // overwrite — the next GET /api/v1/calibration inserts another row.
+  const { calibration } = await import('./queries.js');
+  const set = await calibration(ORG, 30);
+  await client.execute({
+    sql: `INSERT INTO calibration_snapshots (id, org_id, generated_at, window_days, basis, payload)
+          VALUES (?,?,?,?,?,?)`,
+    args: [`cal_seed_${now}`, ORG, now, 30, set.basis, JSON.stringify(set)],
+  });
+
+  console.log(`Seeded ${row.e} events across ${row.t} traces, ${row.a} alerts, ${budgets.length} budgets, 1 calibration snapshot.`);
 }
 
 const round2 = (x: number) => Math.round(x * 100) / 100;

@@ -137,34 +137,65 @@ export const Workload = z.object({
 });
 export type Workload = z.infer<typeof Workload>;
 
-/** Minimal shape the consumer wizard collects; widened to a full Workload. */
+/**
+ * Minimal shape the consumer wizard collects; widened to a full Workload.
+ *
+ * The six PRD questions map onto task / determinism / error tolerance /
+ * retrieval / actions. Volume and hourly rate are *not* asked — any cost
+ * figure built from invented volume would be fabricated, so those fields
+ * stay optional for old result links and default conservatively.
+ */
 export const ConsumerIntake = z.object({
   id: z.string(),
   name: z.string().min(1),
   description: z.string().default(''),
   task: z.array(TaskShape).min(1),
-  timesPerMonth: z.number().nonnegative(),
-  minutesEach: z.number().nonnegative(),
+  needsExactAnswer: z.boolean().default(false),
+  /** What happens if the answer is wrong. Question 4. */
+  harmIfWrong: z.enum(['nothing', 'redo', 'serious']).default('redo'),
+  needsCurrentInfo: z.boolean().default(false),
+  /** Question 6 — gates the agent branch. */
+  doesSomething: z.boolean().default(false),
+  // Legacy fields: kept so previously shared result links still decode.
+  timesPerMonth: z.number().nonnegative().default(80),
+  minutesEach: z.number().nonnegative().optional(),
   involvesPersonalData: z.boolean().default(false),
   involvesMoneyOrLegal: z.boolean().default(false),
-  needsExactAnswer: z.boolean().default(false),
-  needsCurrentInfo: z.boolean().default(false),
-  wouldNoticeIfWrong: z.enum(['immediately', 'eventually', 'never']).default('eventually'),
+  wouldNoticeIfWrong: z.enum(['immediately', 'eventually', 'never']).optional(),
 });
 export type ConsumerIntake = z.infer<typeof ConsumerIntake>;
 
+function consumerErrorTolerance(intake: ConsumerIntake): ErrorTolerance {
+  // Old links encoded wouldNoticeIfWrong and not harmIfWrong. Honour them.
+  if (intake.wouldNoticeIfWrong) {
+    if (intake.wouldNoticeIfWrong === 'never') return 'none';
+    if (intake.involvesMoneyOrLegal) return 'low';
+    return 'medium';
+  }
+  if (intake.harmIfWrong === 'serious') return 'none';
+  if (intake.harmIfWrong === 'nothing') return 'high';
+  if (intake.involvesMoneyOrLegal) return 'low';
+  return 'medium';
+}
+
 /** Lift a consumer intake into the same Workload the business engine consumes. */
 export function fromConsumerIntake(intake: ConsumerIntake): Workload {
-  const dataClasses: DataClass[] = ['public'];
+  const dataClasses: DataClass[] = ['internal'];
   if (intake.involvesPersonalData) dataClasses.push('pii');
   if (intake.involvesMoneyOrLegal) dataClasses.push('financial');
+
+  const task = intake.doesSomething && !intake.task.includes('act')
+    ? [...intake.task, 'act' as TaskShape]
+    : intake.task;
 
   return Workload.parse({
     id: intake.id,
     name: intake.name,
     description: intake.description,
     actor: 'self',
-    task: intake.task,
+    task,
+    // Modest volume, unmeasured time: a consumer verdict is allowed to be
+    // too cautious, not too encouraging. See docs/prd/aifit-consumer.md.
     volume: { unitsPerMonth: intake.timesPerMonth, unitLabel: 'task', variability: 'steady' },
     input: {
       modality: ['text'],
@@ -174,18 +205,17 @@ export function fromConsumerIntake(intake: ConsumerIntake): Workload {
     },
     output: { modality: ['text'], avgTokens: 400, mustBeStructured: false },
     determinism: intake.needsExactAnswer ? 'exact' : 'tolerant',
-    errorTolerance:
-      intake.wouldNoticeIfWrong === 'never' ? 'none'
-      : intake.involvesMoneyOrLegal ? 'low'
-      : 'medium',
-    multiStep: false,
+    errorTolerance: consumerErrorTolerance(intake),
+    multiStep: intake.doesSomething,
     dataClasses,
-    actions: [],
+    actions: intake.doesSomething
+      ? [{ name: 'Take the next step', system: 'the other system', write: true, blastRadius: 'reversible' }]
+      : [],
     autonomy: 'suggest',
     latencyBudgetMs: 30_000,
     regulated: ['none'],
     dataResidency: 'any',
-    current: { minutesPerUnit: intake.minutesEach, fullyLoadedHourlyUsd: 0 },
+    current: {},
     team: { engineers: 0, hasMlExperience: false, hasSecurityReview: false, canOperate247: false },
   });
 }

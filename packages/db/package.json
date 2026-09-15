@@ -10,7 +10,8 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "push": "node dist/push.js",
-    "seed": "node dist/seed.js"
+    "seed": "node dist/seed.js",
+    "test": "tsc -p tsconfig.json && node --test dist/ingest.test.js"
   },
   "dependencies": {
     "@ark/core": "*",

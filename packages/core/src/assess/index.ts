@@ -133,6 +133,6 @@ export function assess(input: Workload, opts: AssessOptions = {}): Assessment {
 }
 
 /** Consumer entry point. Same engine, narrower intake. */
-export function assessConsumer(intake: ConsumerIntake, opts: AssessOptions = {}): Assessment {
-  return assess(fromConsumerIntake(intake), { ...opts, depth: 'consumer' });
+export function assessConsumer(intake: unknown, opts: AssessOptions = {}): Assessment {
+  return assess(fromConsumerIntake(ConsumerIntake.parse(intake)), { ...opts, depth: 'consumer' });
 }
