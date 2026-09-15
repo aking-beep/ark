@@ -26,8 +26,6 @@ COPY deploy/entrypoint.sh ./deploy/entrypoint.sh
 
 RUN pip3 install --no-cache-dir -e ./fit
 
-ARG NEXT_PUBLIC_ARK_BUSINESS_URL=http://localhost:3001
-ENV NEXT_PUBLIC_ARK_BUSINESS_URL=$NEXT_PUBLIC_ARK_BUSINESS_URL
 ENV API_ORIGIN=http://127.0.0.1:8472
 ENV AIFIT_ROOT=/app/fit
 

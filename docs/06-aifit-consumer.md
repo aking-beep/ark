@@ -28,7 +28,7 @@ Or both with the rest of ARK:
 npm run setup && npm run dev  # fit-api + consumer + business + control
 ```
 
-Next.js proxies `/health` and `/v1/*` to the Fit API (`API_ORIGIN`, default `http://127.0.0.1:8472` off Vercel) through `apps/consumer/src/lib/fit-proxy.ts`. Docker compose publishes 8472 and starts uvicorn next to the three Next apps — see [Hosting](05-hosting.md). Fit’s chrome links to AIFit for teams via `NEXT_PUBLIC_ARK_BUSINESS_URL`.
+Next.js proxies `/health` and `/v1/*` to the Fit API (`API_ORIGIN`, default `http://127.0.0.1:8472` off Vercel) through `apps/consumer/src/lib/fit-proxy.ts`. Docker compose publishes 8472 and starts uvicorn next to the three Next apps — see [Hosting](05-hosting.md). Fit does not link to AIFit for teams; they are separate products.
 
 ## Tests
 

@@ -24,16 +24,12 @@ Then:
 
 Consumer Next proxies `/health` and `/v1/*` to the Fit API at `API_ORIGIN` (default `http://127.0.0.1:8472` inside the container). From a browser, use the consumer origin for the quiz; 8472 is for operators.
 
-Cross-links (baked at **build** time for the Fit UI):
+Fit and AIFit for teams are **separate products**. They do not link to each other. The only product-to-product wire in this stack is business → Control (`ARK_CONTROL_URL`), which is the estimator↔measurement loop.
 
 | Variable | Default | Who reads it |
 |---|---|---|
-| `NEXT_PUBLIC_ARK_BUSINESS_URL` | `http://localhost:3001` | Fit “For teams” |
-| `ARK_CONSUMER_URL` | `http://localhost:3000` | Business “Open Fit” |
 | `API_ORIGIN` | `http://127.0.0.1:8472` | Consumer → Fit API |
 | `ARK_CONTROL_URL` | `http://127.0.0.1:3002` | Business → Control |
-
-Pass `NEXT_PUBLIC_ARK_BUSINESS_URL` as a compose **build arg** if Fit should point at a public business URL. Changing the runtime env after `docker compose up --build` does not rewrite the already-built Fit bundle.
 
 Control requires a session. Demo logins (override with env before first seed):
 

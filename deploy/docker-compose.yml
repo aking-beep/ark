@@ -3,8 +3,6 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
-      args:
-        NEXT_PUBLIC_ARK_BUSINESS_URL: ${NEXT_PUBLIC_ARK_BUSINESS_URL:-http://localhost:3001}
     ports:
       - "3000:3000"
       - "3001:3001"
@@ -15,8 +13,6 @@ services:
       ARK_SESSION_SECRET: ${ARK_SESSION_SECRET:-change-me-in-production}
       ARK_CONTROL_URL: http://127.0.0.1:3002
       ARK_CONTROL_TOKEN: ${ARK_CONTROL_TOKEN:-ark_dev_ingest_org_demo}
-      ARK_CONSUMER_URL: ${ARK_CONSUMER_URL:-http://localhost:3000}
-      NEXT_PUBLIC_ARK_BUSINESS_URL: ${NEXT_PUBLIC_ARK_BUSINESS_URL:-http://localhost:3001}
       API_ORIGIN: http://127.0.0.1:8472
       AIFIT_ROOT: /app/fit
       ARK_WEBHOOK_URL: ${ARK_WEBHOOK_URL:-}
