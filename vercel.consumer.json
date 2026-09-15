@@ -6,7 +6,7 @@
       "framework": "nextjs"
     },
     "api": {
-      "root": "fit",
+      "root": "my-ai",
       "framework": "fastapi",
       "entrypoint": "services.api.main:app",
       "installCommand": "pip install fastapi 'pydantic>=2.7' uvicorn",

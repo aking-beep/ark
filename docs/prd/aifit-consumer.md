@@ -1,13 +1,13 @@
-# PRD: AIFit (consumer) — Fit
+# PRD: MY AI (consumer)
 
-**Surface:** `apps/consumer` + `fit/` · port 3000 (web) · port 8472 (Fit API, dev)
+**Surface:** `apps/consumer` + `my-ai/` · port 3000 (web) · port 8472 (scoring API, dev)
 **One line:** Five minutes. Find the AI setup that fits how you ask, check, and decide.
 
 ## Source
 
-The consumer surface is [Fit](https://github.com/aking-beep/aifit-engine), merged into this repo as `apps/consumer` (Next.js) and `fit/` (Python scoring engine + FastAPI). The public product at https://aifit-engine.vercel.app/ is this codebase.
+The consumer surface is **MY AI**, merged from [aifit-engine](https://github.com/aking-beep/aifit-engine) as `apps/consumer` (Next.js) and `my-ai/` (Python scoring engine + FastAPI). The public product at https://aifit-engine.vercel.app/ is this codebase.
 
-It is **not** the six-question ARK workload rubric. That engine lives in `@ark/core` and powers **AIFit for teams** and **ARK Control**.
+It is **not** the six-question ARK workload rubric. That engine lives in `@ark/core` and powers **MY AI for teams** and **ARK Control**.
 
 ## Who
 
@@ -38,14 +38,14 @@ Turn “which AI should I use?” into a named interaction profile, matched tool
 
 ## Boundaries
 
-`apps/consumer` does **not** depend on `@ark/db` or `@ark/core`. Scoring is Python under `fit/packages/core/src/aifit`. The only shared repo concern with Control is cohabitation in the monorepo — there is no runtime coupling.
+`apps/consumer` does **not** depend on `@ark/db` or `@ark/core`. Scoring is Python under `my-ai/packages/core/src/myai`. The only shared repo concern with Control is cohabitation in the monorepo — there is no runtime coupling.
 
 ## Success criteria
 
-- `npm run dev:fit-api` + `npm run dev:consumer` → landing, assessment, and results work at http://localhost:3000.
-- `npm run test:fit` and consumer `npm run build` pass in CI.
+- `npm run dev:my-ai-api` + `npm run dev:consumer` → landing, assessment, and results work at http://localhost:3000.
+- `npm run test:my-ai` and consumer `npm run build` pass in CI.
 - Deploy matches the Vercel Services layout in `vercel.consumer.json` (web + API on one domain).
 
 ## Explicit non-goal
 
-This is not a funnel that softens team workload assessments. Consumer Fit and business AIFit are different products in one repo, aimed at different jobs.
+This is not a funnel that softens team workload assessments. MY AI and MY AI for teams are different products in one repo, aimed at different jobs.

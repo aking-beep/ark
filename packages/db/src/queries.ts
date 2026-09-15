@@ -280,7 +280,7 @@ export async function qualityByWorkload(orgId: string, days = 30) {
 }
 
 /**
- * Emit the calibration set that AIFit consumes. This is the join between the
+ * Emit the calibration set that MY AI for teams consumes. This is the join between the
  * two products, and the reason Control is built first.
  *
  * Below the 30-trace floor we serve other orgs' patterns as `calibrated`

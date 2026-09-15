@@ -14,7 +14,7 @@ services:
       ARK_CONTROL_URL: http://127.0.0.1:3002
       ARK_CONTROL_TOKEN: ${ARK_CONTROL_TOKEN:-ark_dev_ingest_org_demo}
       API_ORIGIN: http://127.0.0.1:8472
-      AIFIT_ROOT: /app/fit
+      MYAI_ROOT: /app/my-ai
       ARK_WEBHOOK_URL: ${ARK_WEBHOOK_URL:-}
       ARK_SLACK_WEBHOOK_URL: ${ARK_SLACK_WEBHOOK_URL:-}
       NODE_ENV: production

@@ -67,7 +67,7 @@ export default function HomePage() {
             Find the AI that fits you.
           </h1>
           <p className="max-w-2xl text-lg text-muted-foreground">
-            Five lively minutes. No résumé, no corporate form. Fit watches how you ask, check, and decide — then gives
+            Five lively minutes. No résumé, no corporate form. MY AI watches how you ask, check, and decide — then gives
             you a setup you can paste into ChatGPT, Claude, Gemini, Cursor, or an agent.
           </p>
           <p className="max-w-2xl text-sm text-muted-foreground">
@@ -86,7 +86,7 @@ export default function HomePage() {
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             <Link href="/assessment" className={cn(buttonVariants({ size: "lg" }), "min-h-11")}>
-              Find my fit
+              Find MY AI
             </Link>
             <Button size="lg" variant="outline" onClick={runDemo} disabled={demoLoading}>
               {demoLoading ? "Loading example…" : "See an example"}
@@ -123,7 +123,7 @@ export default function HomePage() {
               <CardTitle>Your style, not a type</CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground">
-              Two neighbors can use the same app and still need different settings. Fit notices whether you want
+              Two neighbors can use the same app and still need different settings. MY AI notices whether you want
               sources, a quick answer, or something you can tweak.
             </CardContent>
           </Card>

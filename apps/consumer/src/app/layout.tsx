@@ -29,26 +29,26 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: "Fit — find the AI that fits you",
+  title: "MY AI — find the AI that fits you",
   description:
     "A five-minute quiz for anyone who uses AI: homework, a shop, a side hustle, or a team. Get a friendly profile and setup files for ChatGPT, Claude, Gemini, Cursor, and more.",
-  applicationName: "Fit",
-  appleWebApp: { title: "Fit", capable: true, statusBarStyle: "default" },
+  applicationName: "MY AI",
+  appleWebApp: { title: "MY AI", capable: true, statusBarStyle: "default" },
   icons: {
     icon: "/favicon.ico",
     apple: "/apple-touch-icon.png",
   },
   openGraph: {
-    title: "Fit — find the AI that fits you",
+    title: "MY AI — find the AI that fits you",
     description: "Five minutes. Get an AI setup you can paste into ChatGPT, Claude, Gemini, or Cursor.",
     url: "/",
-    siteName: "Fit",
+    siteName: "MY AI",
     type: "website",
-    images: [{ url: "/og.png", width: 1200, height: 630, alt: "Fit — five minutes to an AI setup that matches how you work" }],
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "MY AI — five minutes to an AI setup that matches how you work" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Fit — find the AI that fits you",
+    title: "MY AI — find the AI that fits you",
     description: "Five minutes. Get an AI setup you can paste into the apps you already use.",
     images: ["/og.png"],
   },

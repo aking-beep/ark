@@ -16,7 +16,7 @@ Neither variable can be known before the system runs. Both are measurable the mo
 
 If the two numbers that matter most cannot be estimated, then the correct product is not a better estimator. It is a measurement system with an estimator attached to it — and an estimator that is honest about which of the two it is being, on every figure, every time.
 
-This inverts the intuitive build order. The instinct is to ship the assessment tool first, because it is the thing with a funnel, and add telemetry later as an enterprise upsell. That produces a product whose core claim is unfalsifiable at exactly the moment it most needs to be credible. ARK Control comes first because Control is what makes AIFit true. See [ADR-0001](adr/0001-control-before-aifit.md).
+This inverts the intuitive build order. The instinct is to ship the assessment tool first, because it is the thing with a funnel, and add telemetry later as an enterprise upsell. That produces a product whose core claim is unfalsifiable at exactly the moment it most needs to be credible. ARK Control comes first because Control is what makes MY AI for teams true. See [ADR-0001](adr/0001-control-before-aifit.md).
 
 ## What this system commits to
 
@@ -53,7 +53,7 @@ The consumer wizard and the business intake call the same `assess()` function. `
 - **Predict accuracy.** Nobody can predict how accurate a model will be on data it has not seen. What the report gives instead is the threshold your stated error tolerance implies and the golden-set size required to measure it honestly.
 - **Price your integration surface.** Build cost is a rubric estimate. It knows nothing about your procurement process or your security review queue, and those are frequently the long pole.
 - **Model the portfolio.** One workload at a time. Shared retrieval infrastructure, an amortised platform team, and volume commitments are real effects and are not modelled here.
-- **Keep your data.** Neither AIFit surface persists anything. Intake is encoded into the result link and recomputed on view.
+- **Keep your data.** Neither MY AI product persists intake on the server. Consumer quiz progress stays in the browser; the teams report encodes intake into the result link and recomputes on view.
 
 These refusals are published on the methodology page inside the product, not buried in documentation, because a limitation the user cannot find is not a disclosure.
 

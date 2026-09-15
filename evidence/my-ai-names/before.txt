@@ -1,0 +1,6 @@
+before-consumer title Fit —: True
+before-consumer Find my fit: True
+before-consumer MY AI: False
+before-consumer Find MY AI: False
+before-business AIFit for teams: True
+before-business MY AI for teams: False

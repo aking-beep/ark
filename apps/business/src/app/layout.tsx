@@ -3,7 +3,7 @@ import Link from 'next/link';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'AIFit for teams — should you build this?',
+  title: 'MY AI for teams — should you build this?',
   description:
     'A defensible assessment of one workload: whether to use AI at all, what to build, what it costs to run, what has to be true before it ships.',
 };
@@ -15,7 +15,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <header className="border-b border-ink-800">
           <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
             <Link href="/" className="flex items-baseline gap-2">
-              <span className="font-mono text-sm font-semibold text-signal">AIFit</span>
+              <span className="font-mono text-sm font-semibold text-signal">MY AI</span>
               <span className="text-2xs text-ink-500">for teams &middot; by ARK</span>
             </Link>
             <nav className="flex items-center gap-5 text-xs text-ink-400">

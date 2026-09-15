@@ -1,4 +1,4 @@
-# PRD: AIFit for teams (business)
+# PRD: MY AI for teams (business)
 
 **Surface:** `apps/business` · port 3001
 **One line:** Thirty questions about one workload. Verdict, architecture, model, controls, eval plan, cost, roadmap.
@@ -48,7 +48,7 @@ On render, the report calls `fetchCalibration({ days: 30 })`. Two outcomes, no t
 - **Control answers** → cost figures read `measured` with a sample size, and the "calibrated against telemetry" badge appears.
 - **Control does not answer** — no `ARK_CONTROL_URL`, 2.5s timeout, non-200, or schema mismatch → every figure reads `heuristic`, the uncalibrated banner appears, and the report is otherwise complete.
 
-The default is uncalibrated, because most teams will run AIFit before they run Control. The uncalibrated path is therefore the primary path and must be the better-tested one.
+The default is uncalibrated, because most teams will run MY AI for teams before they run Control. The uncalibrated path is therefore the primary path and must be the better-tested one.
 
 ## `POST /api/assess`
 

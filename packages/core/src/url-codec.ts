@@ -1,7 +1,7 @@
 import type { ZodType, ZodTypeDef } from 'zod';
 
 /**
- * Neither AIFit surface stores anything.
+ * MY AI for teams stores nothing.
  *
  * A tool that asks what you do all day and then keeps a copy has to earn that.
  * These two do not keep anything: the answers live in the link, the assessment

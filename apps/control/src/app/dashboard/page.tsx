@@ -185,7 +185,7 @@ function Empty() {
         <code className="font-mono text-signal">POST /api/v1/events</code>.
       </p>
       <p className="mt-3 text-sm leading-relaxed text-ink-400">
-        Until then, AIFit will label every cost figure it produces as{' '}
+        Until then, MY AI for teams will label every cost figure it produces as{' '}
         <span className="font-mono text-warn">heuristic</span>. That is the correct behaviour, not a bug.
       </p>
     </Panel>

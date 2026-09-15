@@ -25,7 +25,7 @@ export default async function WorkloadDetail({ params }: { params: Promise<{ id:
   const q = quality.find((x) => x.workloadId === id);
   const a = w.assessment as any | null;
 
-  // The whole point of Control: what AIFit predicted against what happened.
+  // The whole point of Control: what MY AI for teams predicted against what happened.
   const predictedPerUnit: number | null = a?.cost?.perUnit?.value ?? null;
   const actualPerUnit = s?.costPerOutcome ?? null;
   const drift =
@@ -79,7 +79,7 @@ export default async function WorkloadDetail({ params }: { params: Promise<{ id:
           tone={Math.abs(drift) < 20 ? 'good' : Math.abs(drift) < 60 ? 'warn' : 'danger'}
           title={`Estimate drift: ${drift > 0 ? '+' : ''}${drift.toFixed(0)}%`}
         >
-          AIFit estimated <span className="font-mono text-ink-100">{fmt.usd(predictedPerUnit!)}</span> per unit
+          MY AI for teams estimated <span className="font-mono text-ink-100">{fmt.usd(predictedPerUnit!)}</span> per unit
           before this shipped. It is actually costing{' '}
           <span className="font-mono text-ink-100">{fmt.usd(actualPerUnit!)}</span>.{' '}
           {Math.abs(drift) < 20
@@ -89,7 +89,7 @@ export default async function WorkloadDetail({ params }: { params: Promise<{ id:
       )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Panel title="Observed call shape" subtitle="What gets exported to AIFit as calibration.">
+        <Panel title="Observed call shape" subtitle="What gets exported to MY AI for teams as calibration.">
           <Table head={['Signal', 'Observed', 'Assumed']}>
             <Row label="Input tokens (first turn)" observed={fmt.int(shape.inputTokens)} assumed={w.spec?.input?.avgTokens ? fmt.int(w.spec.input.avgTokens) : '—'} />
             <Row label="Output tokens" observed={fmt.int(shape.outputTokens)} assumed={w.spec?.output?.avgTokens ? fmt.int(w.spec.output.avgTokens) : '—'} />

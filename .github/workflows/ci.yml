@@ -12,29 +12,29 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
       - run: npm ci
       - run: npm run typecheck
       - run: npm run test
 
-  fit-python:
+  my-ai-python:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install -e 'fit/[dev]'
-      - run: npm run test:fit
+      - run: pip install -e 'my-ai/[dev]'
+      - run: npm run test:my-ai
       - run: PYTHONPATH=packages/core/src python -m evals.harness validate-seed
-        working-directory: fit
+        working-directory: my-ai
         env:
-          AIFIT_ROOT: ${{ github.workspace }}/fit
+          MYAI_ROOT: ${{ github.workspace }}/my-ai
       - run: PYTHONPATH=packages/core/src python -m evals.harness run-cases
-        working-directory: fit
+        working-directory: my-ai
         env:
-          AIFIT_ROOT: ${{ github.workspace }}/fit
+          MYAI_ROOT: ${{ github.workspace }}/my-ai
 
   consumer-build:
     runs-on: ubuntu-latest
@@ -42,7 +42,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
       - run: npm ci
       - run: npm run build --workspace @ark/consumer

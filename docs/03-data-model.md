@@ -10,7 +10,7 @@ Nine tables. The shape of this schema is an argument about what an AI workload a
 
 Every other telemetry product in this category logs events and calls it a day. That is the flaw. With events alone, an agent that loops nineteen times to close one ticket is indistinguishable from nineteen tickets closed on the first try. The first is an incident; the second is a good day. Both produce nineteen rows.
 
-Cost per outcome — the headline number in every AIFit report — is `SUM(events.cost) / COUNT(DISTINCT traces)`. Without the trace, the denominator is wrong, and it is wrong in the flattering direction, which is the direction nobody checks.
+Cost per outcome — the headline number in every MY AI for teams report — is `SUM(events.cost) / COUNT(DISTINCT traces)`. Without the trace, the denominator is wrong, and it is wrong in the flattering direction, which is the direction nobody checks.
 
 ![The same nineteen model calls, read with and without a turn index](diagrams/trace-vs-event.svg)
 
@@ -19,7 +19,7 @@ Cost per outcome — the headline number in every AIFit report — is `SUM(event
 | Table | Grain | Why it exists |
 |---|---|---|
 | `orgs` | One per tenant | Scoping. Everything else carries `orgId`. |
-| `workloads` | One per assessed workload | The join between an AIFit estimate and the running system it described. |
+| `workloads` | One per assessed workload | The join between a MY AI for teams estimate and the running system it described. |
 | `traces` | One per unit of business work | The denominator of every cost figure. |
 | `events` | One per model call | The raw priced fact. |
 | `actions` | One per side effect | What the model *did*, as distinct from what it said. |
@@ -30,7 +30,7 @@ Cost per outcome — the headline number in every AIFit report — is `SUM(event
 
 ### `workloads`
 
-Carries `spec` (the `Workload` object AIFit was given) and `assessment` (what AIFit returned), both as JSON, alongside the resolved `pattern` and a lifecycle `status`:
+Carries `spec` (the `Workload` object MY AI for teams was given) and `assessment` (what MY AI for teams returned), both as JSON, alongside the resolved `pattern` and a lifecycle `status`:
 
 ```
 proposed → shadow → assisted → live → retired

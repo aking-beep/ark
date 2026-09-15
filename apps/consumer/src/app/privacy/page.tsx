@@ -5,7 +5,7 @@ export default function PrivacyPage() {
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-12">
       <h1 className="text-3xl font-semibold tracking-tight">Privacy</h1>
       <p className="text-muted-foreground">
-        Fit runs in anonymous mode. It does not ask for your name, employer, or demographic attributes, and it
+        MY AI runs in anonymous mode. It does not ask for your name, employer, or demographic attributes, and it
         does not infer protected characteristics.
       </p>
       <Card>

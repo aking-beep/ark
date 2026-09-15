@@ -145,7 +145,7 @@ export const qualitySamples = sqliteTable('quality_samples', {
   note: text('note'),
 });
 
-/** Snapshots of calibration sets emitted to AIFit. Versioned, not overwritten. */
+/** Snapshots of calibration sets emitted to MY AI for teams. Versioned, not overwritten. */
 export const calibrationSnapshots = sqliteTable('calibration_snapshots', {
   id: text('id').primaryKey(),
   orgId: text('org_id'),

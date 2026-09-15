@@ -1,7 +1,7 @@
 # PRD: ARK Control
 
 **Surface:** `apps/control` · port 3002
-**One line:** Telemetry ingest and cost governance for AI workloads in production. Measures what AIFit estimated.
+**One line:** Telemetry ingest and cost governance for AI workloads in production. Measures what MY AI for teams estimated.
 
 ## Who
 
@@ -13,7 +13,7 @@ Two jobs, and they are not the same job.
 
 **For the customer:** answer "what is this actually costing per outcome, and what is going wrong that I cannot see." Per-call dashboards from a model provider do not answer this — they cannot, because they do not know which calls belonged to the same piece of work.
 
-**For the system:** manufacture ground truth. Observed call shapes per architecture pattern, served at `GET /api/v1/calibration`, are what let AIFit promote a figure from `heuristic` to `measured`. This is the defensible asset. See [ADR-0001](../adr/0001-control-before-aifit.md).
+**For the system:** manufacture ground truth. Observed call shapes per architecture pattern, served at `GET /api/v1/calibration`, are what let MY AI for teams promote a figure from `heuristic` to `measured`. This is the defensible asset. See [ADR-0001](../adr/0001-control-before-aifit.md).
 
 ## Ingest
 
@@ -58,7 +58,7 @@ Snapshots are versioned and never overwritten. When a forecast turns out wrong, 
 
 ## The drift page
 
-`/workloads/[id]` renders what AIFit predicted against what the workload actually costs, as a percentage.
+`/workloads/[id]` renders what MY AI for teams predicted against what the workload actually costs, as a percentage.
 
 This is the most important page in the product and the only one whose purpose is to embarrass the rest of it. The seeded demo data puts observed bounded-agent turns at 8.25 against a rubric prior of 7 — an 18% cost error, on synthetic data generated to be well-behaved. Publishing that is the whole argument.
 

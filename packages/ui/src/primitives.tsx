@@ -260,7 +260,7 @@ export interface DimensionRow {
 }
 
 /**
- * The seven suitability dimensions, rendered identically on both AIFit surfaces.
+ * The seven suitability dimensions, rendered identically on MY AI for teams and Control.
  *
  * The thresholds below are the only reason this component exists. They were
  * previously inlined in the consumer result page and the business report page,

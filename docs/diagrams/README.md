@@ -6,7 +6,7 @@ They are hand-written SVG rather than generated from a DSL. That is a deliberate
 
 | File | Argument it makes | Embedded in |
 |---|---|---|
-| [`system-map.svg`](system-map.svg) | Three surfaces share one engine and are joined by exactly one wire. The load-bearing part of the picture is the line that is *absent*: AIFit has no database dependency. | [`01-architecture.md`](../01-architecture.md), [`README.md`](../../README.md) |
+| [`system-map.svg`](system-map.svg) | Three surfaces share engines in one repo and are joined by exactly one wire. The load-bearing part of the picture is the line that is *absent*: MY AI for teams has no database dependency. | [`01-architecture.md`](../01-architecture.md), [`README.md`](../../README.md) |
 | [`trace-vs-event.svg`](trace-vs-event.svg) | The same nineteen model calls, read with and without `events.turn`. One reading says the work cost $0.0072 a ticket; the other says it cost $0.137 and triaged nothing. | [`03-data-model.md`](../03-data-model.md) |
 | [`verdict-ladder.svg`](verdict-ladder.svg) | `decideVerdict()` drawn line for line: seven weighted dimensions, then eight gates in evaluation order. Two of the gates return "no", and they are checked first. | [`02-scoring-methodology.md`](../02-scoring-methodology.md) |
 | [`provenance-ladder.svg`](provenance-ladder.svg) | The four rungs, and `weakestBasis()` worked end to end on a real payback figure — a `measured` cost times a `heuristic` assumption is a `heuristic` result. | [`02-scoring-methodology.md`](../02-scoring-methodology.md) |

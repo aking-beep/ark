@@ -1,0 +1,20 @@
+engine after — 2026-09-15T17:49:45Z
+--- paths ---
+fit/ absent: True
+my-ai/ present: True
+myai.engine present: True
+fit-proxy.ts absent: True
+my-ai-proxy.ts present: True
+--- pyproject ---
+name = "myai"
+--- import ---
+myai 0.3.0 /workspace/my-ai
+--- health ---
+{"ok":true,"version":"0.4.0","privacy":"anonymous","product":"MY AI","store":"filesystem","durable":true}
+{"ok":true,"version":"0.4.0","privacy":"anonymous","product":"MY AI","store":"filesystem","durable":true}
+--- npm scripts ---
+setup:my-ai : pip install -e 'my-ai/[dev]'
+dev:my-ai-api : bash -c 'cd my-ai && PYTHONPATH=packages/core/src python3 -m uvicorn services.ap
+test:my-ai : cd my-ai && python3 -m pytest
+dev : concurrently -n my-ai-api,consumer,business,control -c yellow,cyan,magenta,green
+False False False

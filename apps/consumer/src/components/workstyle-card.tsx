@@ -21,7 +21,7 @@ export function WorkstyleCard({
 
   return (
     <div className="rounded-2xl border bg-linear-to-br from-card to-muted/40 p-6 shadow-sm">
-      <p className="text-xs uppercase tracking-[0.25em] text-primary">Fit</p>
+      <p className="text-xs uppercase tracking-[0.25em] text-primary">MY AI</p>
       <h3 className="mt-2 text-2xl font-semibold tracking-tight">{workstyle?.label ?? result.persona.label}</h3>
       <p className="mt-3 max-w-xl text-sm text-muted-foreground">{workstyle?.narrative ?? workstyle?.summary}</p>
       {workstyle?.dimensions?.length ? (
