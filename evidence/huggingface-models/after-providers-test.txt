@@ -1,0 +1,132 @@
+
+> @ark/providers@0.1.0 test
+> tsc -p tsconfig.json && node --test dist/normalize.test.js dist/sigv4.test.js dist/adapters.test.js dist/from-env.test.js
+
+TAP version 13
+# Subtest: adapters over mocked HTTP
+    # Subtest: Ollama POSTs /api/chat and returns normalized text
+    ok 1 - Ollama POSTs /api/chat and returns normalized text
+      ---
+      duration_ms: 14.007779
+      ...
+    # Subtest: Ollama rewrites huggingface.co Hub paths to hf.co
+    ok 2 - Ollama rewrites huggingface.co Hub paths to hf.co
+      ---
+      duration_ms: 0.561787
+      ...
+    # Subtest: OpenAI-compatible POSTs /v1/chat/completions with Bearer auth
+    ok 3 - OpenAI-compatible POSTs /v1/chat/completions with Bearer auth
+      ---
+      duration_ms: 0.980976
+      ...
+    # Subtest: Bedrock signs Converse and POSTs to bedrock-runtime
+    ok 4 - Bedrock signs Converse and POSTs to bedrock-runtime
+      ---
+      duration_ms: 1.461021
+      ...
+    1..4
+ok 1 - adapters over mocked HTTP
+  ---
+  duration_ms: 17.655994
+  type: 'suite'
+  ...
+# Subtest: adaptersFromEnv DeepSeek
+    # Subtest: DEEPSEEK_API_KEY configures api.deepseek.com, not api.openai.com
+    ok 1 - DEEPSEEK_API_KEY configures api.deepseek.com, not api.openai.com
+      ---
+      duration_ms: 14.922526
+      ...
+    # Subtest: ARK_FRONTIER_* wins over DEEPSEEK_API_KEY
+    ok 2 - ARK_FRONTIER_* wins over DEEPSEEK_API_KEY
+      ---
+      duration_ms: 0.123243
+      ...
+    # Subtest: empty env leaves Ollama and frontier unconfigured
+    ok 3 - empty env leaves Ollama and frontier unconfigured
+      ---
+      duration_ms: 0.134485
+      ...
+    # Subtest: HF_TOKEN configures router.huggingface.co, not api.openai.com
+    ok 4 - HF_TOKEN configures router.huggingface.co, not api.openai.com
+      ---
+      duration_ms: 0.526151
+      ...
+    # Subtest: DEEPSEEK_API_KEY wins over HF_TOKEN
+    ok 5 - DEEPSEEK_API_KEY wins over HF_TOKEN
+      ---
+      duration_ms: 0.108927
+      ...
+    1..5
+ok 2 - adaptersFromEnv DeepSeek
+  ---
+  duration_ms: 16.514647
+  type: 'suite'
+  ...
+# Subtest: provider normalization
+    # Subtest: the same CompletionRequest schema is what every adapter consumes
+    ok 1 - the same CompletionRequest schema is what every adapter consumes
+      ---
+      duration_ms: 0.484012
+      ...
+    # Subtest: Ollama chat JSON becomes NormalizedCompletion
+    ok 2 - Ollama chat JSON becomes NormalizedCompletion
+      ---
+      duration_ms: 0.141541
+      ...
+    # Subtest: Ollama reasoning models can put the answer in message.thinking
+    ok 3 - Ollama reasoning models can put the answer in message.thinking
+      ---
+      duration_ms: 0.079865
+      ...
+    # Subtest: OpenAI-compatible chat JSON becomes NormalizedCompletion
+    ok 4 - OpenAI-compatible chat JSON becomes NormalizedCompletion
+      ---
+      duration_ms: 0.111978
+      ...
+    # Subtest: Bedrock Converse JSON becomes NormalizedCompletion
+    ok 5 - Bedrock Converse JSON becomes NormalizedCompletion
+      ---
+      duration_ms: 0.1221
+      ...
+    # Subtest: Bedrock body splits system messages out of the turn list
+    ok 6 - Bedrock body splits system messages out of the turn list
+      ---
+      duration_ms: 0.471848
+      ...
+    # Subtest: chatCompletionsUrl accepts a host, a /v1 base, or a full path
+    ok 7 - chatCompletionsUrl accepts a host, a /v1 base, or a full path
+      ---
+      duration_ms: 0.179657
+      ...
+    1..7
+ok 3 - provider normalization
+  ---
+  duration_ms: 2.284725
+  type: 'suite'
+  ...
+# Subtest: Bedrock SigV4
+    # Subtest: is deterministic for a frozen clock and encodes the model id
+    ok 1 - is deterministic for a frozen clock and encodes the model id
+      ---
+      duration_ms: 1.332458
+      ...
+    # Subtest: includes the session token in the signature when present
+    ok 2 - includes the session token in the signature when present
+      ---
+      duration_ms: 0.203549
+      ...
+    1..2
+ok 4 - Bedrock SigV4
+  ---
+  duration_ms: 2.133771
+  type: 'suite'
+  ...
+1..4
+# tests 18
+# suites 4
+# pass 18
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 95.829223
