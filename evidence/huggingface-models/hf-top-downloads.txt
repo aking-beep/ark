@@ -1,0 +1,28 @@
+Hugging Face Hub snapshot — 2026-09-16
+GET https://huggingface.co/api/models?pipeline_tag=text-generation&sort=downloads&direction=-1&limit=40
+GET https://huggingface.co/api/models?pipeline_tag=text-generation&sort=likes&direction=-1&limit=30
+
+Usable open chat models this product can run (Ollama and/or HF Inference).
+Excluded from product: Hub test fixtures, legacy LM heads (gpt2, opt-125m, pythia, bloom), and one-off names with no Ollama/HF-router path.
+
+rank  downloads  likes   id                                              family     runtime_before
+1     21045857   1634    Qwen/Qwen3-0.6B                                 qwen       ollama
+4     12892330   2000    Qwen/Qwen3-8B                                   qwen       ollama
+5     12817609   1021    unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF       qwen       ollama
+6      9921461   2206    Qwen/Qwen2.5-7B-Instruct                        qwen       ollama
+12     6627327   5058    openai/gpt-oss-20b                              gpt-oss    null
+13     6527634   1655    meta-llama/Llama-3.2-1B-Instruct                llama      ollama
+15     5712837   7641    meta-llama/Llama-3.1-8B-Instruct                llama      ollama
+17     5341536   5243    openai/gpt-oss-120b                             gpt-oss    null
+               (tag)     gpt-oss:20b                                     gpt-oss    openai-compatible  (bug: startsWith gpt-)
+21     4469509   3969    deepseek-ai/DeepSeek-V4-Flash-0731              deepseek   ollama
+likes#1 675517  14244    deepseek-ai/DeepSeek-R1                         deepseek   ollama
+30     2995657   1160    google/gemma-3-1b-it                            gemma      ollama
+39     2217512    232    HuggingFaceTB/SmolLM2-135M                      smol       ollama
+likes    194678  2986    moonshotai/Kimi-K2-Instruct                     kimi       null
+likes    982017  5115    zai-org/GLM-5.2                                 glm        ollama
+likes     75687  2963    Qwen/QwQ-32B                                    qwen/qwq   ollama (org contains qwen)
+—                —       hf.co/bartowski/Llama-3.2-1B-Instruct-GGUF      llama      ollama
+—                —       gpt-4o                                          closed     openai-compatible
+
+Gaps this feature must close: gpt-oss (Hub id null; Ollama tag wrongly frontier), Kimi (null).
