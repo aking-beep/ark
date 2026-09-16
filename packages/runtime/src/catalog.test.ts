@@ -53,4 +53,31 @@ describe('open-weight catalog', () => {
     assert.equal(decision.selected, 'ollama');
     assert.deepEqual(decision.fallbacks, ['openai-compatible']);
   });
+
+  test('Hugging Face most-used open chat ids hint to Ollama', () => {
+    for (const id of [
+      'openai/gpt-oss-20b',
+      'gpt-oss:20b',
+      'gpt-oss-20b',
+      'openai/gpt-oss-120b',
+      'Qwen/Qwen3-8B',
+      'Qwen/Qwen2.5-7B-Instruct',
+      'meta-llama/Llama-3.1-8B-Instruct',
+      'deepseek-ai/DeepSeek-R1',
+      'google/gemma-3-1b-it',
+      'HuggingFaceTB/SmolLM2-135M',
+      'moonshotai/Kimi-K2-Instruct',
+      'zai-org/GLM-5.2',
+      'Qwen/QwQ-32B',
+      'hf.co/bartowski/Llama-3.2-1B-Instruct-GGUF',
+    ]) {
+      assert.equal(hintAdapter(id), 'ollama', id);
+    }
+  });
+
+  test('gpt-oss is not treated as closed GPT', () => {
+    assert.equal(hintAdapter('gpt-oss:20b'), 'ollama');
+    assert.equal(hintAdapter('gpt-4o'), 'openai-compatible');
+    assert.equal(hintAdapter('gpt-5-nano'), 'openai-compatible');
+  });
 });

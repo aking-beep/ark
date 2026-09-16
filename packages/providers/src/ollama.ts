@@ -16,6 +16,15 @@ export interface OllamaConfig {
   fetch?: FetchFn;
 }
 
+/** Ollama's Hub GGUF scheme is hf.co/org/repo, not huggingface.co/org/repo. */
+export function ollamaNativeModel(id: string): string {
+  const trimmed = id.replace(/^https?:\/\//i, '');
+  if (/^huggingface\.co\//i.test(trimmed)) {
+    return `hf.co/${trimmed.slice('huggingface.co/'.length)}`;
+  }
+  return id;
+}
+
 /**
  * Local execution. Talks to Ollama's HTTP API; nothing leaves the machine.
  */
@@ -53,7 +62,7 @@ export class OllamaAdapter implements ProviderAdapter {
     if (!this.enabled) {
       throw new ProviderError('config', 'ollama is not configured (set ARK_OLLAMA_URL)', 'ollama');
     }
-    const model = parsed.model ?? this.model;
+    const model = ollamaNativeModel(parsed.model ?? this.model);
     const started = Date.now();
     const res = await fetchWithTimeout(
       this.fetchFn,
