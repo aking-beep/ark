@@ -1,0 +1,75 @@
+{
+  "fallback": {
+    "posts": 1,
+    "events": 1,
+    "traces": 1,
+    "statuses": [
+      "ok"
+    ],
+    "turns": [
+      0
+    ],
+    "providers": [
+      "openai"
+    ],
+    "errorKinds": [],
+    "outcomes": [
+      "success"
+    ],
+    "retries": [
+      1
+    ],
+    "leakedSentinel": false,
+    "leakedPrompt": false
+  },
+  "refusal": {
+    "posts": 1,
+    "events": 1,
+    "traces": 1,
+    "statuses": [
+      "refused"
+    ],
+    "turns": [
+      0
+    ],
+    "providers": [
+      "local"
+    ],
+    "errorKinds": [
+      "policy"
+    ],
+    "outcomes": [
+      "failure"
+    ],
+    "retries": [
+      0
+    ],
+    "leakedSentinel": false,
+    "leakedPrompt": false
+  },
+  "leak": {
+    "posts": 1,
+    "events": 1,
+    "traces": 1,
+    "statuses": [
+      "error"
+    ],
+    "turns": [
+      0
+    ],
+    "providers": [
+      "local"
+    ],
+    "errorKinds": [
+      "ollama: http: ollama HTTP 500: LEAK_SENTINEL"
+    ],
+    "outcomes": [
+      "failure"
+    ],
+    "retries": [
+      1
+    ],
+    "leakedSentinel": true,
+    "leakedPrompt": false
+  }
+}
