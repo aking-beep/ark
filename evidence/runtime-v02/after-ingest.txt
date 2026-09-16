@@ -1,0 +1,68 @@
+{
+  "fallback": {
+    "posts": 1,
+    "events": 2,
+    "traces": 1,
+    "statuses": [
+      "error",
+      "ok"
+    ],
+    "turns": [
+      0,
+      0
+    ],
+    "providers": [
+      "local",
+      "openai"
+    ],
+    "errorKinds": [
+      "http"
+    ],
+    "outcomes": [
+      "success"
+    ],
+    "retries": [
+      1
+    ],
+    "leakedSentinel": false,
+    "leakedPrompt": false
+  },
+  "refusal": {
+    "posts": 0,
+    "events": 0,
+    "traces": 0,
+    "statuses": [],
+    "turns": [],
+    "providers": [],
+    "errorKinds": [],
+    "outcomes": [],
+    "retries": [],
+    "leakedSentinel": false,
+    "leakedPrompt": false
+  },
+  "leak": {
+    "posts": 1,
+    "events": 1,
+    "traces": 1,
+    "statuses": [
+      "error"
+    ],
+    "turns": [
+      0
+    ],
+    "providers": [
+      "local"
+    ],
+    "errorKinds": [
+      "http"
+    ],
+    "outcomes": [
+      "failure"
+    ],
+    "retries": [
+      1
+    ],
+    "leakedSentinel": false,
+    "leakedPrompt": false
+  }
+}
