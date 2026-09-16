@@ -1,4 +1,4 @@
-import { ProviderError, type NormalizedCompletion } from './types.js';
+import { ProviderError, type CompletionRequest, type NormalizedCompletion } from './types.js';
 
 function str(v: unknown): string {
   return typeof v === 'string' ? v : '';
@@ -6,6 +6,66 @@ function str(v: unknown): string {
 function num(v: unknown): number {
   const n = Number(v);
   return Number.isFinite(n) && n >= 0 ? Math.round(n) : 0;
+}
+
+/** ft:gpt-4o-mini:org:id → gpt-4o-mini */
+export function openaiBaseModelId(model: string): string {
+  const m = model.trim().toLowerCase();
+  if (m.startsWith('ft:')) return m.slice(3).split(':')[0] ?? m;
+  return m;
+}
+
+/** Chat Completions models. Embeddings / audio / image ids are not this. */
+export function isOpenAIChatModel(model: string): boolean {
+  const id = openaiBaseModelId(model);
+  return id.startsWith('gpt-') || id.startsWith('chatgpt-') || /^o[1-9]/.test(id);
+}
+
+/**
+ * GPT-5 / 4.1 / 6, ChatGPT, and o-series reject `max_tokens`.
+ * Sending the right field avoids a wasted 400 round-trip.
+ */
+export function usesMaxCompletionTokens(model: string): boolean {
+  const id = openaiBaseModelId(model);
+  return (
+    id.startsWith('gpt-5') ||
+    id.startsWith('gpt-6') ||
+    id.startsWith('gpt-4.1') ||
+    id.startsWith('chatgpt-') ||
+    /^o[1-9]/.test(id)
+  );
+}
+
+/** o-series reject `temperature`. */
+export function omitsTemperature(model: string): boolean {
+  return /^o[1-9]/.test(openaiBaseModelId(model));
+}
+
+export function openaiChatBody(req: CompletionRequest, defaultModel: string): Record<string, unknown> {
+  const model = req.model ?? defaultModel;
+  const payload: Record<string, unknown> = { model, messages: req.messages };
+  if (req.maxTokens !== undefined) {
+    if (usesMaxCompletionTokens(model)) payload.max_completion_tokens = req.maxTokens;
+    else payload.max_tokens = req.maxTokens;
+  }
+  if (req.temperature !== undefined && !omitsTemperature(model)) {
+    payload.temperature = req.temperature;
+  }
+  return payload;
+}
+
+function contentText(content: unknown): string {
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return '';
+  return content
+    .map((part) => {
+      if (typeof part === 'string') return part;
+      if (part && typeof part === 'object' && 'text' in part) {
+        return str((part as { text: unknown }).text);
+      }
+      return '';
+    })
+    .join('');
 }
 
 /** Ollama POST /api/chat (stream: false). */
@@ -41,7 +101,7 @@ export function parseOpenAIChat(body: unknown, latencyMs: number, fallbackModel:
   const usage = b.usage && typeof b.usage === 'object' ? (b.usage as Record<string, unknown>) : {};
   const finish = str(first.finish_reason);
   return {
-    text: str(message.content),
+    text: contentText(message.content),
     modelId: str(b.model) || fallbackModel,
     adapterId: 'openai-compatible',
     catalogProvider: 'openai',

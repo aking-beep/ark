@@ -44,6 +44,16 @@ describe('router', () => {
     assert.deepEqual(decision.fallbacks, ['ollama']);
   });
 
+  test('chatgpt-4o-latest is an OpenAI chat hint', () => {
+    const decision = route({
+      adapters: [trio.ollama(), trio.frontier()],
+      constraints: { privacy: 'any' },
+      request: { ...request, model: 'chatgpt-4o-latest' },
+      maxFallbacks: 1,
+    });
+    assert.equal(decision.selected, 'openai-compatible');
+  });
+
   test('maxFallbacks=0 records no fallback chain', () => {
     const decision = route({
       adapters: [trio.ollama(), trio.frontier()],

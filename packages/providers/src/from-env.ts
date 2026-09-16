@@ -9,7 +9,7 @@ export interface AdaptersFromEnv {
   timeoutMs?: number;
 }
 
-/** Construct the three v0.1 adapters from process env. Unconfigured adapters stay in the list and report configured() === false. */
+/** Construct the three adapters from process env. Unconfigured adapters stay in the list and report configured() === false. */
 export function adaptersFromEnv(opts: AdaptersFromEnv = {}): ProviderAdapter[] {
   const env = opts.env ?? process.env;
   const fetchFn = opts.fetch;
@@ -29,10 +29,16 @@ export function adaptersFromEnv(opts: AdaptersFromEnv = {}): ProviderAdapter[] {
     timeoutMs,
     fetch: fetchFn,
   };
+  const apiKey = env.ARK_FRONTIER_API_KEY || env.OPENAI_API_KEY || '';
+  const baseUrl =
+    env.ARK_FRONTIER_BASE_URL ||
+    env.OPENAI_BASE_URL ||
+    (apiKey ? 'https://api.openai.com/v1' : '') ||
+    '';
   const frontier: OpenAICompatibleConfig = {
-    baseUrl: env.ARK_FRONTIER_BASE_URL,
-    apiKey: env.ARK_FRONTIER_API_KEY,
-    model: env.ARK_FRONTIER_MODEL,
+    baseUrl,
+    apiKey,
+    model: env.ARK_FRONTIER_MODEL || env.OPENAI_MODEL || '',
     timeoutMs,
     fetch: fetchFn,
   };

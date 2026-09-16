@@ -1,6 +1,6 @@
 import type { Capability } from '@ark/core';
 import { fetchWithTimeout, readJson } from './http.js';
-import { chatCompletionsUrl, parseOpenAIChat } from './parse.js';
+import { chatCompletionsUrl, openaiChatBody, parseOpenAIChat } from './parse.js';
 import {
   CompletionRequest,
   ProviderError,
@@ -50,7 +50,8 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
   }
 
   configured(): boolean {
-    return this.baseUrl.length > 0 && this.apiKey.length > 0 && this.model.length > 0;
+    // Model may arrive per request. A key + URL is enough to call any chat model.
+    return this.baseUrl.length > 0 && this.apiKey.length > 0;
   }
 
   defaultModel(): string {
@@ -62,18 +63,20 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
     if (!this.configured()) {
       throw new ProviderError(
         'config',
-        'openai-compatible is not configured (ARK_FRONTIER_BASE_URL, ARK_FRONTIER_API_KEY, ARK_FRONTIER_MODEL)',
+        'openai-compatible is not configured (ARK_FRONTIER_API_KEY / OPENAI_API_KEY, and a base URL)',
         'openai-compatible',
       );
     }
     const model = parsed.model ?? this.model;
+    if (!model) {
+      throw new ProviderError(
+        'config',
+        'openai-compatible needs a model on the request or ARK_FRONTIER_MODEL / OPENAI_MODEL',
+        'openai-compatible',
+      );
+    }
     const started = Date.now();
-    const payload: Record<string, unknown> = {
-      model,
-      messages: parsed.messages,
-    };
-    if (parsed.maxTokens !== undefined) payload.max_tokens = parsed.maxTokens;
-    if (parsed.temperature !== undefined) payload.temperature = parsed.temperature;
+    const payload = openaiChatBody({ ...parsed, model }, this.model);
 
     const res = await fetchWithTimeout(
       this.fetchFn,

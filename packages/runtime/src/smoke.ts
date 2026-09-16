@@ -79,7 +79,7 @@ async function live(): Promise<void> {
   const runtime = createRuntime({ adapters, env });
   const enabled = adapters.filter((a) => a.configured());
   if (enabled.length === 0) {
-    line('live', 'skipped — set ARK_OLLAMA_URL / ARK_BEDROCK_* / ARK_FRONTIER_* to attempt a real call');
+    line('live', 'skipped — set OPENAI_API_KEY / ARK_FRONTIER_* / ARK_OLLAMA_URL / ARK_BEDROCK_* to attempt a real call');
     return;
   }
 

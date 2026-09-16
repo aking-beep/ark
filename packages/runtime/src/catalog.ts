@@ -1,5 +1,5 @@
 import { byId, costOfCall, estimateTokens } from '@ark/core';
-import type { AdapterId, CompletionRequest, ProviderAdapter } from '@ark/providers';
+import { isOpenAIChatModel, type AdapterId, type CompletionRequest, type ProviderAdapter } from '@ark/providers';
 import type { RuntimeConstraints } from './types.js';
 
 const LATENCY_MS = { fast: 1500, standard: 4000, slow: 12_000 } as const;
@@ -44,7 +44,7 @@ export function hintAdapter(model: string | undefined): AdapterId | undefined {
   ) {
     return 'bedrock';
   }
-  if (m.startsWith('gpt-') || m.startsWith('o1') || m.startsWith('o3') || m.startsWith('o4')) {
+  if (isOpenAIChatModel(model)) {
     return 'openai-compatible';
   }
   if (m.includes('llama') || m.includes('mistral') || m.includes('qwen') || m.includes('phi') || m.includes('gemma')) {

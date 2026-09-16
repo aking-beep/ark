@@ -6,6 +6,8 @@ import {
   parseBedrockConverse,
   toBedrockConverseBody,
   chatCompletionsUrl,
+  openaiChatBody,
+  isOpenAIChatModel,
   CompletionRequest,
 } from './index.js';
 
@@ -60,6 +62,60 @@ describe('provider normalization', () => {
     assert.equal(out.catalogProvider, 'openai');
     assert.equal(out.inputTokens, 9);
     assert.equal(out.outputTokens, 2);
+  });
+
+  test('OpenAI array content parts join into text', () => {
+    const out = parseOpenAIChat(
+      {
+        model: 'gpt-4o',
+        choices: [
+          {
+            message: {
+              role: 'assistant',
+              content: [
+                { type: 'text', text: 'Hel' },
+                { type: 'text', text: 'lo' },
+              ],
+            },
+            finish_reason: 'stop',
+          },
+        ],
+        usage: { prompt_tokens: 1, completion_tokens: 2 },
+      },
+      5,
+      'gpt-4o',
+    );
+    assert.equal(out.text, 'Hello');
+  });
+
+  test('openaiChatBody uses max_completion_tokens for GPT-5 and drops temperature on o-series', () => {
+    const gpt5 = openaiChatBody(
+      { messages: [{ role: 'user', content: 'hi' }], model: 'gpt-5-nano', maxTokens: 8, temperature: 0 },
+      '',
+    );
+    assert.equal(gpt5.max_completion_tokens, 8);
+    assert.equal(gpt5.max_tokens, undefined);
+    const o3 = openaiChatBody(
+      { messages: [{ role: 'user', content: 'hi' }], model: 'o3-mini', maxTokens: 8, temperature: 0 },
+      '',
+    );
+    assert.equal(o3.max_completion_tokens, 8);
+    assert.equal(Object.prototype.hasOwnProperty.call(o3, 'temperature'), false);
+    const gpt4o = openaiChatBody(
+      { messages: [{ role: 'user', content: 'hi' }], model: 'gpt-4o', maxTokens: 8, temperature: 0 },
+      '',
+    );
+    assert.equal(gpt4o.max_tokens, 8);
+    assert.equal(gpt4o.temperature, 0);
+  });
+
+  test('isOpenAIChatModel covers the chat family and not embeddings or audio', () => {
+    assert.equal(isOpenAIChatModel('chatgpt-4o-latest'), true);
+    assert.equal(isOpenAIChatModel('ft:gpt-4o-mini:org:ft-abc'), true);
+    assert.equal(isOpenAIChatModel('o3-mini'), true);
+    assert.equal(isOpenAIChatModel('text-embedding-3-small'), false);
+    assert.equal(isOpenAIChatModel('whisper-1'), false);
+    assert.equal(isOpenAIChatModel('dall-e-3'), false);
   });
 
   test('Bedrock Converse JSON becomes NormalizedCompletion', () => {

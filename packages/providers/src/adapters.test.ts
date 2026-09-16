@@ -64,6 +64,69 @@ describe('adapters over mocked HTTP', () => {
     assert.equal(out.catalogProvider, 'openai');
   });
 
+  test('a per-request model is enough when the adapter has no default', async () => {
+    let posted: { url: string; body: Record<string, unknown> } | null = null;
+    const adapter = new OpenAICompatibleAdapter({
+      baseUrl: 'https://api.openai.com/v1',
+      apiKey: 'k',
+      fetch: (async (url, init) => {
+        posted = { url: String(url), body: JSON.parse(String(init?.body)) };
+        return new Response(
+          JSON.stringify({
+            model: 'gpt-4o-mini',
+            choices: [{ message: { content: 'pong' }, finish_reason: 'stop' }],
+            usage: { prompt_tokens: 1, completion_tokens: 1 },
+          }),
+          { status: 200 },
+        );
+      }) as typeof fetch,
+    });
+    assert.equal(adapter.configured(), true);
+    const out = await adapter.complete({
+      messages: [{ role: 'user', content: 'hi' }],
+      model: 'gpt-4o-mini',
+      maxTokens: 8,
+    });
+    assert.equal(out.text, 'pong');
+    assert.equal(posted!.url, 'https://api.openai.com/v1/chat/completions');
+    assert.equal(posted!.body.model, 'gpt-4o-mini');
+    assert.equal(posted!.body.max_tokens, 8);
+  });
+
+  test('GPT-5 and o-series send the fields those models accept', async () => {
+    const seen: Record<string, unknown>[] = [];
+    const adapter = new OpenAICompatibleAdapter({
+      baseUrl: 'https://api.openai.com/v1',
+      apiKey: 'k',
+      fetch: (async (_url, init) => {
+        seen.push(JSON.parse(String(init?.body)));
+        return new Response(
+          JSON.stringify({
+            choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }],
+            usage: { prompt_tokens: 1, completion_tokens: 1 },
+          }),
+          { status: 200 },
+        );
+      }) as typeof fetch,
+    });
+    await adapter.complete({
+      messages: [{ role: 'user', content: 'hi' }],
+      model: 'gpt-5-nano',
+      maxTokens: 16,
+      temperature: 0,
+    });
+    await adapter.complete({
+      messages: [{ role: 'user', content: 'hi' }],
+      model: 'o3-mini',
+      maxTokens: 16,
+      temperature: 0,
+    });
+    assert.equal(seen[0]!.max_completion_tokens, 16);
+    assert.equal(seen[0]!.max_tokens, undefined);
+    assert.equal(seen[1]!.max_completion_tokens, 16);
+    assert.equal(Object.prototype.hasOwnProperty.call(seen[1]!, 'temperature'), false);
+  });
+
   test('Bedrock signs Converse and POSTs to bedrock-runtime', async () => {
     const adapter = new BedrockAdapter({
       region: 'us-east-1',

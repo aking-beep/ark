@@ -16,5 +16,10 @@ export {
   parseBedrockConverse,
   toBedrockConverseBody,
   chatCompletionsUrl,
+  openaiChatBody,
+  openaiBaseModelId,
+  isOpenAIChatModel,
+  usesMaxCompletionTokens,
+  omitsTemperature,
 } from './parse.js';
 export { signBedrockConverse } from './sigv4.js';
