@@ -145,7 +145,13 @@ describe('execute', () => {
     const ollama = new OllamaAdapter({
       baseUrl: 'http://ollama.test',
       model: 'llama3.2',
-      fetch: (async (_url, init) => {
+      fetch: (async (url, init) => {
+        const path = new URL(String(url), 'http://ollama.test').pathname;
+        if (path.endsWith('/api/tags')) {
+          return new Response(JSON.stringify({ models: [{ name: 'deepseek-r1', model: 'deepseek-r1' }] }), {
+            status: 200,
+          });
+        }
         postedModel = JSON.parse(String(init?.body)).model;
         return new Response(
           JSON.stringify({
@@ -167,12 +173,49 @@ describe('execute', () => {
     assert.equal(result.modelId, 'deepseek-r1');
   });
 
+  test('a missing Ollama tag is a config miss, not a chat POST, and falls back', async () => {
+    let chat = 0;
+    const ollama = new OllamaAdapter({
+      baseUrl: 'http://ollama.test',
+      model: 'llama3.2',
+      fetch: (async (url, init) => {
+        const path = new URL(String(url), 'http://ollama.test').pathname;
+        if (path.endsWith('/api/tags')) {
+          return new Response(JSON.stringify({ models: [{ name: 'smollm2:135m', model: 'smollm2:135m' }] }), {
+            status: 200,
+          });
+        }
+        chat++;
+        JSON.parse(String(init?.body));
+        throw new Error('chat should not run');
+      }) as typeof fetch,
+    });
+    const result = await execute(
+      {
+        messages: [{ role: 'user', content: 'hi' }],
+        model: 'deepseek-r1',
+        maxFallbacks: 1,
+        constraints: { privacy: 'any' },
+      },
+      { adapters: [ollama, trio.frontier()] },
+    );
+    assert.equal(chat, 0);
+    assert.equal(result.adapterId, 'openai-compatible');
+    assert.equal(result.attempts[0]!.errorKind, 'config');
+  });
+
   test('a closed-source hint is stripped when falling back to Ollama', async () => {
     let postedModel = '';
     const ollama = new OllamaAdapter({
       baseUrl: 'http://ollama.test',
       model: 'llama3.2',
-      fetch: (async (_url, init) => {
+      fetch: (async (url, init) => {
+        const path = new URL(String(url), 'http://ollama.test').pathname;
+        if (path.endsWith('/api/tags')) {
+          return new Response(JSON.stringify({ models: [{ name: 'llama3.2', model: 'llama3.2' }] }), {
+            status: 200,
+          });
+        }
         postedModel = JSON.parse(String(init?.body)).model;
         return new Response(
           JSON.stringify({

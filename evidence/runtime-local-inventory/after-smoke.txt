@@ -1,0 +1,28 @@
+
+> ark@0.1.0 smoke:runtime
+> npm run smoke --workspace @ark/runtime
+
+
+> @ark/runtime@0.1.0 smoke
+> node dist/smoke.js
+
+--- dry-run (in-memory adapters) ---
+privacy=any selected: ollama
+privacy=any rationale: ["ranked remaining adapters by estimated USD, then latency class, then id (ollama < bedrock < openai-compatible).","selected ollama (local, fast, estimated $0.000011).","fallback chain (maxFallbacks=1): openai-compatible."]
+privacy=any fallbacks: ["openai-compatible"]
+privacy=local-only selected: ollama
+privacy=local-only fallbacks: []
+local-only without ollama selected: null
+execute adapter: ollama
+execute provenance: {"routing":"heuristic","cost":"benchmark","latency":"measured","quality":"heuristic"}
+--- live providers (from env) ---
+ollama configured: true
+bedrock configured: false
+openai-compatible configured: false
+live adapter: ollama
+live model: smollm2:135m
+live latencyMs: 36
+live routing: ["ranked remaining adapters by estimated USD, then latency class, then id (ollama < bedrock < openai-compatible).","selected ollama (local, fast, estimated $0.000001).","no fallback (no other eligible adapter)."]
+live telemetry: {"attempted":false,"ok":false,"error":"no ingest client"}
+live textChars: 5
+smoke ok

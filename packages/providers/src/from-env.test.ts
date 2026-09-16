@@ -79,4 +79,33 @@ describe('adaptersFromEnv DeepSeek', () => {
     const frontier = adapters.find((a) => a.id === 'openai-compatible')!;
     assert.equal(frontier.defaultModel(), 'deepseek-chat');
   });
+
+  test('ARK_OLLAMA_PULL=1 POSTs a missing tag without requiring inventory', async () => {
+    let tags = 0;
+    let posted = '';
+    const adapters = adaptersFromEnv({
+      env: { ARK_OLLAMA_URL: 'http://ollama.test', ARK_OLLAMA_PULL: '1' },
+      fetch: (async (url, init) => {
+        const path = new URL(String(url), 'http://ollama.test').pathname;
+        if (path.endsWith('/api/tags')) {
+          tags++;
+          return new Response(JSON.stringify({ models: [] }), { status: 200 });
+        }
+        posted = JSON.parse(String(init?.body)).model;
+        return new Response(
+          JSON.stringify({
+            model: posted,
+            message: { role: 'assistant', content: 'ok' },
+            prompt_eval_count: 1,
+            eval_count: 1,
+          }),
+          { status: 200 },
+        );
+      }) as typeof fetch,
+    });
+    const ollama = adapters.find((a) => a.id === 'ollama')!;
+    await ollama.complete({ messages: [{ role: 'user', content: 'hi' }], model: 'deepseek-r1', maxTokens: 8 });
+    assert.equal(tags, 0);
+    assert.equal(posted, 'deepseek-r1');
+  });
 });

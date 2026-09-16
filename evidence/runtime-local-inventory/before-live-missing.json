@@ -1,0 +1,5 @@
+{
+  "command": "POST http://127.0.0.1:11434/api/chat model=deepseek-r1 timeout=8s",
+  "status": 404,
+  "body": "{\"error\":\"model 'deepseek-r1' not found\"}"
+}

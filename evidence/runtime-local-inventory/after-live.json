@@ -1,0 +1,44 @@
+{
+  "base": "http://127.0.0.1:11434",
+  "beforeTags": [
+    "smollm2:135m"
+  ],
+  "afterTags": [
+    "smollm2:135m"
+  ],
+  "installed": {
+    "label": "installed-smollm2",
+    "ok": true,
+    "adapterId": "ollama",
+    "modelId": "smollm2:135m",
+    "latencyMs": 581,
+    "errorKind": null
+  },
+  "family": {
+    "label": "family-smollm2",
+    "ok": true,
+    "adapterId": "ollama",
+    "modelId": "smollm2:135m",
+    "latencyMs": 40,
+    "errorKind": null
+  },
+  "missing": {
+    "label": "missing-deepseek-r1",
+    "ok": false,
+    "adapterId": null,
+    "modelId": null,
+    "latencyMs": 4,
+    "errorKind": "unknown",
+    "error": "runtime execution failed: ollama: config: ollama model 'deepseek-r1' is not installed (have: smollm2:135m). ollama pull deepseek-r1, or set ARK_OLLAMA_PULL=1"
+  },
+  "missingDefault": {
+    "label": "missing-default-llama3.2",
+    "ok": false,
+    "adapterId": null,
+    "modelId": null,
+    "latencyMs": 2,
+    "errorKind": "unknown",
+    "error": "runtime execution failed: ollama: config: ollama model 'llama3.2' is not installed (have: smollm2:135m). ollama pull llama3.2, or set ARK_OLLAMA_PULL=1"
+  },
+  "inventoryUnchanged": true
+}

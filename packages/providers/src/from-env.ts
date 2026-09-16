@@ -19,6 +19,7 @@ export function adaptersFromEnv(opts: AdaptersFromEnv = {}): ProviderAdapter[] {
     model: env.ARK_OLLAMA_MODEL,
     timeoutMs,
     fetch: fetchFn,
+    allowPull: ['1', 'true', 'yes'].includes((env.ARK_OLLAMA_PULL ?? '').trim().toLowerCase()),
   };
   const bedrock: BedrockConfig = {
     region: env.ARK_BEDROCK_REGION ?? env.AWS_REGION,
