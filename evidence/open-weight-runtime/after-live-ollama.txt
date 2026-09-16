@@ -1,0 +1,11 @@
+{
+  "ollamaConfigured": true,
+  "requestedModel": "smollm2:135m",
+  "live": "ok",
+  "adapterId": "ollama",
+  "modelId": "smollm2:135m",
+  "latencyMs": 92,
+  "textChars": 5,
+  "routingSelected": "ollama",
+  "fallbacks": []
+}

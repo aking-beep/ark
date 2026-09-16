@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { ProviderError } from '@ark/providers';
+import { OllamaAdapter, ProviderError } from '@ark/providers';
 import { ArkIngest } from '@ark/sdk';
 import { execute } from './execute.js';
 import { PolicyError } from './types.js';
@@ -138,5 +138,69 @@ describe('execute', () => {
       assert.equal(result.adapterId, adapter.id);
       assert.ok(result.text.startsWith('ok:'));
     }
+  });
+
+  test('execute forwards an open-weight model id to Ollama, not the env default', async () => {
+    let postedModel = '';
+    const ollama = new OllamaAdapter({
+      baseUrl: 'http://ollama.test',
+      model: 'llama3.2',
+      fetch: (async (_url, init) => {
+        postedModel = JSON.parse(String(init?.body)).model;
+        return new Response(
+          JSON.stringify({
+            model: postedModel,
+            message: { role: 'assistant', content: 'ok' },
+            prompt_eval_count: 1,
+            eval_count: 1,
+          }),
+          { status: 200 },
+        );
+      }) as typeof fetch,
+    });
+    const result = await execute(
+      { messages: [{ role: 'user', content: 'hi' }], model: 'deepseek-r1', maxTokens: 8 },
+      { adapters: [ollama] },
+    );
+    assert.equal(postedModel, 'deepseek-r1');
+    assert.equal(result.adapterId, 'ollama');
+    assert.equal(result.modelId, 'deepseek-r1');
+  });
+
+  test('a closed-source hint is stripped when falling back to Ollama', async () => {
+    let postedModel = '';
+    const ollama = new OllamaAdapter({
+      baseUrl: 'http://ollama.test',
+      model: 'llama3.2',
+      fetch: (async (_url, init) => {
+        postedModel = JSON.parse(String(init?.body)).model;
+        return new Response(
+          JSON.stringify({
+            model: postedModel,
+            message: { role: 'assistant', content: 'ok' },
+            prompt_eval_count: 1,
+            eval_count: 1,
+          }),
+          { status: 200 },
+        );
+      }) as typeof fetch,
+    });
+    const frontier = fakeAdapter({
+      id: 'openai-compatible',
+      residency: 'cloud',
+      complete: async () => {
+        throw new ProviderError('http', 'frontier down', 'openai-compatible');
+      },
+    });
+    await execute(
+      {
+        messages: [{ role: 'user', content: 'hi' }],
+        model: 'gpt-4o',
+        maxFallbacks: 1,
+        constraints: { privacy: 'any' },
+      },
+      { adapters: [frontier, ollama] },
+    );
+    assert.equal(postedModel, 'llama3.2');
   });
 });

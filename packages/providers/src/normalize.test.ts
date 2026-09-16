@@ -45,6 +45,21 @@ describe('provider normalization', () => {
     assert.equal(out.latencyMs, 40);
   });
 
+  test('Ollama reasoning models can put the answer in message.thinking', () => {
+    const out = parseOllamaChat(
+      {
+        model: 'deepseek-r1',
+        message: { role: 'assistant', content: '', thinking: 'pong' },
+        done_reason: 'stop',
+        prompt_eval_count: 4,
+        eval_count: 1,
+      },
+      10,
+      'deepseek-r1',
+    );
+    assert.equal(out.text, 'pong');
+  });
+
   test('OpenAI-compatible chat JSON becomes NormalizedCompletion', () => {
     const out = parseOpenAIChat(
       {

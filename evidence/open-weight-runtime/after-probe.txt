@@ -1,0 +1,29 @@
+{
+  "hints": {
+    "deepseek-r1": "ollama",
+    "deepseek-r1:8b": "ollama",
+    "deepseek-chat": "openai-compatible",
+    "deepseek-reasoner": "openai-compatible",
+    "smollm2:135m": "ollama",
+    "yi-34b": "ollama",
+    "granite-code": "ollama",
+    "olmo-2": "ollama",
+    "qwen2.5": "ollama",
+    "llama3.2": "ollama",
+    "gemma2": "ollama",
+    "phi3": "ollama",
+    "mixtral": "ollama",
+    "gpt-4o": "openai-compatible",
+    "gpt-5-nano": "openai-compatible",
+    "amazon.nova-lite-v1:0": "bedrock",
+    "claude-sonnet-5": null
+  },
+  "ollamaPostedModel": "deepseek-r1",
+  "ollamaPostedPath": "/api/chat",
+  "routedAdapter": "ollama",
+  "deepseekConfigured": true,
+  "deepseekDefaultModel": "deepseek-chat",
+  "deepseekUrl": "https://api.deepseek.com/v1/chat/completions",
+  "emptyEnvOllamaConfigured": false,
+  "emptyEnvFrontierConfigured": false
+}

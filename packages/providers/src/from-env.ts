@@ -29,10 +29,12 @@ export function adaptersFromEnv(opts: AdaptersFromEnv = {}): ProviderAdapter[] {
     timeoutMs,
     fetch: fetchFn,
   };
+  const apiKey = env.ARK_FRONTIER_API_KEY || env.DEEPSEEK_API_KEY || '';
+  const hostedDeepSeek = Boolean(env.DEEPSEEK_API_KEY) && !env.ARK_FRONTIER_API_KEY && !env.ARK_FRONTIER_BASE_URL;
   const frontier: OpenAICompatibleConfig = {
-    baseUrl: env.ARK_FRONTIER_BASE_URL,
-    apiKey: env.ARK_FRONTIER_API_KEY,
-    model: env.ARK_FRONTIER_MODEL,
+    baseUrl: env.ARK_FRONTIER_BASE_URL || (hostedDeepSeek ? 'https://api.deepseek.com' : '') || '',
+    apiKey,
+    model: env.ARK_FRONTIER_MODEL || (hostedDeepSeek ? 'deepseek-chat' : '') || '',
     timeoutMs,
     fetch: fetchFn,
   };

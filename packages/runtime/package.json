@@ -9,7 +9,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsc -p tsconfig.json && node --test dist/policy.test.js dist/router.test.js dist/fallback.test.js dist/telemetry.test.js dist/execute.test.js",
+    "test": "tsc -p tsconfig.json && node --test dist/policy.test.js dist/router.test.js dist/fallback.test.js dist/telemetry.test.js dist/execute.test.js dist/catalog.test.js",
     "smoke": "node dist/smoke.js"
   },
   "dependencies": {
