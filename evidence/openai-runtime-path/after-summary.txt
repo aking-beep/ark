@@ -1,0 +1,12 @@
+openaiConfiguredFromOpenAIKey	before=false	after=true
+envKeyCompleteUrl	before=null	after=https://api.openai.com/v1/chat/completions
+completeWithoutDefaultModel	before=ProviderError	after=ok
+chatgpt-4o-latest	before=null	after=openai-compatible
+ft:gpt-4o-mini	before=null	after=openai-compatible
+whisper/dall-e/embeddings/tts	before=null	after=null
+gpt5HasMaxTokens	before=true	after=false
+gpt5HasMaxCompletionTokens	before=false	after=true
+o3HasTemperature	before=true	after=false
+arrayContentText	before=""	after=Hello
+npm.test	after=exit 0
+smoke	after=ok (live skipped, no key)

@@ -1,0 +1,43 @@
+{
+  "openaiConfiguredFromOpenAIKey": true,
+  "openaiDefaultModel": "",
+  "envKeyCompleteUrl": "https://api.openai.com/v1/chat/completions",
+  "envKeyCompleteError": null,
+  "completeWithoutDefaultModel": "ok",
+  "hints": {
+    "gpt-4o": "openai-compatible",
+    "gpt-4o-mini": "openai-compatible",
+    "gpt-5-nano": "openai-compatible",
+    "gpt-5.6-sol": "openai-compatible",
+    "chatgpt-4o-latest": "openai-compatible",
+    "o3-mini": "openai-compatible",
+    "o1": "openai-compatible",
+    "ft:gpt-4o-mini:org:ft-abc": "openai-compatible",
+    "text-embedding-3-small": null,
+    "whisper-1": null,
+    "dall-e-3": null,
+    "tts-1": null,
+    "llama3.2": "ollama"
+  },
+  "gpt5PayloadKeys": [
+    "max_completion_tokens",
+    "messages",
+    "model",
+    "temperature"
+  ],
+  "o3PayloadKeys": [
+    "max_completion_tokens",
+    "messages",
+    "model"
+  ],
+  "gpt4oPayloadKeys": [
+    "max_tokens",
+    "messages",
+    "model",
+    "temperature"
+  ],
+  "gpt5HasMaxTokens": false,
+  "gpt5HasMaxCompletionTokens": true,
+  "o3HasTemperature": false,
+  "arrayContentText": "Hello"
+}

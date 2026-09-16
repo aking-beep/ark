@@ -1,0 +1,1040 @@
+
+> ark@0.1.0 test
+> npm run test --workspace @ark/core && npm run test --workspace @ark/db && npm run test --workspace @ark/sdk && npm run test --workspace @ark/providers && npm run test --workspace @ark/evals && npm run test --workspace @ark/runtime && node --test deploy/runtime.test.mjs && node --experimental-strip-types --test apps/consumer/src/lib/my-ai-proxy.test.ts
+
+
+> @ark/core@0.1.0 test
+> tsc -p tsconfig.json && node --test dist/engine.test.js dist/golden/set.test.js dist/economics/prompt-tokens.test.js dist/ingest/schema.test.js dist/ops/budget-enforcement.test.js
+
+TAP version 13
+# Subtest: estimateTokens
+    # Subtest: empty text is zero, not a fabricated 1
+    ok 1 - empty text is zero, not a fabricated 1
+      ---
+      duration_ms: 0.435431
+      ...
+    # Subtest: four characters is about one token
+    ok 2 - four characters is about one token
+      ---
+      duration_ms: 0.094465
+      ...
+    # Subtest: the figure is labelled heuristic
+    ok 3 - the figure is labelled heuristic
+      ---
+      duration_ms: 4.999
+      ...
+    1..3
+ok 1 - estimateTokens
+  ---
+  duration_ms: 6.171261
+  type: 'suite'
+  ...
+# Subtest: the engine can say no
+    # Subtest: a pure lookup + calculate workload is told not to use AI
+    ok 1 - a pure lookup + calculate workload is told not to use AI
+      ---
+      duration_ms: 20.257886
+      ...
+    # Subtest: not-ai workloads get a single build-the-rules phase with a kill criterion
+    ok 2 - not-ai workloads get a single build-the-rules phase with a kill criterion
+      ---
+      duration_ms: 0.401292
+      ...
+    # Subtest: irreversible autonomous actions raise a blocker
+    ok 3 - irreversible autonomous actions raise a blocker
+      ---
+      duration_ms: 0.50457
+      ...
+    # Subtest: credentials in the data flow always block
+    ok 4 - credentials in the data flow always block
+      ---
+      duration_ms: 4.203838
+      ...
+    # Subtest: trivial volume is a buy-or-do-manually decision
+    ok 5 - trivial volume is a buy-or-do-manually decision
+      ---
+      duration_ms: 0.414011
+      ...
+    1..5
+ok 2 - the engine can say no
+  ---
+  duration_ms: 26.406646
+  type: 'suite'
+  ...
+# Subtest: architecture selection
+    # Subtest: multi-step work with consequential actions gets a bounded agent, not autonomy
+    ok 1 - multi-step work with consequential actions gets a bounded agent, not autonomy
+      ---
+      duration_ms: 0.378177
+      ...
+    # Subtest: external knowledge without multi-step gets RAG
+    ok 2 - external knowledge without multi-step gets RAG
+      ---
+      duration_ms: 0.307371
+      ...
+    # Subtest: every pattern includes the Control telemetry hook
+    ok 3 - every pattern includes the Control telemetry hook
+      ---
+      duration_ms: 0.879335
+      ...
+    1..3
+ok 3 - architecture selection
+  ---
+  duration_ms: 1.78583
+  type: 'suite'
+  ...
+# Subtest: token economics
+    # Subtest: cache hits reduce the bill
+    ok 1 - cache hits reduce the bill
+      ---
+      duration_ms: 0.164371
+      ...
+    # Subtest: batch halves the bill where supported
+    ok 2 - batch halves the bill where supported
+      ---
+      duration_ms: 0.187419
+      ...
+    # Subtest: agent context growth compounds across turns
+    ok 3 - agent context growth compounds across turns
+      ---
+      duration_ms: 0.089984
+      ...
+    # Subtest: cost per SUCCESSFUL outcome exceeds cost per attempt when calls fail
+    ok 4 - cost per SUCCESSFUL outcome exceeds cost per attempt when calls fail
+      ---
+      duration_ms: 0.06468
+      ...
+    # Subtest: a zero failure rate makes the two identical
+    ok 5 - a zero failure rate makes the two identical
+      ---
+      duration_ms: 0.055914
+      ...
+    1..5
+ok 4 - token economics
+  ---
+  duration_ms: 0.730302
+  type: 'suite'
+  ...
+# Subtest: value model refuses to invent numbers
+    # Subtest: no baseline means no ROI, and the gap is stated
+    ok 1 - no baseline means no ROI, and the gap is stated
+      ---
+      duration_ms: 0.405796
+      ...
+    # Subtest: a supplied baseline produces a payback figure
+    ok 2 - a supplied baseline produces a payback figure
+      ---
+      duration_ms: 4.34011
+      ...
+    # Subtest: missing human error rate is called out
+    ok 3 - missing human error rate is called out
+      ---
+      duration_ms: 1.214352
+      ...
+    1..3
+ok 5 - value model refuses to invent numbers
+  ---
+  duration_ms: 6.063029
+  type: 'suite'
+  ...
+# Subtest: provenance
+    # Subtest: an uncalibrated report is labelled heuristic
+    ok 1 - an uncalibrated report is labelled heuristic
+      ---
+      duration_ms: 0.309971
+      ...
+    # Subtest: telemetry promotes the basis from heuristic to measured
+    ok 2 - telemetry promotes the basis from heuristic to measured
+      ---
+      duration_ms: 0.836762
+      ...
+    # Subtest: a thin sample is rejected and stays heuristic
+    ok 3 - a thin sample is rejected and stays heuristic
+      ---
+      duration_ms: 0.139736
+      ...
+    # Subtest: weakestBasis returns the softest input
+    ok 4 - weakestBasis returns the softest input
+      ---
+      duration_ms: 0.05366
+      ...
+    1..4
+ok 6 - provenance
+  ---
+  duration_ms: 1.438636
+  type: 'suite'
+  ...
+# Subtest: model catalog and routing
+    # Subtest: every catalog entry carries an asOf date
+    ok 1 - every catalog entry carries an asOf date
+      ---
+      duration_ms: 0.190479
+      ...
+    # Subtest: on-prem residency eliminates hosted providers
+    ok 2 - on-prem residency eliminates hosted providers
+      ---
+      duration_ms: 0.200788
+      ...
+    # Subtest: vision requirement filters to vision-capable models
+    ok 3 - vision requirement filters to vision-capable models
+      ---
+      duration_ms: 0.053626
+      ...
+    # Subtest: substitution analysis finds cheaper models and states the risk
+    ok 4 - substitution analysis finds cheaper models and states the risk
+      ---
+      duration_ms: 0.290761
+      ...
+    # Subtest: substitutions are marked measured when a sample size is supplied
+    ok 5 - substitutions are marked measured when a sample size is supplied
+      ---
+      duration_ms: 0.091489
+      ...
+    # Subtest: stale pricing detection works against a future date
+    ok 6 - stale pricing detection works against a future date
+      ---
+      duration_ms: 0.172695
+      ...
+    1..6
+ok 7 - model catalog and routing
+  ---
+  duration_ms: 1.09585
+  type: 'suite'
+  ...
+# Subtest: consumer surface uses the same engine
+    # Subtest: a personal workload produces a consumer-depth assessment
+    ok 1 - a personal workload produces a consumer-depth assessment
+      ---
+      duration_ms: 4.550385
+      ...
+    # Subtest: needing an exact answer routes a consumer away from AI too
+    ok 2 - needing an exact answer routes a consumer away from AI too
+      ---
+      duration_ms: 0.296618
+      ...
+    # Subtest: personal data raises security drivers even at consumer depth
+    ok 3 - personal data raises security drivers even at consumer depth
+      ---
+      duration_ms: 0.279917
+      ...
+    # Subtest: question 6 (doesSomething) gates the agent branch
+    ok 4 - question 6 (doesSomething) gates the agent branch
+      ---
+      duration_ms: 0.323345
+      ...
+    # Subtest: a previously shared link without the new fields still decodes
+    ok 5 - a previously shared link without the new fields still decodes
+      ---
+      duration_ms: 0.252487
+      ...
+    1..5
+ok 8 - consumer surface uses the same engine
+  ---
+  duration_ms: 5.821316
+  type: 'suite'
+  ...
+# Subtest: security and evaluation
+    # Subtest: write actions require scoped credentials
+    ok 1 - write actions require scoped credentials
+      ---
+      duration_ms: 0.262329
+      ...
+    # Subtest: costly actions get a human approval gate
+    ok 2 - costly actions get a human approval gate
+      ---
+      duration_ms: 0.198287
+      ...
+    # Subtest: every control names how Control verifies it
+    ok 3 - every control names how Control verifies it
+      ---
+      duration_ms: 2.218232
+      ...
+    # Subtest: agentic patterns require an injection test suite
+    ok 4 - agentic patterns require an injection test suite
+      ---
+      duration_ms: 0.348541
+      ...
+    # Subtest: accuracy threshold tightens as error tolerance falls
+    ok 5 - accuracy threshold tightens as error tolerance falls
+      ---
+      duration_ms: 0.244018
+      ...
+    # Subtest: every roadmap phase has a kill criterion
+    ok 6 - every roadmap phase has a kill criterion
+      ---
+      duration_ms: 0.184872
+      ...
+    # Subtest: teams without security review get a review phase inserted
+    ok 7 - teams without security review get a review phase inserted
+      ---
+      duration_ms: 0.176829
+      ...
+    1..7
+ok 9 - security and evaluation
+  ---
+  duration_ms: 3.775364
+  type: 'suite'
+  ...
+# Subtest: golden set
+    # Subtest: has about 40 labelled workloads
+    ok 1 - has about 40 labelled workloads
+      ---
+      duration_ms: 0.389064
+      ...
+    # Subtest: ids are unique
+    ok 2 - ids are unique
+      ---
+      duration_ms: 0.10507
+      ...
+    # Subtest: disagreements with labelled verdicts stay under the kill rate
+    ok 3 - disagreements with labelled verdicts stay under the kill rate
+      ---
+      duration_ms: 35.493044
+      ...
+    1..3
+ok 10 - golden set
+  ---
+  duration_ms: 36.746586
+  type: 'suite'
+  ...
+# Subtest: ingest contract
+    # Subtest: an empty body does not parse
+    ok 1 - an empty body does not parse
+      ---
+      duration_ms: 8.127872
+      ...
+    # Subtest: actions-only and quality-only batches parse
+    ok 2 - actions-only and quality-only batches parse
+      ---
+      duration_ms: 0.62703
+      ...
+    # Subtest: unknown models are unpriced, not rejected
+    ok 3 - unknown models are unpriced, not rejected
+      ---
+      duration_ms: 4.61765
+      ...
+    # Subtest: detectSensitive returns labels and not the matched text
+    ok 4 - detectSensitive returns labels and not the matched text
+      ---
+      duration_ms: 0.457571
+      ...
+    1..4
+ok 11 - ingest contract
+  ---
+  duration_ms: 14.503027
+  type: 'suite'
+  ...
+# Subtest: budgetAction
+    # Subtest: below the ceiling always allows
+    ok 1 - below the ceiling always allows
+      ---
+      duration_ms: 0.433127
+      ...
+    # Subtest: at the ceiling, block refuses and throttle flags
+    ok 2 - at the ceiling, block refuses and throttle flags
+      ---
+      duration_ms: 0.094548
+      ...
+    # Subtest: strictestAction prefers block over throttle over allow
+    ok 3 - strictestAction prefers block over throttle over allow
+      ---
+      duration_ms: 0.082358
+      ...
+    1..3
+ok 12 - budgetAction
+  ---
+  duration_ms: 1.236715
+  type: 'suite'
+  ...
+1..12
+# tests 51
+# suites 12
+# pass 51
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 218.827672
+
+> @ark/db@0.1.0 test
+> tsc -p tsconfig.json && node --test dist/ingest.test.js dist/auth.test.js dist/alerts.test.js dist/session-token.test.js
+
+TAP version 13
+# Subtest: deliverAlerts
+    # Subtest: POSTs JSON and records a hit
+    ok 1 - POSTs JSON and records a hit
+      ---
+      duration_ms: 4.603799
+      ...
+    # Subtest: a hung destination times out and does not throw
+    ok 2 - a hung destination times out and does not throw
+      ---
+      duration_ms: 32.896284
+      ...
+    1..2
+ok 1 - deliverAlerts
+  ---
+  duration_ms: 90.669846
+  type: 'suite'
+  ...
+# Subtest: orgFromBearer
+    # Subtest: maps a hashed token to its org
+    ok 1 - maps a hashed token to its org
+      ---
+      duration_ms: 0.5713
+      ...
+    # Subtest: rejects an unknown token
+    ok 2 - rejects an unknown token
+      ---
+      duration_ms: 0.20879
+      ...
+    # Subtest: rejects a missing token once tokens exist
+    ok 3 - rejects a missing token once tokens exist
+      ---
+      duration_ms: 0.163184
+      ...
+    1..3
+ok 2 - orgFromBearer
+  ---
+  duration_ms: 87.26906
+  type: 'suite'
+  ...
+# Subtest: authenticateUser
+    # Subtest: returns the membership org on a correct password
+    ok 1 - returns the membership org on a correct password
+      ---
+      duration_ms: 30.307447
+      ...
+    # Subtest: fails closed on a wrong password
+    ok 2 - fails closed on a wrong password
+      ---
+      duration_ms: 27.016354
+      ...
+    1..2
+ok 3 - authenticateUser
+  ---
+  duration_ms: 57.588916
+  type: 'suite'
+  ...
+# Subtest: applyIngest
+    # Subtest: rejects an empty body at the schema boundary
+    ok 1 - rejects an empty body at the schema boundary
+      ---
+      duration_ms: 0.774579
+      ...
+    # Subtest: unknown model is stored, flagged, not dropped
+    ok 2 - unknown model is stored, flagged, not dropped
+      ---
+      duration_ms: 10.978903
+      ...
+    # Subtest: a 19-turn trace against a low ceiling emits loop_runaway
+    ok 3 - a 19-turn trace against a low ceiling emits loop_runaway
+      ---
+      duration_ms: 47.593123
+      ...
+    # Subtest: irreversible action with no approver emits unapproved_action
+    ok 4 - irreversible action with no approver emits unapproved_action
+      ---
+      duration_ms: 5.468976
+      ...
+    # Subtest: quality samples below threshold emit quality_regression
+    ok 5 - quality samples below threshold emit quality_regression
+      ---
+      duration_ms: 43.328267
+      ...
+    # Subtest: spend past a tiny budget emits budget_warn or budget_breach
+    ok 6 - spend past a tiny budget emits budget_warn or budget_breach
+      ---
+      duration_ms: 12.322904
+      ...
+    # Subtest: a blocked budget refuses a follow-up event
+    ok 7 - a blocked budget refuses a follow-up event
+      ---
+      duration_ms: 19.79281
+      ...
+    # Subtest: sample is not stored
+    ok 8 - sample is not stored
+      ---
+      duration_ms: 15.138348
+      ...
+    1..8
+ok 4 - applyIngest
+  ---
+  duration_ms: 216.354859
+  type: 'suite'
+  ...
+# Subtest: session token
+    # Subtest: round-trips a payload
+    ok 1 - round-trips a payload
+      ---
+      duration_ms: 5.282854
+      ...
+    # Subtest: rejects a truncated or flipped token
+    ok 2 - rejects a truncated or flipped token
+      ---
+      duration_ms: 1.639512
+      ...
+    # Subtest: rejects an expired payload
+    ok 3 - rejects an expired payload
+      ---
+      duration_ms: 0.85357
+      ...
+    1..3
+ok 5 - session token
+  ---
+  duration_ms: 8.494209
+  type: 'suite'
+  ...
+1..5
+# tests 18
+# suites 5
+# pass 18
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 685.78134
+
+> @ark/sdk@0.1.0 test
+> tsc -p tsconfig.json && node --test dist/index.test.js
+
+TAP version 13
+# Subtest: ArkIngest
+    # Subtest: assigns a trace id and monotonic turn indices
+    ok 1 - assigns a trace id and monotonic turn indices
+      ---
+      duration_ms: 13.964872
+      ...
+    # Subtest: does not depend on a caller supplying turn, and will not go backwards
+    ok 2 - does not depend on a caller supplying turn, and will not go backwards
+      ---
+      duration_ms: 0.528756
+      ...
+    # Subtest: scans a sample locally and drops the text before POST
+    ok 3 - scans a sample locally and drops the text before POST
+      ---
+      duration_ms: 0.710967
+      ...
+    # Subtest: ingest fails closed when Control does not answer
+    ok 4 - ingest fails closed when Control does not answer
+      ---
+      duration_ms: 31.12521
+      ...
+    1..4
+ok 1 - ArkIngest
+  ---
+  duration_ms: 47.035974
+  type: 'suite'
+  ...
+1..1
+# tests 4
+# suites 1
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 106.96799
+
+> @ark/providers@0.1.0 test
+> tsc -p tsconfig.json && node --test dist/normalize.test.js dist/sigv4.test.js dist/adapters.test.js dist/from-env.test.js
+
+TAP version 13
+# Subtest: adapters over mocked HTTP
+    # Subtest: Ollama POSTs /api/chat and returns normalized text
+    ok 1 - Ollama POSTs /api/chat and returns normalized text
+      ---
+      duration_ms: 13.74122
+      ...
+    # Subtest: OpenAI-compatible POSTs /v1/chat/completions with Bearer auth
+    ok 2 - OpenAI-compatible POSTs /v1/chat/completions with Bearer auth
+      ---
+      duration_ms: 1.064669
+      ...
+    # Subtest: a per-request model is enough when the adapter has no default
+    ok 3 - a per-request model is enough when the adapter has no default
+      ---
+      duration_ms: 0.547944
+      ...
+    # Subtest: GPT-5 and o-series send the fields those models accept
+    ok 4 - GPT-5 and o-series send the fields those models accept
+      ---
+      duration_ms: 0.964118
+      ...
+    # Subtest: Bedrock signs Converse and POSTs to bedrock-runtime
+    ok 5 - Bedrock signs Converse and POSTs to bedrock-runtime
+      ---
+      duration_ms: 1.45249
+      ...
+    1..5
+ok 1 - adapters over mocked HTTP
+  ---
+  duration_ms: 18.473081
+  type: 'suite'
+  ...
+# Subtest: adaptersFromEnv OpenAI aliases
+    # Subtest: OPENAI_API_KEY alone configures the official Chat Completions host
+    ok 1 - OPENAI_API_KEY alone configures the official Chat Completions host
+      ---
+      duration_ms: 0.591906
+      ...
+    # Subtest: ARK_FRONTIER_* wins over OPENAI_*
+    ok 2 - ARK_FRONTIER_* wins over OPENAI_*
+      ---
+      duration_ms: 0.208098
+      ...
+    # Subtest: no key and no URL leaves the adapter unconfigured
+    ok 3 - no key and no URL leaves the adapter unconfigured
+      ---
+      duration_ms: 0.15399
+      ...
+    1..3
+ok 2 - adaptersFromEnv OpenAI aliases
+  ---
+  duration_ms: 2.5746
+  type: 'suite'
+  ...
+# Subtest: provider normalization
+    # Subtest: the same CompletionRequest schema is what every adapter consumes
+    ok 1 - the same CompletionRequest schema is what every adapter consumes
+      ---
+      duration_ms: 0.541243
+      ...
+    # Subtest: Ollama chat JSON becomes NormalizedCompletion
+    ok 2 - Ollama chat JSON becomes NormalizedCompletion
+      ---
+      duration_ms: 0.141255
+      ...
+    # Subtest: OpenAI-compatible chat JSON becomes NormalizedCompletion
+    ok 3 - OpenAI-compatible chat JSON becomes NormalizedCompletion
+      ---
+      duration_ms: 0.128625
+      ...
+    # Subtest: OpenAI array content parts join into text
+    ok 4 - OpenAI array content parts join into text
+      ---
+      duration_ms: 0.095892
+      ...
+    # Subtest: openaiChatBody uses max_completion_tokens for GPT-5 and drops temperature on o-series
+    ok 5 - openaiChatBody uses max_completion_tokens for GPT-5 and drops temperature on o-series
+      ---
+      duration_ms: 0.172258
+      ...
+    # Subtest: isOpenAIChatModel covers the chat family and not embeddings or audio
+    ok 6 - isOpenAIChatModel covers the chat family and not embeddings or audio
+      ---
+      duration_ms: 0.128655
+      ...
+    # Subtest: Bedrock Converse JSON becomes NormalizedCompletion
+    ok 7 - Bedrock Converse JSON becomes NormalizedCompletion
+      ---
+      duration_ms: 0.124308
+      ...
+    # Subtest: Bedrock body splits system messages out of the turn list
+    ok 8 - Bedrock body splits system messages out of the turn list
+      ---
+      duration_ms: 0.527504
+      ...
+    # Subtest: chatCompletionsUrl accepts a host, a /v1 base, or a full path
+    ok 9 - chatCompletionsUrl accepts a host, a /v1 base, or a full path
+      ---
+      duration_ms: 0.220487
+      ...
+    1..9
+ok 3 - provider normalization
+  ---
+  duration_ms: 3.447415
+  type: 'suite'
+  ...
+# Subtest: Bedrock SigV4
+    # Subtest: is deterministic for a frozen clock and encodes the model id
+    ok 1 - is deterministic for a frozen clock and encodes the model id
+      ---
+      duration_ms: 1.337884
+      ...
+    # Subtest: includes the session token in the signature when present
+    ok 2 - includes the session token in the signature when present
+      ---
+      duration_ms: 0.210036
+      ...
+    1..2
+ok 4 - Bedrock SigV4
+  ---
+  duration_ms: 2.135201
+  type: 'suite'
+  ...
+1..4
+# tests 19
+# suites 4
+# pass 19
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 90.744973
+
+> @ark/evals@0.1.0 test
+> tsc -p tsconfig.json && node --test dist/evaluate.test.js
+
+TAP version 13
+# Subtest: evaluate
+    # Subtest: quality is heuristic-pass when there is no oracle, measured when there is
+    ok 1 - quality is heuristic-pass when there is no oracle, measured when there is
+      ---
+      duration_ms: 0.60594
+      ...
+    # Subtest: latency is measured and fails the budget when over
+    ok 2 - latency is measured and fails the budget when over
+      ---
+      duration_ms: 0.107648
+      ...
+    # Subtest: cost uses catalog benchmark pricing when the model is known
+    ok 3 - cost uses catalog benchmark pricing when the model is known
+      ---
+      duration_ms: 0.129544
+      ...
+    # Subtest: unknown models are unpriced heuristics and do not fail a cost ceiling
+    ok 4 - unknown models are unpriced heuristics and do not fail a cost ceiling
+      ---
+      duration_ms: 0.086325
+      ...
+    # Subtest: empty text fails reliability
+    ok 5 - empty text fails reliability
+      ---
+      duration_ms: 0.077868
+      ...
+    1..5
+ok 1 - evaluate
+  ---
+  duration_ms: 1.686005
+  type: 'suite'
+  ...
+1..1
+# tests 5
+# suites 1
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 62.170872
+
+> @ark/runtime@0.1.0 test
+> tsc -p tsconfig.json && node --test dist/policy.test.js dist/router.test.js dist/fallback.test.js dist/telemetry.test.js dist/execute.test.js dist/catalog.test.js
+
+TAP version 13
+# Subtest: OpenAI chat family hints
+    # Subtest: gpt, chatgpt, o-series, and fine-tunes route to openai-compatible
+    ok 1 - gpt, chatgpt, o-series, and fine-tunes route to openai-compatible
+      ---
+      duration_ms: 0.463693
+      ...
+    # Subtest: non-chat OpenAI ids are not hinted at the chat adapter
+    ok 2 - non-chat OpenAI ids are not hinted at the chat adapter
+      ---
+      duration_ms: 0.126135
+      ...
+    1..2
+ok 1 - OpenAI chat family hints
+  ---
+  duration_ms: 1.158765
+  type: 'suite'
+  ...
+# Subtest: execute
+    # Subtest: local-only never calls a cloud adapter, even when local is missing
+    ok 1 - local-only never calls a cloud adapter, even when local is missing
+      ---
+      duration_ms: 1.261449
+      ...
+    # Subtest: allowed provider failure falls back and returns the secondary completion
+    ok 2 - allowed provider failure falls back and returns the secondary completion
+      ---
+      duration_ms: 0.778148
+      ...
+    # Subtest: telemetry failure does not fail inference
+    ok 3 - telemetry failure does not fail inference
+      ---
+      duration_ms: 0.898056
+      ...
+    # Subtest: fallback ingest is one event per attempt on turn 0
+    ok 4 - fallback ingest is one event per attempt on turn 0
+      ---
+      duration_ms: 12.52218
+      ...
+    # Subtest: policy refusal does not post a trace
+    ok 5 - policy refusal does not post a trace
+      ---
+      duration_ms: 0.206829
+      ...
+    # Subtest: the same request schema runs across all three adapters
+    ok 6 - the same request schema runs across all three adapters
+      ---
+      duration_ms: 0.394991
+      ...
+    1..6
+ok 2 - execute
+  ---
+  duration_ms: 16.84703
+  type: 'suite'
+  ...
+# Subtest: bounded fallback
+    # Subtest: a failing primary yields to the next adapter in the chain
+    ok 1 - a failing primary yields to the next adapter in the chain
+      ---
+      duration_ms: 0.643811
+      ...
+    # Subtest: the chain is the bound — a provider not in the chain is never called
+    ok 2 - the chain is the bound — a provider not in the chain is never called
+      ---
+      duration_ms: 0.178256
+      ...
+    # Subtest: a frontier model hint is not forwarded to the local fallback adapter
+    ok 3 - a frontier model hint is not forwarded to the local fallback adapter
+      ---
+      duration_ms: 0.189741
+      ...
+    1..3
+ok 3 - bounded fallback
+  ---
+  duration_ms: 1.59174
+  type: 'suite'
+  ...
+# Subtest: privacy policy
+    # Subtest: local-only drops every cloud adapter, including ones that would be cheaper
+    ok 1 - local-only drops every cloud adapter, including ones that would be cheaper
+      ---
+      duration_ms: 1.085222
+      ...
+    # Subtest: local-only with only cloud adapters leaves none eligible
+    ok 2 - local-only with only cloud adapters leaves none eligible
+      ---
+      duration_ms: 0.124249
+      ...
+    # Subtest: unconfigured adapters are excluded before ranking
+    ok 3 - unconfigured adapters are excluded before ranking
+      ---
+      duration_ms: 1.01703
+      ...
+    # Subtest: capability and allow-list filters apply on top of privacy
+    ok 4 - capability and allow-list filters apply on top of privacy
+      ---
+      duration_ms: 0.170673
+      ...
+    1..4
+ok 4 - privacy policy
+  ---
+  duration_ms: 3.079057
+  type: 'suite'
+  ...
+# Subtest: router
+    # Subtest: explains why it selected a provider
+    ok 1 - explains why it selected a provider
+      ---
+      duration_ms: 1.048264
+      ...
+    # Subtest: local-only never lists cloud adapters as fallbacks
+    ok 2 - local-only never lists cloud adapters as fallbacks
+      ---
+      duration_ms: 0.445707
+      ...
+    # Subtest: a model hint that is still eligible wins over cheaper rank
+    ok 3 - a model hint that is still eligible wins over cheaper rank
+      ---
+      duration_ms: 1.144744
+      ...
+    # Subtest: chatgpt-4o-latest is an OpenAI chat hint
+    ok 4 - chatgpt-4o-latest is an OpenAI chat hint
+      ---
+      duration_ms: 0.172714
+      ...
+    # Subtest: maxFallbacks=0 records no fallback chain
+    ok 5 - maxFallbacks=0 records no fallback chain
+      ---
+      duration_ms: 0.179436
+      ...
+    1..5
+ok 5 - router
+  ---
+  duration_ms: 3.71317
+  type: 'suite'
+  ...
+# Subtest: telemetry
+    # Subtest: posts the ingest contract without a prompt sample
+    ok 1 - posts the ingest contract without a prompt sample
+      ---
+      duration_ms: 11.799352
+      ...
+    # Subtest: one event per attempt; fallback stays on turn 0
+    ok 2 - one event per attempt; fallback stays on turn 0
+      ---
+      duration_ms: 0.882302
+      ...
+    # Subtest: errorKind is the closed enum, never the provider body
+    ok 3 - errorKind is the closed enum, never the provider body
+      ---
+      duration_ms: 0.504413
+      ...
+    # Subtest: timeout attempts ingest status=timeout
+    ok 4 - timeout attempts ingest status=timeout
+      ---
+      duration_ms: 0.445923
+      ...
+    # Subtest: policy refusal is not ingested
+    ok 5 - policy refusal is not ingested
+      ---
+      duration_ms: 0.174609
+      ...
+    # Subtest: ingest failure is returned, not thrown
+    ok 6 - ingest failure is returned, not thrown
+      ---
+      duration_ms: 1.001228
+      ...
+    # Subtest: ingest timeout is returned, not thrown
+    ok 7 - ingest timeout is returned, not thrown
+      ---
+      duration_ms: 30.732258
+      ...
+    1..7
+ok 6 - telemetry
+  ---
+  duration_ms: 46.322985
+  type: 'suite'
+  ...
+1..6
+# tests 27
+# suites 6
+# pass 27
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 187.564658
+TAP version 13
+# Subtest: three-product docker runtime
+    # Subtest: Dockerfile installs Python 3.12+, MY AI engine, and exposes 8472
+    ok 1 - Dockerfile installs Python 3.12+, MY AI engine, and exposes 8472
+      ---
+      duration_ms: 0.651522
+      ...
+    # Subtest: entrypoint starts MY AI API with the three Next apps
+    ok 2 - entrypoint starts MY AI API with the three Next apps
+      ---
+      duration_ms: 0.827212
+      ...
+    # Subtest: compose publishes 8472 and API_ORIGIN, not Fit↔business URLs
+    ok 3 - compose publishes 8472 and API_ORIGIN, not Fit↔business URLs
+      ---
+      duration_ms: 0.151594
+      ...
+    1..3
+ok 1 - three-product docker runtime
+  ---
+  duration_ms: 2.273977
+  type: 'suite'
+  ...
+# Subtest: MY AI and MY AI for teams stay separate products
+    # Subtest: consumer chrome brands as MY AI and does not link to teams
+    ok 1 - consumer chrome brands as MY AI and does not link to teams
+      ---
+      duration_ms: 0.465409
+      ...
+    # Subtest: business chrome brands as MY AI for teams and does not funnel into consumer
+    ok 2 - business chrome brands as MY AI for teams and does not funnel into consumer
+      ---
+      duration_ms: 0.146101
+      ...
+    # Subtest: control user-visible copy names MY AI for teams, not AIFit
+    ok 3 - control user-visible copy names MY AI for teams, not AIFit
+      ---
+      duration_ms: 0.199947
+      ...
+    # Subtest: consumer does not depend on @ark/db or @ark/core
+    ok 4 - consumer does not depend on @ark/db or @ark/core
+      ---
+      duration_ms: 0.220168
+      ...
+    # Subtest: consumer engine lives in my-ai/ as the myai package
+    ok 5 - consumer engine lives in my-ai/ as the myai package
+      ---
+      duration_ms: 0.240389
+      ...
+    1..5
+ok 2 - MY AI and MY AI for teams stay separate products
+  ---
+  duration_ms: 1.533826
+  type: 'suite'
+  ...
+1..2
+# tests 8
+# suites 2
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 44.082401
+TAP version 13
+# (node:15220) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:15220) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/apps/consumer/src/lib/my-ai-proxy.test.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to /workspace/apps/consumer/package.json.
+# Subtest: myAiApiOrigin
+    # Subtest: uses API_ORIGIN when set, stripping a trailing slash
+    ok 1 - uses API_ORIGIN when set, stripping a trailing slash
+      ---
+      duration_ms: 0.536544
+      ...
+    # Subtest: returns null on Vercel so the platform rewrite owns /v1
+    ok 2 - returns null on Vercel so the platform rewrite owns /v1
+      ---
+      duration_ms: 0.178533
+      ...
+    # Subtest: defaults to loopback MY AI API off Vercel
+    ok 3 - defaults to loopback MY AI API off Vercel
+      ---
+      duration_ms: 0.126833
+      ...
+    1..3
+ok 1 - myAiApiOrigin
+  ---
+  duration_ms: 1.449623
+  type: 'suite'
+  ...
+# Subtest: proxyMyAiRequest
+    # Subtest: returns 502 when no origin is configured
+    ok 1 - returns 502 when no origin is configured
+      ---
+      duration_ms: 13.964619
+      ...
+    # Subtest: forwards method, path, and JSON body to the origin
+    ok 2 - forwards method, path, and JSON body to the origin
+      ---
+      duration_ms: 1.943134
+      ...
+    # Subtest: returns 504 when the upstream fetch times out
+    ok 3 - returns 504 when the upstream fetch times out
+      ---
+      duration_ms: 0.503039
+      ...
+    # Subtest: returns 502 when the upstream fetch fails
+    ok 4 - returns 502 when the upstream fetch fails
+      ---
+      duration_ms: 0.425513
+      ...
+    1..4
+ok 2 - proxyMyAiRequest
+  ---
+  duration_ms: 17.12519
+  type: 'suite'
+  ...
+1..2
+# tests 7
+# suites 2
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 91.127475
+EXIT:0
