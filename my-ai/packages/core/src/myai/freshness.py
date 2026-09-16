@@ -37,9 +37,12 @@ def freshness_report(products: list[ProductRecord], models: list[ModelRecord]) -
         for m in models
     ]
     stale = [r for r in product_rows + model_rows if r["band"] in {"stale", "expired_confidence", "unknown"}]
+    dates = [r["last_evaluated_at"] for r in product_rows + model_rows if r.get("last_evaluated_at")]
+    last_reviewed = max(dates) if dates else None
     return {
         "products": product_rows,
         "models": model_rows,
         "needs_review": stale,
+        "last_reviewed": last_reviewed,
         "policy": "Records older than the freshness threshold lose confidence rather than being marked as bad.",
     }

@@ -32,7 +32,7 @@ An LLM may label optional free text. It never picks the winner. Ranking is dated
 
 ## Limitations
 
-- The catalog in `data/registry/` was last reviewed on 2026-09-12. Re-run `docs/REGISTRY_SEED_REVIEW.md` when a vendor changes.
+- The catalog in `data/registry/` was last reviewed on 2026-09-16 (newest `last_evaluated_at`; also `GET /v1/registry/freshness` → `last_reviewed`). Re-run `docs/REGISTRY_SEED_REVIEW.md` when a vendor changes.
 - Your quiz and results stay in the browser (`localStorage`). Server storage is filesystem locally, or Upstash / Vercel KV when `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` (or `KV_REST_API_URL` + `KV_REST_API_TOKEN`) are set. Share links also embed a compressed copy of the result.
 - There are no accounts.
 - Keyword classification is first-class. The optional LLM classifier is off unless `MYAI_LLM_CLASSIFIER=1` and an endpoint is set.

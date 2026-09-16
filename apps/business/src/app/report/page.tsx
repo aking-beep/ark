@@ -111,6 +111,23 @@ export default async function Report({
         </Callout>
       )}
 
+      {!a.trust.calibrated && (
+        <Callout tone="warn" title="This report is uncalibrated">
+          <p>
+            Turns per outcome and failure rate are rubric priors, not measurements. They are the two
+            numbers that move the cost figure most, so treat the monthly run cost as an order of
+            magnitude rather than a budget line. Set <span className="font-mono">ARK_CONTROL_URL</span>{' '}
+            and <span className="font-mono">ARK_CONTROL_TOKEN</span> so this app can read{' '}
+            <span className="font-mono">GET /api/v1/calibration</span>. A first trace is{' '}
+            <span className="font-mono">POST /api/measure</span> on this app — one synthetic Runtime
+            sample on the operator&apos;s configured model, not a gateway. One sample does not clear
+            the 30-trace floor; it is how Control stops being empty.
+          </p>
+        </Callout>
+      )}
+
+      {a.suitability.verdict !== 'not-ai' && <MeasureSample workload={workload} />}
+
       {/* ---------------------------------------------------------------- */}
       <Panel
         title="The numbers"
@@ -464,24 +481,7 @@ export default async function Report({
             </li>
           )}
         </ul>
-
-        {!a.trust.calibrated && (
-          <Callout tone="warn" title="This report is uncalibrated">
-            <p>
-              Turns per outcome and failure rate are rubric priors, not measurements. They are the two
-              numbers that move the cost figure most, so treat the monthly run cost as an order of
-              magnitude rather than a budget line. Set <span className="font-mono">ARK_CONTROL_URL</span>{' '}
-              and <span className="font-mono">ARK_CONTROL_TOKEN</span> so this app can read{' '}
-              <span className="font-mono">GET /api/v1/calibration</span>. A first trace is{' '}
-              <span className="font-mono">POST /api/measure</span> on this app — one synthetic Runtime
-              sample, not a gateway. One sample does not clear the 30-trace floor; it is how Control
-              stops being empty.
-            </p>
-          </Callout>
-        )}
       </Panel>
-
-      {a.suitability.verdict !== 'not-ai' && <MeasureSample workload={workload} />}
 
       <section className="flex flex-wrap items-center gap-3 border-t border-ink-800 pt-6">
         <Link

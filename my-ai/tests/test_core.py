@@ -304,6 +304,7 @@ def test_api_demo_share_feedback_freshness_and_scenarios():
     assert FEEDBACK
     freshness = client.get("/v1/registry/freshness")
     assert "needs_review" in freshness.json()
+    assert freshness.json()["last_reviewed"]
     classified = client.post(
         "/v1/classify",
         json={"text": "compare sources and automate the local workflow", "scenario_id": "launch-risk", "turn_id": "lr-1"},

@@ -22,10 +22,22 @@ type Model = {
   workload_scores: Record<string, number>;
 };
 
+function formatReviewed(iso: string) {
+  const [year, month, day] = iso.split("-").map(Number);
+  if (!year || !month || !day) return iso;
+  return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 export default function RegistryPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [models, setModels] = useState<Model[]>([]);
   const [needsReview, setNeedsReview] = useState(0);
+  const [lastReviewed, setLastReviewed] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -35,6 +47,7 @@ export default function RegistryPage() {
         setProducts(p as Product[]);
         setModels(m as Model[]);
         setNeedsReview((fresh.needs_review as { id: string }[]).length);
+        setLastReviewed(typeof fresh.last_reviewed === "string" ? fresh.last_reviewed : null);
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Could not load registry."))
       .finally(() => setLoading(false));
@@ -55,7 +68,7 @@ export default function RegistryPage() {
         <h1 className="text-3xl font-semibold tracking-tight">Product and model registry</h1>
         <p className="max-w-3xl text-muted-foreground">
           Catalog used by the ranker. Most people never need this page — it exists so scoring is inspectable.
-          Product ≠ model. Last reviewed 12 September 2026.
+          Product ≠ model. Last reviewed {lastReviewed ? formatReviewed(lastReviewed) : "from each row's last_evaluated_at"}.
           {needsReview ? ` ${needsReview} records currently need a freshness review.` : " All dates currently sit inside the freshness window."}
         </p>
       </div>

@@ -72,7 +72,13 @@ export const api = {
     }),
   products: () => request<Record<string, unknown>[]>("/v1/registry/products"),
   models: () => request<Record<string, unknown>[]>("/v1/registry/models"),
-  freshness: () => request<{ needs_review: unknown[]; products: unknown[]; models: unknown[] }>("/v1/registry/freshness"),
+  freshness: () =>
+    request<{
+      needs_review: unknown[];
+      products: unknown[];
+      models: unknown[];
+      last_reviewed?: string | null;
+    }>("/v1/registry/freshness"),
   feedback: (body: { session_id?: string; share_id?: string; rating: number; comment: string; useful?: boolean }) =>
     request<{ ok: boolean }>("/v1/feedback", { method: "POST", body: JSON.stringify(body) }),
 };

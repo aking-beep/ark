@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { INVOICE_LOOKUP, SUPPORT_TRIAGE } from '@ark/core';
 import { ArkIngest } from '@ark/sdk';
 import type { ProviderAdapter } from '@ark/providers';
-import { measureWorkload, sampleRequestFor } from './measure.ts';
+import { measureWorkload, sampleModelId, sampleRequestFor } from './measure.ts';
 
 function fakeLocal(complete: ProviderAdapter['complete']): ProviderAdapter {
   return {
@@ -55,6 +55,19 @@ describe('sampleRequestFor', () => {
     const req = sampleRequestFor({ ...SUPPORT_TRIAGE, dataResidency: 'on_prem' });
     assert.equal(req.constraints.privacy, 'local-only');
   });
+
+  test('omits model when none is passed so the adapter default applies', () => {
+    const req = sampleRequestFor(SUPPORT_TRIAGE);
+    assert.equal(req.model, undefined);
+  });
+});
+
+describe('sampleModelId', () => {
+  test('reads ARK_OLLAMA_MODEL and ignores empty', () => {
+    assert.equal(sampleModelId({ ARK_OLLAMA_MODEL: 'smollm2:135m' }), 'smollm2:135m');
+    assert.equal(sampleModelId({ ARK_OLLAMA_MODEL: '  ' }), undefined);
+    assert.equal(sampleModelId({}), undefined);
+  });
 });
 
 describe('measureWorkload', () => {
@@ -71,6 +84,52 @@ describe('measureWorkload', () => {
       assert.equal(out.verdict, 'not-ai');
     }
     assert.equal(called, 0);
+  });
+
+  test('does not send the catalog estimate id as the sample model', async () => {
+    let seen: string | undefined = 'unset';
+    const adapter = fakeLocal(async (req) => {
+      seen = req.model;
+      return {
+        text: 'OK',
+        modelId: req.model ?? 'llama3.2',
+        adapterId: 'ollama',
+        catalogProvider: 'local',
+        inputTokens: 8,
+        outputTokens: 2,
+        latencyMs: 3,
+        finishReason: 'stop' as const,
+      };
+    });
+    const out = await measureWorkload(SUPPORT_TRIAGE, { adapters: [adapter] }, 15_000, {});
+    assert.equal(out.ok, true);
+    assert.notEqual(seen, 'local-70b');
+    assert.equal(seen, undefined);
+  });
+
+  test('uses ARK_OLLAMA_MODEL when set', async () => {
+    let seen: string | undefined;
+    const adapter = fakeLocal(async (req) => {
+      seen = req.model;
+      return {
+        text: 'OK',
+        modelId: req.model ?? 'missing',
+        adapterId: 'ollama',
+        catalogProvider: 'local',
+        inputTokens: 8,
+        outputTokens: 2,
+        latencyMs: 3,
+        finishReason: 'stop' as const,
+      };
+    });
+    const out = await measureWorkload(
+      SUPPORT_TRIAGE,
+      { adapters: [adapter] },
+      15_000,
+      { ARK_OLLAMA_MODEL: 'smollm2:135m' },
+    );
+    assert.equal(out.ok, true);
+    assert.equal(seen, 'smollm2:135m');
   });
 
   test('runs a support sample and posts ingest', async () => {
