@@ -32,8 +32,8 @@ describe('adaptersFromEnv DeepSeek', () => {
   test('ARK_FRONTIER_* wins over DEEPSEEK_API_KEY', () => {
     const adapters = adaptersFromEnv({
       env: {
-        DEEPSEEK_API_KEY: 'sk-deepseek',
-        ARK_FRONTIER_API_KEY: 'sk-frontier',
+        DEEPSEEK_API_KEY: 'sk-ds',
+        ARK_FRONTIER_API_KEY: 'sk-fr',
         ARK_FRONTIER_BASE_URL: 'https://together.example/v1',
         ARK_FRONTIER_MODEL: 'meta-llama/Llama-3-8b',
       },
