@@ -42,6 +42,8 @@ Hosted DeepSeek was not called live — `DEEPSEEK_API_KEY` is unset here; the De
 
 None. No new dependency. No fourth adapter. Hosted DeepSeek reuses the existing OpenAI-compatible protocol against DeepSeek’s host. `OPENAI_API_KEY` / `api.openai.com` were not added.
 
+Round 1 non-blocking notes left as-is: `DEEPSEEK_API_KEY` remains a fallback Bearer when `ARK_FRONTIER_API_KEY` is empty; family matching still uses substring `includes`; live tag was SmolLM, not DeepSeek-R1.
+
 ## Definition of done
 
 - **Cost / latency impact:** Not applicable to the three UIs — they do not import Runtime. Open-weight requests that previously had no hint still selected Ollama by cost when both adapters were eligible; the hint now states that preference. Live SmolLM completion was 92ms on this host. Hosted DeepSeek, if keyed, is one Chat Completions POST with the existing 30s adapter timeout.
