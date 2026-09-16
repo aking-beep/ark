@@ -65,4 +65,40 @@ describe('bounded fallback', () => {
     // cloudAdapter exists only to prove it was not passed in
     assert.equal(cloudAdapter.id, 'bedrock');
   });
+
+  test('a frontier model hint is not forwarded to the local fallback adapter', async () => {
+    const seen: (string | undefined)[] = [];
+    const frontier = fakeAdapter({
+      id: 'openai-compatible',
+      residency: 'cloud',
+      complete: async (req) => {
+        seen.push(req.model);
+        throw new ProviderError('http', 'down', 'openai-compatible');
+      },
+    });
+    const local = fakeAdapter({
+      id: 'ollama',
+      residency: 'local',
+      complete: async (req) => {
+        seen.push(req.model);
+        return {
+          text: 'ok-local',
+          modelId: 'llama3.2',
+          adapterId: 'ollama',
+          catalogProvider: 'local',
+          inputTokens: 1,
+          outputTokens: 1,
+          latencyMs: 3,
+          finishReason: 'stop',
+        };
+      },
+    });
+    const out = await runFallback({
+      chain: [frontier, local],
+      request: { messages: request.messages, model: 'gpt-5-nano' },
+    });
+    assert.equal(out.completion?.text, 'ok-local');
+    assert.equal(seen[0], 'gpt-5-nano');
+    assert.equal(seen[1], undefined);
+  });
 });

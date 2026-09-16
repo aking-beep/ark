@@ -1,5 +1,6 @@
 import type { AdapterId, CompletionRequest, NormalizedCompletion, ProviderAdapter } from '@ark/providers';
 import { ProviderError } from '@ark/providers';
+import { hintAdapter } from './catalog.js';
 import type { Attempt } from './types.js';
 
 export interface FallbackInput {
@@ -21,7 +22,7 @@ export async function runFallback(input: FallbackInput): Promise<FallbackOutput>
   for (const adapter of input.chain) {
     const started = Date.now();
     try {
-      const completion = await adapter.complete(input.request);
+      const completion = await adapter.complete(requestFor(adapter, input.request));
       attempts.push({ adapterId: adapter.id, ok: true, latencyMs: Date.now() - started });
       return { completion, attempts };
     } catch (err) {
@@ -34,6 +35,16 @@ export async function runFallback(input: FallbackInput): Promise<FallbackOutput>
     }
   }
   return { attempts };
+}
+
+/** A model hint is for ranking. Do not send gpt-* to Ollama on fallback. */
+function requestFor(adapter: ProviderAdapter, request: CompletionRequest): CompletionRequest {
+  const hinted = hintAdapter(request.model);
+  if (request.model && hinted && hinted !== adapter.id) {
+    const { model: _ignored, ...rest } = request;
+    return rest;
+  }
+  return request;
 }
 
 function describeError(err: unknown, adapterId: AdapterId): string {
