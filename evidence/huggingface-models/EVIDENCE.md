@@ -35,6 +35,8 @@ The Hub snapshot is one day’s download ranking; it is not an exhaustive invent
 
 None. No new dependency. No fourth adapter. Hosted Hub inference reuses the existing OpenAI-compatible protocol against Hugging Face’s router.
 
+Round 1 non-blocking notes left as-is: `HUGGING_FACE_HUB_TOKEN` is also accepted; `ARK_FRONTIER_*` vs `HF_TOKEN` is covered by the existing frontier-wins DeepSeek test plus probe `deepseekWinsDefault`; `'grok'` remains a family tag (Hub grok-1) and can also match closed xAI ids.
+
 ## Definition of done
 
 - **Cost / latency impact:** Not applicable to the three UIs. Hosted HF, if keyed, is one Chat Completions POST with the existing 30s timeout (cloud residency). Local `hf.co/…` pulls are Ollama’s existing HTTP path.
