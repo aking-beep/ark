@@ -1,0 +1,44 @@
+{
+  "openaiConfiguredFromOpenAIKey": false,
+  "openaiDefaultModel": "",
+  "envKeyCompleteUrl": null,
+  "envKeyCompleteError": "openai-compatible is not configured (ARK_FRONTIER_BASE_URL, ARK_FRONTIER_API_KEY",
+  "completeWithoutDefaultModel": "ProviderError",
+  "hints": {
+    "gpt-4o": "openai-compatible",
+    "gpt-4o-mini": "openai-compatible",
+    "gpt-5-nano": "openai-compatible",
+    "gpt-5.6-sol": "openai-compatible",
+    "chatgpt-4o-latest": null,
+    "o3-mini": "openai-compatible",
+    "o1": "openai-compatible",
+    "ft:gpt-4o-mini:org:ft-abc": null,
+    "text-embedding-3-small": null,
+    "whisper-1": null,
+    "dall-e-3": null,
+    "tts-1": null,
+    "llama3.2": "ollama"
+  },
+  "gpt5PayloadKeys": [
+    "max_tokens",
+    "messages",
+    "model",
+    "temperature"
+  ],
+  "o3PayloadKeys": [
+    "max_tokens",
+    "messages",
+    "model",
+    "temperature"
+  ],
+  "gpt4oPayloadKeys": [
+    "max_tokens",
+    "messages",
+    "model",
+    "temperature"
+  ],
+  "gpt5HasMaxTokens": true,
+  "gpt5HasMaxCompletionTokens": false,
+  "o3HasTemperature": true,
+  "arrayContentText": ""
+}
