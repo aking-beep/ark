@@ -52,7 +52,9 @@ export default async function LoginPage({
       <p className="mt-6 text-2xs leading-relaxed text-ink-500">
         Local demo: <span className="font-mono">dana@riverbend.example</span> / <span className="font-mono">riverbend-demo</span>
         {' '}(Demo Co) or <span className="font-mono">sam@northwind.example</span> / <span className="font-mono">northwind-demo</span>
-        {' '}(Northwind — empty until <span className="font-mono">npm run ingest:live</span>).
+        {' '}(Northwind — empty until MY AI for teams <span className="font-mono">POST /api/measure</span>
+        {' '}with <span className="font-mono">ARK_CONTROL_URL</span> / <span className="font-mono">ARK_CONTROL_TOKEN</span>,
+        {' '}or <span className="font-mono">npm run ingest:live</span>).
       </p>
     </div>
   );

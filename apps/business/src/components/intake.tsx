@@ -115,8 +115,8 @@ export function Intake() {
   const [dataResidency, setResidency] = useState<'any' | 'us' | 'eu' | 'on_prem'>('any');
 
   // 7. today
-  const [minutesPerUnit, setMinutes] = useState<number | ''>(8);
-  const [hourlyUsd, setHourly] = useState<number | ''>(65);
+  const [minutesPerUnit, setMinutes] = useState<number | ''>('');
+  const [hourlyUsd, setHourly] = useState<number | ''>('');
   const [humanErrorRate, setHumanError] = useState<number | ''>('');
 
   // 8. team

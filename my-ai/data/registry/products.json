@@ -788,5 +788,363 @@
     ],
     "last_evaluated_at": "2026-09-12",
     "registry_version": "0.3"
+  },
+  {
+    "id": "deepseek",
+    "name": "DeepSeek",
+    "provider": "DeepSeek",
+    "category": "general_assistant",
+    "description": "Open-weight-origin assistant (chat and reasoner) with a hosted product and local weights.",
+    "status": "active",
+    "homepage": "https://www.deepseek.com",
+    "pricing_tier": "low",
+    "technical_level": 0.5,
+    "deployment": [
+      "cloud"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "analysis",
+      "coding",
+      "reasoning",
+      "research"
+    ],
+    "integrations": [],
+    "fit_vector": {
+      "evidence_seeking": 0.72,
+      "comparison_preference": 0.7,
+      "iteration_preference": 0.8,
+      "autonomy_preference": 0.68,
+      "structure_preference": 0.74,
+      "code_comfort": 0.78,
+      "automation_appetite": 0.6,
+      "local_control_preference": 0.45,
+      "budget_sensitivity": 0.88
+    },
+    "underlying_models": [
+      "deepseek-r1"
+    ],
+    "evidence": [
+      {
+        "source_type": "official",
+        "title": "DeepSeek product site",
+        "url": "https://www.deepseek.com",
+        "observed_at": "2026-09-16",
+        "notes": "Official DeepSeek chat and API product. Similarweb May 2026 put it fourth among chatbot web visits."
+      }
+    ],
+    "last_evaluated_at": "2026-09-16",
+    "registry_version": "0.4"
+  },
+  {
+    "id": "grok",
+    "name": "Grok",
+    "provider": "xAI",
+    "category": "general_assistant",
+    "description": "xAI assistant with real-time X integration and a public chat product.",
+    "status": "active",
+    "homepage": "https://grok.com",
+    "pricing_tier": "mixed",
+    "technical_level": 0.42,
+    "deployment": [
+      "cloud"
+    ],
+    "modalities": [
+      "text",
+      "image"
+    ],
+    "capabilities": [
+      "analysis",
+      "writing",
+      "research",
+      "multimodal"
+    ],
+    "integrations": [
+      "x"
+    ],
+    "fit_vector": {
+      "evidence_seeking": 0.55,
+      "comparison_preference": 0.6,
+      "iteration_preference": 0.84,
+      "autonomy_preference": 0.7,
+      "structure_preference": 0.5,
+      "multimodal_preference": 0.7,
+      "code_comfort": 0.55,
+      "automation_appetite": 0.5,
+      "local_control_preference": 0.08,
+      "budget_sensitivity": 0.4
+    },
+    "underlying_models": [],
+    "evidence": [
+      {
+        "source_type": "official",
+        "title": "xAI Grok",
+        "url": "https://grok.com",
+        "observed_at": "2026-09-16",
+        "notes": "Official Grok product page. Sensor Tower 2026 lists Grok among assistants under 5% global user share."
+      }
+    ],
+    "last_evaluated_at": "2026-09-16",
+    "registry_version": "0.4"
+  },
+  {
+    "id": "copilot",
+    "name": "Microsoft Copilot",
+    "provider": "Microsoft",
+    "category": "general_assistant",
+    "description": "Microsoft 365 and web assistant embedded across Bing, Windows, and Office.",
+    "status": "active",
+    "homepage": "https://copilot.microsoft.com",
+    "pricing_tier": "mixed",
+    "technical_level": 0.38,
+    "deployment": [
+      "cloud",
+      "desktop"
+    ],
+    "modalities": [
+      "text",
+      "image"
+    ],
+    "capabilities": [
+      "writing",
+      "research",
+      "office_workflows",
+      "multimodal"
+    ],
+    "integrations": [
+      "microsoft_365",
+      "windows"
+    ],
+    "fit_vector": {
+      "evidence_seeking": 0.58,
+      "comparison_preference": 0.52,
+      "iteration_preference": 0.7,
+      "autonomy_preference": 0.55,
+      "structure_preference": 0.72,
+      "integration_appetite": 0.9,
+      "code_comfort": 0.4,
+      "automation_appetite": 0.7,
+      "local_control_preference": 0.15,
+      "budget_sensitivity": 0.5
+    },
+    "underlying_models": [],
+    "evidence": [
+      {
+        "source_type": "official",
+        "title": "Microsoft Copilot",
+        "url": "https://copilot.microsoft.com",
+        "observed_at": "2026-09-16",
+        "notes": "Official Copilot web product. Distinct from GitHub Copilot. Similarweb May 2026 chatbot web-visit share ~1.3%."
+      }
+    ],
+    "last_evaluated_at": "2026-09-16",
+    "registry_version": "0.4"
+  },
+  {
+    "id": "meta-ai",
+    "name": "Meta AI",
+    "provider": "Meta",
+    "category": "general_assistant",
+    "description": "Free assistant in WhatsApp, Instagram, Messenger, and meta.ai.",
+    "status": "active",
+    "homepage": "https://www.meta.ai",
+    "pricing_tier": "free",
+    "technical_level": 0.28,
+    "deployment": [
+      "cloud"
+    ],
+    "modalities": [
+      "text",
+      "image"
+    ],
+    "capabilities": [
+      "writing",
+      "chat",
+      "multimodal"
+    ],
+    "integrations": [
+      "whatsapp",
+      "instagram",
+      "messenger"
+    ],
+    "fit_vector": {
+      "evidence_seeking": 0.4,
+      "comparison_preference": 0.45,
+      "iteration_preference": 0.7,
+      "autonomy_preference": 0.5,
+      "structure_preference": 0.4,
+      "multimodal_preference": 0.7,
+      "code_comfort": 0.25,
+      "automation_appetite": 0.35,
+      "local_control_preference": 0.08,
+      "budget_sensitivity": 0.95
+    },
+    "underlying_models": [
+      "llama-3-1"
+    ],
+    "evidence": [
+      {
+        "source_type": "official",
+        "title": "Meta AI",
+        "url": "https://www.meta.ai",
+        "observed_at": "2026-09-16",
+        "notes": "Official Meta AI consumer assistant. Sensor Tower 2026 names it among assistants under 5% share."
+      }
+    ],
+    "last_evaluated_at": "2026-09-16",
+    "registry_version": "0.4"
+  },
+  {
+    "id": "github-copilot",
+    "name": "GitHub Copilot",
+    "provider": "GitHub",
+    "category": "ide",
+    "description": "In-editor coding assistant and agent across VS Code, JetBrains, and github.com.",
+    "status": "active",
+    "homepage": "https://github.com/features/copilot",
+    "pricing_tier": "mixed",
+    "technical_level": 0.72,
+    "deployment": [
+      "cloud",
+      "desktop"
+    ],
+    "modalities": [
+      "text",
+      "code"
+    ],
+    "capabilities": [
+      "coding",
+      "codebase_context",
+      "autocomplete"
+    ],
+    "integrations": [
+      "vscode",
+      "jetbrains",
+      "github"
+    ],
+    "fit_vector": {
+      "evidence_seeking": 0.5,
+      "comparison_preference": 0.48,
+      "iteration_preference": 0.9,
+      "autonomy_preference": 0.7,
+      "structure_preference": 0.6,
+      "code_comfort": 0.96,
+      "automation_appetite": 0.75,
+      "local_control_preference": 0.25,
+      "budget_sensitivity": 0.4
+    },
+    "underlying_models": [],
+    "evidence": [
+      {
+        "source_type": "official",
+        "title": "GitHub Copilot",
+        "url": "https://github.com/features/copilot",
+        "observed_at": "2026-09-16",
+        "notes": "Official GitHub Copilot product. Distinct from Microsoft Copilot for M365."
+      }
+    ],
+    "last_evaluated_at": "2026-09-16",
+    "registry_version": "0.4"
+  },
+  {
+    "id": "lm-studio",
+    "name": "LM Studio",
+    "provider": "LM Studio",
+    "category": "local_open_source",
+    "description": "Desktop app for downloading and chatting with local open-weight models.",
+    "status": "active",
+    "homepage": "https://lmstudio.ai",
+    "pricing_tier": "free",
+    "technical_level": 0.6,
+    "deployment": [
+      "local",
+      "desktop"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "local_inference",
+      "open_weights"
+    ],
+    "integrations": [],
+    "fit_vector": {
+      "evidence_seeking": 0.5,
+      "comparison_preference": 0.55,
+      "iteration_preference": 0.68,
+      "autonomy_preference": 0.55,
+      "structure_preference": 0.5,
+      "code_comfort": 0.65,
+      "automation_appetite": 0.45,
+      "local_control_preference": 0.97,
+      "budget_sensitivity": 0.92
+    },
+    "underlying_models": [
+      "qwen-3",
+      "llama-3-1",
+      "gemma-3",
+      "gpt-oss-20b"
+    ],
+    "evidence": [
+      {
+        "source_type": "official",
+        "title": "LM Studio",
+        "url": "https://lmstudio.ai",
+        "observed_at": "2026-09-16",
+        "notes": "Official LM Studio desktop runtime for local open-weight models."
+      }
+    ],
+    "last_evaluated_at": "2026-09-16",
+    "registry_version": "0.4"
+  },
+  {
+    "id": "mistral",
+    "name": "Le Chat",
+    "provider": "Mistral AI",
+    "category": "general_assistant",
+    "description": "Mistral's hosted assistant (Le Chat) with open-weight models available for self-host.",
+    "status": "active",
+    "homepage": "https://chat.mistral.ai",
+    "pricing_tier": "mixed",
+    "technical_level": 0.48,
+    "deployment": [
+      "cloud"
+    ],
+    "modalities": [
+      "text",
+      "image"
+    ],
+    "capabilities": [
+      "analysis",
+      "writing",
+      "coding",
+      "research"
+    ],
+    "integrations": [],
+    "fit_vector": {
+      "evidence_seeking": 0.7,
+      "comparison_preference": 0.68,
+      "iteration_preference": 0.78,
+      "autonomy_preference": 0.65,
+      "structure_preference": 0.75,
+      "code_comfort": 0.72,
+      "automation_appetite": 0.58,
+      "local_control_preference": 0.35,
+      "budget_sensitivity": 0.7
+    },
+    "underlying_models": [],
+    "evidence": [
+      {
+        "source_type": "official",
+        "title": "Mistral Le Chat",
+        "url": "https://chat.mistral.ai",
+        "observed_at": "2026-09-16",
+        "notes": "Official Le Chat product. Open-weight Mistral models remain available separately for local runtimes."
+      }
+    ],
+    "last_evaluated_at": "2026-09-16",
+    "registry_version": "0.4"
   }
 ]
