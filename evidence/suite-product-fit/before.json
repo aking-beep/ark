@@ -1,0 +1,49 @@
+{
+  "tree": {
+    "products": 16,
+    "productIds": [
+      "chatgpt",
+      "claude",
+      "claude-code",
+      "cursor",
+      "fable-editor",
+      "figma",
+      "gamma",
+      "gemini",
+      "glean",
+      "julius",
+      "midjourney",
+      "n8n",
+      "notebooklm",
+      "ollama",
+      "perplexity",
+      "runway"
+    ],
+    "models": 4,
+    "modelIds": [
+      "claude-fable-5-1",
+      "gemini-3-8-flash",
+      "gpt-5-6-sol",
+      "open-weight-local"
+    ],
+    "duplicateItemKeys": 3,
+    "todayMinutesDefault": "8",
+    "todayHourlyDefault": "65",
+    "businessDependsRuntime": false,
+    "appsRuntimeDir": false,
+    "measureRouteExists": false,
+    "emptyMentionsSetup": true,
+    "emptyMentionsMeasure": false,
+    "emptyMentionsTokenEnv": false,
+    "emptyContainsBearerSecret": false,
+    "loginMentionsMeasure": false,
+    "reportMentionsTokenEnv": false,
+    "reportHasMeasureControl": false
+  },
+  "http": {
+    "tried": true,
+    "status": 404,
+    "namesMeasure": false,
+    "bodySnippet": "<!DOCTYPE html><html lang=\"en\"><head><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/><link rel=\"stylesheet\" href=\"/_next/static/css/app/layout.css?v=1789562314270\" data-precedence=\"next_static/css"
+  }
+}
