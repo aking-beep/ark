@@ -1,0 +1,32 @@
+{
+  "hints": {
+    "openai/gpt-oss-20b": null,
+    "gpt-oss:20b": "openai-compatible",
+    "gpt-oss-20b": "openai-compatible",
+    "openai/gpt-oss-120b": null,
+    "Qwen/Qwen3-8B": "ollama",
+    "Qwen/Qwen3-0.6B": "ollama",
+    "Qwen/Qwen2.5-7B-Instruct": "ollama",
+    "unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF": "ollama",
+    "meta-llama/Llama-3.1-8B-Instruct": "ollama",
+    "meta-llama/Llama-3.2-1B-Instruct": "ollama",
+    "deepseek-ai/DeepSeek-R1": "ollama",
+    "deepseek-ai/DeepSeek-V4-Flash-0731": "ollama",
+    "google/gemma-3-1b-it": "ollama",
+    "HuggingFaceTB/SmolLM2-135M": "ollama",
+    "moonshotai/Kimi-K2-Instruct": null,
+    "zai-org/GLM-5.2": "ollama",
+    "Qwen/QwQ-32B": "ollama",
+    "hf.co/bartowski/Llama-3.2-1B-Instruct-GGUF": "ollama",
+    "gpt-4o": "openai-compatible",
+    "gpt-5-nano": "openai-compatible",
+    "amazon.nova-lite-v1:0": "bedrock"
+  },
+  "ollamaPostedModel": "huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF",
+  "hfConfigured": false,
+  "hfDefaultModel": "",
+  "hfUrl": "error",
+  "deepseekWinsDefault": "deepseek-chat",
+  "emptyEnvOllamaConfigured": false,
+  "emptyEnvFrontierConfigured": false
+}

@@ -38,6 +38,31 @@ describe('adapters over mocked HTTP', () => {
     assert.equal(out.catalogProvider, 'local');
   });
 
+  test('Ollama rewrites huggingface.co Hub paths to hf.co', async () => {
+    const adapter = new OllamaAdapter({
+      baseUrl: 'http://ollama.test',
+      model: 'llama3.2',
+      fetch: (async (_url, init) => {
+        const body = JSON.parse(String(init?.body));
+        assert.equal(body.model, 'hf.co/bartowski/Llama-3.2-1B-Instruct-GGUF');
+        return new Response(
+          JSON.stringify({
+            model: body.model,
+            message: { role: 'assistant', content: 'ok' },
+            prompt_eval_count: 1,
+            eval_count: 1,
+          }),
+          { status: 200 },
+        );
+      }) as typeof fetch,
+    });
+    const out = await adapter.complete({
+      ...req,
+      model: 'huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF',
+    });
+    assert.equal(out.modelId, 'hf.co/bartowski/Llama-3.2-1B-Instruct-GGUF');
+  });
+
   test('OpenAI-compatible POSTs /v1/chat/completions with Bearer auth', async () => {
     const adapter = new OpenAICompatibleAdapter({
       baseUrl: 'https://api.example.com/v1',

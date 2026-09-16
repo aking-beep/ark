@@ -29,12 +29,19 @@ export function adaptersFromEnv(opts: AdaptersFromEnv = {}): ProviderAdapter[] {
     timeoutMs,
     fetch: fetchFn,
   };
-  const apiKey = env.ARK_FRONTIER_API_KEY || env.DEEPSEEK_API_KEY || '';
+  const hfToken = env.HF_TOKEN || env.HUGGING_FACE_HUB_TOKEN || '';
   const hostedDeepSeek = Boolean(env.DEEPSEEK_API_KEY) && !env.ARK_FRONTIER_API_KEY && !env.ARK_FRONTIER_BASE_URL;
+  const hostedHf = Boolean(hfToken) && !env.ARK_FRONTIER_API_KEY && !env.ARK_FRONTIER_BASE_URL && !hostedDeepSeek;
+  const apiKey = env.ARK_FRONTIER_API_KEY || env.DEEPSEEK_API_KEY || hfToken || '';
   const frontier: OpenAICompatibleConfig = {
-    baseUrl: env.ARK_FRONTIER_BASE_URL || (hostedDeepSeek ? 'https://api.deepseek.com' : '') || '',
+    baseUrl:
+      env.ARK_FRONTIER_BASE_URL ||
+      (hostedDeepSeek ? 'https://api.deepseek.com' : '') ||
+      (hostedHf ? 'https://router.huggingface.co' : '') ||
+      '',
     apiKey,
-    model: env.ARK_FRONTIER_MODEL || (hostedDeepSeek ? 'deepseek-chat' : '') || '',
+    model:
+      env.ARK_FRONTIER_MODEL || (hostedDeepSeek ? 'deepseek-chat' : '') || (hostedHf ? 'Qwen/Qwen3-8B' : '') || '',
     timeoutMs,
     fetch: fetchFn,
   };

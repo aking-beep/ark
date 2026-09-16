@@ -20,6 +20,12 @@ const OPEN_WEIGHT = [
   'vicuna',
   'wizard',
   'dolphin',
+  'gpt-oss',
+  'kimi',
+  'moonshot',
+  'qwq',
+  'grok',
+  'ornith',
   'hermes',
   'openchat',
   'solar',
@@ -95,8 +101,16 @@ export function hintAdapter(model: string | undefined): AdapterId | undefined {
   if (m === 'deepseek-chat' || m === 'deepseek-reasoner') {
     return 'openai-compatible';
   }
+  // gpt-oss is OpenAI's open-weight Hub/Ollama family, not gpt-4o / gpt-5-*.
+  if (m.includes('gpt-oss')) {
+    return 'ollama';
+  }
   if (m.startsWith('gpt-') || m.startsWith('o1') || m.startsWith('o3') || m.startsWith('o4')) {
     return 'openai-compatible';
+  }
+  // Ollama pulls Hub GGUFs as hf.co/org/repo even when the repo name is unfamiliar.
+  if (m.includes('hf.co/') || m.includes('huggingface.co/')) {
+    return 'ollama';
   }
   if (isOpenWeightModel(model)) {
     return 'ollama';

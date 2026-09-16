@@ -6,7 +6,7 @@ export type {
   Residency,
   FetchFn,
 } from './types.js';
-export { OllamaAdapter } from './ollama.js';
+export { OllamaAdapter, ollamaNativeModel } from './ollama.js';
 export { BedrockAdapter } from './bedrock.js';
 export { OpenAICompatibleAdapter } from './openai-compatible.js';
 export { adaptersFromEnv } from './from-env.js';

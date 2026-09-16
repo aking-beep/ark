@@ -47,4 +47,36 @@ describe('adaptersFromEnv DeepSeek', () => {
     assert.equal(adapters.find((a) => a.id === 'ollama')!.configured(), false);
     assert.equal(adapters.find((a) => a.id === 'openai-compatible')!.configured(), false);
   });
+
+  test('HF_TOKEN configures router.huggingface.co, not api.openai.com', async () => {
+    let postedUrl = '';
+    const adapters = adaptersFromEnv({
+      env: { HF_TOKEN: 'hf-test' },
+      fetch: (async (url) => {
+        postedUrl = String(url);
+        return new Response(
+          JSON.stringify({
+            model: 'Qwen/Qwen3-8B',
+            choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }],
+            usage: { prompt_tokens: 1, completion_tokens: 1 },
+          }),
+          { status: 200 },
+        );
+      }) as typeof fetch,
+    });
+    const frontier = adapters.find((a) => a.id === 'openai-compatible')!;
+    assert.equal(frontier.configured(), true);
+    assert.equal(frontier.defaultModel(), 'Qwen/Qwen3-8B');
+    await frontier.complete({ messages: [{ role: 'user', content: 'hi' }], maxTokens: 8 });
+    assert.equal(postedUrl, 'https://router.huggingface.co/v1/chat/completions');
+    assert.equal(postedUrl.includes('api.openai.com'), false);
+  });
+
+  test('DEEPSEEK_API_KEY wins over HF_TOKEN', () => {
+    const adapters = adaptersFromEnv({
+      env: { HF_TOKEN: 'hf-test', DEEPSEEK_API_KEY: 'sk-test' },
+    });
+    const frontier = adapters.find((a) => a.id === 'openai-compatible')!;
+    assert.equal(frontier.defaultModel(), 'deepseek-chat');
+  });
 });

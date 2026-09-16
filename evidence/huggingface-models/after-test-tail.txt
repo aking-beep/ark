@@ -1,0 +1,20 @@
+    # Subtest: ingest timeout is returned, not thrown
+    ok 7 - ingest timeout is returned, not thrown
+      ---
+      duration_ms: 30.57819
+      ...
+    1..7
+ok 6 - telemetry
+  ---
+  duration_ms: 46.263436
+  type: 'suite'
+  ...
+1..6
+# tests 33
+# suites 6
+# pass 33
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 195.997126
