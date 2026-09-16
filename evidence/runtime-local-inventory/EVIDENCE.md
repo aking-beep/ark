@@ -38,6 +38,8 @@ Ollama versions that auto-pull on a missing chat tag were not exercised — this
 
 None. No new dependency. No `listModels()` on `ProviderAdapter`. Inventory stays inside the Ollama adapter. Different families are not silently substituted (`llama3.2` does not become `smollm2:135m`).
 
+Round 1 non-blocking notes left as-is: live.mjs reports `errorKind: unknown` because `execute` wraps the last attempt; adapter-level kind is `config` in `after.json`. Happy-path tests do not count tags GETs (the probe does). No extra test for a down `/api/tags` (fail-closed follows from `resolveInstalled`).
+
 ## Definition of done
 
 - **Cost / latency impact:** One extra local `GET /api/tags` per Ollama completion (this host: a few milliseconds). No additional model tokens. Missing-id path no longer spends a chat round-trip (live miss 2–4ms vs a 404). Cloud cost unchanged: empty env still does not configure frontier.
