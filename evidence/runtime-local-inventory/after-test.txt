@@ -1,0 +1,388 @@
+
+> @ark/providers@0.1.0 test
+> tsc -p tsconfig.json && node --test dist/normalize.test.js dist/sigv4.test.js dist/adapters.test.js dist/from-env.test.js
+
+TAP version 13
+# Subtest: adapters over mocked HTTP
+    # Subtest: Ollama lists tags then POSTs /api/chat and returns normalized text
+    ok 1 - Ollama lists tags then POSTs /api/chat and returns normalized text
+      ---
+      duration_ms: 13.782226
+      ...
+    # Subtest: Ollama rewrites huggingface.co Hub paths to hf.co when installed
+    ok 2 - Ollama rewrites huggingface.co Hub paths to hf.co when installed
+      ---
+      duration_ms: 0.73225
+      ...
+    # Subtest: Ollama resolves a unique family prefix to the installed tag
+    ok 3 - Ollama resolves a unique family prefix to the installed tag
+      ---
+      duration_ms: 0.649252
+      ...
+    # Subtest: Ollama refuses a missing tag without POSTing /api/chat
+    ok 4 - Ollama refuses a missing tag without POSTing /api/chat
+      ---
+      duration_ms: 0.861674
+      ...
+    # Subtest: Ollama refuses an empty inventory without POSTing /api/chat
+    ok 5 - Ollama refuses an empty inventory without POSTing /api/chat
+      ---
+      duration_ms: 0.441926
+      ...
+    # Subtest: Ollama allowPull skips inventory and POSTs the requested id
+    ok 6 - Ollama allowPull skips inventory and POSTs the requested id
+      ---
+      duration_ms: 0.779246
+      ...
+    # Subtest: resolveOllamaTag matches exact, latest, unique family; not a different family
+    ok 7 - resolveOllamaTag matches exact, latest, unique family; not a different family
+      ---
+      duration_ms: 0.155612
+      ...
+    # Subtest: OpenAI-compatible POSTs /v1/chat/completions with Bearer auth
+    ok 8 - OpenAI-compatible POSTs /v1/chat/completions with Bearer auth
+      ---
+      duration_ms: 0.974072
+      ...
+    # Subtest: Bedrock signs Converse and POSTs to bedrock-runtime
+    ok 9 - Bedrock signs Converse and POSTs to bedrock-runtime
+      ---
+      duration_ms: 1.504868
+      ...
+    1..9
+ok 1 - adapters over mocked HTTP
+  ---
+  duration_ms: 20.849844
+  type: 'suite'
+  ...
+# Subtest: adaptersFromEnv DeepSeek
+    # Subtest: DEEPSEEK_API_KEY configures api.deepseek.com, not api.openai.com
+    ok 1 - DEEPSEEK_API_KEY configures api.deepseek.com, not api.openai.com
+      ---
+      duration_ms: 13.645131
+      ...
+    # Subtest: ARK_FRONTIER_* wins over DEEPSEEK_API_KEY
+    ok 2 - ARK_FRONTIER_* wins over DEEPSEEK_API_KEY
+      ---
+      duration_ms: 0.161138
+      ...
+    # Subtest: empty env leaves Ollama and frontier unconfigured
+    ok 3 - empty env leaves Ollama and frontier unconfigured
+      ---
+      duration_ms: 0.101433
+      ...
+    # Subtest: HF_TOKEN configures router.huggingface.co, not api.openai.com
+    ok 4 - HF_TOKEN configures router.huggingface.co, not api.openai.com
+      ---
+      duration_ms: 0.48018
+      ...
+    # Subtest: DEEPSEEK_API_KEY wins over HF_TOKEN
+    ok 5 - DEEPSEEK_API_KEY wins over HF_TOKEN
+      ---
+      duration_ms: 0.110562
+      ...
+    # Subtest: ARK_OLLAMA_PULL=1 POSTs a missing tag without requiring inventory
+    ok 6 - ARK_OLLAMA_PULL=1 POSTs a missing tag without requiring inventory
+      ---
+      duration_ms: 0.690252
+      ...
+    1..6
+ok 2 - adaptersFromEnv DeepSeek
+  ---
+  duration_ms: 15.824901
+  type: 'suite'
+  ...
+# Subtest: provider normalization
+    # Subtest: the same CompletionRequest schema is what every adapter consumes
+    ok 1 - the same CompletionRequest schema is what every adapter consumes
+      ---
+      duration_ms: 0.547086
+      ...
+    # Subtest: Ollama chat JSON becomes NormalizedCompletion
+    ok 2 - Ollama chat JSON becomes NormalizedCompletion
+      ---
+      duration_ms: 0.143445
+      ...
+    # Subtest: Ollama reasoning models can put the answer in message.thinking
+    ok 3 - Ollama reasoning models can put the answer in message.thinking
+      ---
+      duration_ms: 0.078598
+      ...
+    # Subtest: OpenAI-compatible chat JSON becomes NormalizedCompletion
+    ok 4 - OpenAI-compatible chat JSON becomes NormalizedCompletion
+      ---
+      duration_ms: 0.112405
+      ...
+    # Subtest: Bedrock Converse JSON becomes NormalizedCompletion
+    ok 5 - Bedrock Converse JSON becomes NormalizedCompletion
+      ---
+      duration_ms: 0.131657
+      ...
+    # Subtest: Bedrock body splits system messages out of the turn list
+    ok 6 - Bedrock body splits system messages out of the turn list
+      ---
+      duration_ms: 0.528206
+      ...
+    # Subtest: chatCompletionsUrl accepts a host, a /v1 base, or a full path
+    ok 7 - chatCompletionsUrl accepts a host, a /v1 base, or a full path
+      ---
+      duration_ms: 0.189561
+      ...
+    1..7
+ok 3 - provider normalization
+  ---
+  duration_ms: 3.001861
+  type: 'suite'
+  ...
+# Subtest: Bedrock SigV4
+    # Subtest: is deterministic for a frozen clock and encodes the model id
+    ok 1 - is deterministic for a frozen clock and encodes the model id
+      ---
+      duration_ms: 1.317279
+      ...
+    # Subtest: includes the session token in the signature when present
+    ok 2 - includes the session token in the signature when present
+      ---
+      duration_ms: 0.20395
+      ...
+    1..2
+ok 4 - Bedrock SigV4
+  ---
+  duration_ms: 2.122227
+  type: 'suite'
+  ...
+1..4
+# tests 24
+# suites 4
+# pass 24
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 96.499563
+
+> @ark/runtime@0.1.0 test
+> tsc -p tsconfig.json && node --test dist/policy.test.js dist/router.test.js dist/fallback.test.js dist/telemetry.test.js dist/execute.test.js dist/catalog.test.js
+
+TAP version 13
+# Subtest: open-weight catalog
+    # Subtest: open-weight families hint to Ollama, not the cloud frontier
+    ok 1 - open-weight families hint to Ollama, not the cloud frontier
+      ---
+      duration_ms: 0.556474
+      ...
+    # Subtest: hosted DeepSeek chat ids use the Chat Completions adapter
+    ok 2 - hosted DeepSeek chat ids use the Chat Completions adapter
+      ---
+      duration_ms: 0.079847
+      ...
+    # Subtest: closed-source ids are not treated as Ollama models
+    ok 3 - closed-source ids are not treated as Ollama models
+      ---
+      duration_ms: 0.12076
+      ...
+    # Subtest: 32B open-weight ids price against the 14B local row, not 8B
+    ok 4 - 32B open-weight ids price against the 14B local row, not 8B
+      ---
+      duration_ms: 0.082114
+      ...
+    # Subtest: a DeepSeek-R1 request selects Ollama
+    ok 5 - a DeepSeek-R1 request selects Ollama
+      ---
+      duration_ms: 0.833557
+      ...
+    # Subtest: Hugging Face most-used open chat ids hint to Ollama
+    ok 6 - Hugging Face most-used open chat ids hint to Ollama
+      ---
+      duration_ms: 0.146392
+      ...
+    # Subtest: gpt-oss is not treated as closed GPT
+    ok 7 - gpt-oss is not treated as closed GPT
+      ---
+      duration_ms: 0.064757
+      ...
+    1..7
+ok 1 - open-weight catalog
+  ---
+  duration_ms: 2.508546
+  type: 'suite'
+  ...
+# Subtest: execute
+    # Subtest: local-only never calls a cloud adapter, even when local is missing
+    ok 1 - local-only never calls a cloud adapter, even when local is missing
+      ---
+      duration_ms: 1.364503
+      ...
+    # Subtest: allowed provider failure falls back and returns the secondary completion
+    ok 2 - allowed provider failure falls back and returns the secondary completion
+      ---
+      duration_ms: 0.804015
+      ...
+    # Subtest: telemetry failure does not fail inference
+    ok 3 - telemetry failure does not fail inference
+      ---
+      duration_ms: 0.951807
+      ...
+    # Subtest: fallback ingest is one event per attempt on turn 0
+    ok 4 - fallback ingest is one event per attempt on turn 0
+      ---
+      duration_ms: 12.332532
+      ...
+    # Subtest: policy refusal does not post a trace
+    ok 5 - policy refusal does not post a trace
+      ---
+      duration_ms: 0.225383
+      ...
+    # Subtest: the same request schema runs across all three adapters
+    ok 6 - the same request schema runs across all three adapters
+      ---
+      duration_ms: 0.405612
+      ...
+    # Subtest: execute forwards an open-weight model id to Ollama, not the env default
+    ok 7 - execute forwards an open-weight model id to Ollama, not the env default
+      ---
+      duration_ms: 1.319348
+      ...
+    # Subtest: a missing Ollama tag is a config miss, not a chat POST, and falls back
+    ok 8 - a missing Ollama tag is a config miss, not a chat POST, and falls back
+      ---
+      duration_ms: 0.738317
+      ...
+    # Subtest: a closed-source hint is stripped when falling back to Ollama
+    ok 9 - a closed-source hint is stripped when falling back to Ollama
+      ---
+      duration_ms: 0.85954
+      ...
+    1..9
+ok 2 - execute
+  ---
+  duration_ms: 19.977193
+  type: 'suite'
+  ...
+# Subtest: bounded fallback
+    # Subtest: a failing primary yields to the next adapter in the chain
+    ok 1 - a failing primary yields to the next adapter in the chain
+      ---
+      duration_ms: 0.649513
+      ...
+    # Subtest: the chain is the bound — a provider not in the chain is never called
+    ok 2 - the chain is the bound — a provider not in the chain is never called
+      ---
+      duration_ms: 0.208971
+      ...
+    # Subtest: a frontier model hint is not forwarded to the local fallback adapter
+    ok 3 - a frontier model hint is not forwarded to the local fallback adapter
+      ---
+      duration_ms: 0.176043
+      ...
+    1..3
+ok 3 - bounded fallback
+  ---
+  duration_ms: 1.658404
+  type: 'suite'
+  ...
+# Subtest: privacy policy
+    # Subtest: local-only drops every cloud adapter, including ones that would be cheaper
+    ok 1 - local-only drops every cloud adapter, including ones that would be cheaper
+      ---
+      duration_ms: 1.181075
+      ...
+    # Subtest: local-only with only cloud adapters leaves none eligible
+    ok 2 - local-only with only cloud adapters leaves none eligible
+      ---
+      duration_ms: 0.128907
+      ...
+    # Subtest: unconfigured adapters are excluded before ranking
+    ok 3 - unconfigured adapters are excluded before ranking
+      ---
+      duration_ms: 0.153959
+      ...
+    # Subtest: capability and allow-list filters apply on top of privacy
+    ok 4 - capability and allow-list filters apply on top of privacy
+      ---
+      duration_ms: 0.117415
+      ...
+    1..4
+ok 4 - privacy policy
+  ---
+  duration_ms: 2.207743
+  type: 'suite'
+  ...
+# Subtest: router
+    # Subtest: explains why it selected a provider
+    ok 1 - explains why it selected a provider
+      ---
+      duration_ms: 0.959597
+      ...
+    # Subtest: local-only never lists cloud adapters as fallbacks
+    ok 2 - local-only never lists cloud adapters as fallbacks
+      ---
+      duration_ms: 0.450887
+      ...
+    # Subtest: a model hint that is still eligible wins over cheaper rank
+    ok 3 - a model hint that is still eligible wins over cheaper rank
+      ---
+      duration_ms: 0.957169
+      ...
+    # Subtest: maxFallbacks=0 records no fallback chain
+    ok 4 - maxFallbacks=0 records no fallback chain
+      ---
+      duration_ms: 0.25009
+      ...
+    1..4
+ok 5 - router
+  ---
+  duration_ms: 3.314918
+  type: 'suite'
+  ...
+# Subtest: telemetry
+    # Subtest: posts the ingest contract without a prompt sample
+    ok 1 - posts the ingest contract without a prompt sample
+      ---
+      duration_ms: 11.753866
+      ...
+    # Subtest: one event per attempt; fallback stays on turn 0
+    ok 2 - one event per attempt; fallback stays on turn 0
+      ---
+      duration_ms: 1.022605
+      ...
+    # Subtest: errorKind is the closed enum, never the provider body
+    ok 3 - errorKind is the closed enum, never the provider body
+      ---
+      duration_ms: 0.477357
+      ...
+    # Subtest: timeout attempts ingest status=timeout
+    ok 4 - timeout attempts ingest status=timeout
+      ---
+      duration_ms: 0.433135
+      ...
+    # Subtest: policy refusal is not ingested
+    ok 5 - policy refusal is not ingested
+      ---
+      duration_ms: 0.176355
+      ...
+    # Subtest: ingest failure is returned, not thrown
+    ok 6 - ingest failure is returned, not thrown
+      ---
+      duration_ms: 1.054922
+      ...
+    # Subtest: ingest timeout is returned, not thrown
+    ok 7 - ingest timeout is returned, not thrown
+      ---
+      duration_ms: 30.728195
+      ...
+    1..7
+ok 6 - telemetry
+  ---
+  duration_ms: 46.423619
+  type: 'suite'
+  ...
+1..6
+# tests 34
+# suites 6
+# pass 34
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 197.166748

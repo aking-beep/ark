@@ -1,0 +1,89 @@
+{
+  "cases": [
+    {
+      "name": "installed-exact",
+      "tagsGetCount": 1,
+      "chatPostCount": 1,
+      "postedModels": [
+        "smollm2:135m"
+      ],
+      "errorKind": null,
+      "text": "ok",
+      "modelId": "smollm2:135m"
+    },
+    {
+      "name": "family-unique",
+      "tagsGetCount": 1,
+      "chatPostCount": 1,
+      "postedModels": [
+        "smollm2:135m"
+      ],
+      "errorKind": null,
+      "text": "ok",
+      "modelId": "smollm2:135m"
+    },
+    {
+      "name": "latest-alias",
+      "tagsGetCount": 1,
+      "chatPostCount": 1,
+      "postedModels": [
+        "llama3.2:latest"
+      ],
+      "errorKind": null,
+      "text": "ok",
+      "modelId": "llama3.2:latest"
+    },
+    {
+      "name": "hub-path",
+      "tagsGetCount": 1,
+      "chatPostCount": 1,
+      "postedModels": [
+        "hf.co/bartowski/Llama-3.2-1B-Instruct-GGUF"
+      ],
+      "errorKind": null,
+      "text": "ok",
+      "modelId": "hf.co/bartowski/Llama-3.2-1B-Instruct-GGUF"
+    },
+    {
+      "name": "missing-no-pull",
+      "tagsGetCount": 1,
+      "chatPostCount": 0,
+      "postedModels": [],
+      "errorKind": "config",
+      "text": null,
+      "modelId": null
+    },
+    {
+      "name": "empty-inventory",
+      "tagsGetCount": 1,
+      "chatPostCount": 0,
+      "postedModels": [],
+      "errorKind": "config",
+      "text": null,
+      "modelId": null
+    },
+    {
+      "name": "ambiguous-family",
+      "tagsGetCount": 1,
+      "chatPostCount": 0,
+      "postedModels": [],
+      "errorKind": "config",
+      "text": null,
+      "modelId": null
+    },
+    {
+      "name": "missing-with-pull",
+      "tagsGetCount": 0,
+      "chatPostCount": 1,
+      "postedModels": [
+        "deepseek-r1"
+      ],
+      "errorKind": null,
+      "text": "ok",
+      "modelId": "deepseek-r1"
+    }
+  ],
+  "envPullPosted": "deepseek-r1",
+  "envPullTags": 0,
+  "emptyEnvOllamaConfigured": false
+}
