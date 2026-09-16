@@ -84,12 +84,17 @@ async function live(): Promise<void> {
   }
 
   const privacy = env.ARK_RUNTIME_PRIVACY === 'local-only' ? 'local-only' : 'any';
+  const openai = adapters.find((a) => a.id === 'openai-compatible');
+  const model =
+    openai?.configured() && !openai.defaultModel()
+      ? env.OPENAI_MODEL || env.ARK_FRONTIER_MODEL || 'gpt-5-nano'
+      : undefined;
   try {
     const result = await execute(
       {
         messages: [user],
-        maxTokens: 16,
-        temperature: 0,
+        maxTokens: 8,
+        ...(model ? { model } : {}),
         constraints: { privacy },
         application: 'ark-runtime-smoke',
       },

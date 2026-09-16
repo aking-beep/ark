@@ -32,7 +32,7 @@ No live call to `api.openai.com` — this environment has no `OPENAI_API_KEY`. A
 
 ## Deviations
 
-None. No new dependency. Catalog price rows were not added. No OpenAI SDK.
+None. No new dependency. Catalog price rows were not added. No OpenAI SDK. After Round 1, smoke live supplies `gpt-5-nano` when the adapter has a key but no default model, and the from-env test asserts the official POST URL — reviewer non-blocking notes.
 
 ## Definition of done
 

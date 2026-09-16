@@ -107,6 +107,16 @@ describe('provider normalization', () => {
     );
     assert.equal(gpt4o.max_tokens, 8);
     assert.equal(gpt4o.temperature, 0);
+    const chatgpt = openaiChatBody(
+      { messages: [{ role: 'user', content: 'hi' }], model: 'chatgpt-4o-latest', maxTokens: 8 },
+      '',
+    );
+    assert.equal(chatgpt.max_completion_tokens, 8);
+    const gpt41 = openaiChatBody(
+      { messages: [{ role: 'user', content: 'hi' }], model: 'gpt-4.1-mini', maxTokens: 8 },
+      '',
+    );
+    assert.equal(gpt41.max_completion_tokens, 8);
   });
 
   test('isOpenAIChatModel covers the chat family and not embeddings or audio', () => {
