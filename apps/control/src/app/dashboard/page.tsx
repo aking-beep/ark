@@ -180,13 +180,19 @@ function Empty() {
   return (
     <Panel title="No telemetry yet">
       <p className="text-sm leading-relaxed text-ink-300">
-        Control has no traces for this organisation. Run <code className="font-mono text-signal">npm run setup</code>{' '}
-        from the repo root to create and seed a local database, or start posting events to{' '}
-        <code className="font-mono text-signal">POST /api/v1/events</code>.
+        This organisation has no traces yet. The first-party path is MY AI for teams:{' '}
+        <code className="font-mono text-signal">POST /api/measure</code> on port 3001, which runs one
+        synthetic Runtime sample and posts it here. Point that app at this Control with{' '}
+        <code className="font-mono text-signal">ARK_CONTROL_URL</code> and{' '}
+        <code className="font-mono text-signal">ARK_CONTROL_TOKEN</code> (the bearer for this org —
+        set in the environment, never pasted into this page).
       </p>
       <p className="mt-3 text-sm leading-relaxed text-ink-400">
-        Until then, MY AI for teams will label every cost figure it produces as{' '}
-        <span className="font-mono text-warn">heuristic</span>. That is the correct behaviour, not a bug.
+        You can also <code className="font-mono text-signal">POST /api/v1/events</code> yourself, or
+        load a bulk demo with <code className="font-mono text-signal">npm run ingest:live</code>.
+        Until a pattern clears 30 traces, MY AI for teams keeps labelling cost figures{' '}
+        <span className="font-mono text-warn">heuristic</span>. That is the correct behaviour, not a
+        bug.
       </p>
     </Panel>
   );

@@ -382,8 +382,8 @@ export function ResultsView({
                   <p>{reason.text}</p>
                   {reason.evidence?.length ? (
                     <ul className="list-disc space-y-1 pl-5">
-                      {reason.evidence.map((item) => (
-                        <li key={item}>{item}</li>
+                      {reason.evidence.map((item, i) => (
+                        <li key={`${reason.dimension}-${i}`}>{item}</li>
                       ))}
                     </ul>
                   ) : null}
@@ -520,8 +520,8 @@ export function ResultsView({
               <div key={key}>
                 <p className="mb-1 font-medium">{ruleGroupLabel[key]}</p>
                 <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
-                  {current.persona[key].map((item) => (
-                    <li key={item}>{item}</li>
+                  {current.persona[key].map((item, i) => (
+                    <li key={`${key}-${i}`}>{item}</li>
                   ))}
                 </ul>
               </div>
@@ -646,7 +646,7 @@ export function ResultsView({
                     </p>
                     <Progress className="my-2" value={metric.score * 100} />
                     <ul className="mt-2 list-disc space-y-1 pl-5">
-                      {metric.evidence.length ? metric.evidence.map((item) => <li key={item}>{item}</li>) : <li>No quoted evidence for this metric.</li>}
+                      {metric.evidence.length ? metric.evidence.map((item, i) => <li key={`${metric.name}-${i}`}>{item}</li>) : <li>No quoted evidence for this metric.</li>}
                     </ul>
                   </CardContent>
                 </Card>

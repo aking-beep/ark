@@ -161,5 +161,201 @@
     ],
     "last_evaluated_at": "2026-09-12",
     "registry_version": "0.3"
+  },
+  {
+    "id": "qwen-3",
+    "name": "Qwen 3",
+    "provider": "Alibaba",
+    "family": "Qwen",
+    "availability": [
+      "ollama",
+      "huggingface",
+      "lm-studio",
+      "local"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "workload_scores": {
+      "deep_reasoning": 0.82,
+      "fast_reasoning": 0.8,
+      "coding": 0.84,
+      "long_context": 0.8,
+      "research": 0.78,
+      "multimodal": 0.7,
+      "agentic_execution": 0.72,
+      "cost_efficiency": 0.9,
+      "local_control": 0.85
+    },
+    "context_notes": "Family row for Qwen3 instruct checkpoints (including Qwen3-8B, the Hub volume leader among current instruct weights). Capabilities vary by size; pick a specific tag before quoting context limits.",
+    "cost_notes": "Open-weight: no vendor API bill when run locally. Hosted router prices vary; verify before display.",
+    "evidence": [
+      {
+        "source_type": "official",
+        "title": "Qwen3-8B on Hugging Face",
+        "url": "https://huggingface.co/Qwen/Qwen3-8B",
+        "observed_at": "2026-09-16",
+        "notes": "Official Qwen3-8B card. Qwen family led Hugging Face text-generation downloads in 2026 snapshots."
+      }
+    ],
+    "last_evaluated_at": "2026-09-16",
+    "registry_version": "0.4"
+  },
+  {
+    "id": "deepseek-r1",
+    "name": "DeepSeek-R1",
+    "provider": "DeepSeek",
+    "family": "DeepSeek-R1",
+    "availability": [
+      "deepseek",
+      "ollama",
+      "huggingface",
+      "local"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "workload_scores": {
+      "deep_reasoning": 0.92,
+      "fast_reasoning": 0.55,
+      "coding": 0.86,
+      "long_context": 0.75,
+      "research": 0.84,
+      "multimodal": 0.2,
+      "agentic_execution": 0.7,
+      "cost_efficiency": 0.88,
+      "local_control": 0.8
+    },
+    "context_notes": "Reasoning-first open-weight model. Distills and full-size checkpoints exist; local RAM needs are not uniform.",
+    "cost_notes": "Hosted DeepSeek API is cheap relative to frontier closed models; local run is hardware-bound.",
+    "evidence": [
+      {
+        "source_type": "official",
+        "title": "DeepSeek-R1 on Hugging Face",
+        "url": "https://huggingface.co/deepseek-ai/DeepSeek-R1",
+        "observed_at": "2026-09-16",
+        "notes": "Official DeepSeek-R1 model card. Remains among the most-downloaded reasoning checkpoints on the Hub."
+      }
+    ],
+    "last_evaluated_at": "2026-09-16",
+    "registry_version": "0.4"
+  },
+  {
+    "id": "llama-3-1",
+    "name": "Llama 3.1",
+    "provider": "Meta",
+    "family": "Llama 3.1",
+    "availability": [
+      "ollama",
+      "huggingface",
+      "lm-studio",
+      "meta-ai",
+      "local"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "workload_scores": {
+      "deep_reasoning": 0.78,
+      "fast_reasoning": 0.76,
+      "coding": 0.8,
+      "long_context": 0.82,
+      "research": 0.72,
+      "multimodal": 0.25,
+      "agentic_execution": 0.68,
+      "cost_efficiency": 0.86,
+      "local_control": 0.88
+    },
+    "context_notes": "Llama 3.1 8B Instruct is the high-download Western open-weight baseline; 70B and later Llama 4 checkpoints exist separately.",
+    "cost_notes": "Open weights under the Llama community license. Local run is hardware-bound.",
+    "evidence": [
+      {
+        "source_type": "official",
+        "title": "Llama 3.1 8B Instruct on Hugging Face",
+        "url": "https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct",
+        "observed_at": "2026-09-16",
+        "notes": "Official Meta Llama 3.1 8B Instruct card. Still among top Hub downloads for the Llama family."
+      }
+    ],
+    "last_evaluated_at": "2026-09-16",
+    "registry_version": "0.4"
+  },
+  {
+    "id": "gemma-3",
+    "name": "Gemma 3",
+    "provider": "Google",
+    "family": "Gemma",
+    "availability": [
+      "ollama",
+      "huggingface",
+      "lm-studio",
+      "local"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "workload_scores": {
+      "deep_reasoning": 0.8,
+      "fast_reasoning": 0.84,
+      "coding": 0.78,
+      "long_context": 0.74,
+      "research": 0.7,
+      "multimodal": 0.55,
+      "agentic_execution": 0.65,
+      "cost_efficiency": 0.9,
+      "local_control": 0.86
+    },
+    "context_notes": "Gemma 3 instruct (27B-it cited) is multimodal text+image, 128K context on the 4B/12B/27B sizes. Confirm size and terms on the card before commercial use.",
+    "cost_notes": "Open weights. Local run is hardware-bound.",
+    "evidence": [
+      {
+        "source_type": "official",
+        "title": "Gemma 3 27B Instruct on Hugging Face",
+        "url": "https://huggingface.co/google/gemma-3-27b-it",
+        "observed_at": "2026-09-16",
+        "notes": "Official Gemma 3 27B instruct card (347k downloads last month at observation). Family row for Google's open Gemma line."
+      }
+    ],
+    "last_evaluated_at": "2026-09-16",
+    "registry_version": "0.4"
+  },
+  {
+    "id": "gpt-oss-20b",
+    "name": "gpt-oss 20B",
+    "provider": "OpenAI",
+    "family": "gpt-oss",
+    "availability": [
+      "ollama",
+      "huggingface",
+      "lm-studio",
+      "local"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "workload_scores": {
+      "deep_reasoning": 0.74,
+      "fast_reasoning": 0.78,
+      "coding": 0.8,
+      "long_context": 0.7,
+      "research": 0.68,
+      "multimodal": 0.2,
+      "agentic_execution": 0.7,
+      "cost_efficiency": 0.88,
+      "local_control": 0.9
+    },
+    "context_notes": "OpenAI's open-weight gpt-oss 20B checkpoint, commonly run via Ollama as gpt-oss. Not a ChatGPT product row.",
+    "cost_notes": "Open weights. Local run is hardware-bound.",
+    "evidence": [
+      {
+        "source_type": "official",
+        "title": "openai/gpt-oss-20b on Hugging Face",
+        "url": "https://huggingface.co/openai/gpt-oss-20b",
+        "observed_at": "2026-09-16",
+        "notes": "Official gpt-oss-20b card. Among 2026 Hub download leaders for open-weight instruct models."
+      }
+    ],
+    "last_evaluated_at": "2026-09-16",
+    "registry_version": "0.4"
   }
 ]

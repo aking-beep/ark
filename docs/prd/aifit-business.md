@@ -26,7 +26,7 @@ Produce a document a team can take into a planning meeting: what to build, what 
 | Today | Minutes/unit, loaded hourly rate, current cost, human error rate → ROI, or "unknowable" |
 | Your team | Engineers, ML experience, security review, 24/7 coverage → readiness, autonomous-pattern gate |
 
-Every numeric field in "Today" must be leave-able blank. A form that will not accept "I don't know" will be given a guess instead, and a guess entered as a fact is how a fabricated ROI ends up in a board deck.
+Every numeric field in "Today" must be leave-able blank **and must default blank**. Pre-filling minutes or an hourly rate invents a denominator. A form that will not accept "I don't know" will be given a guess instead, and a guess entered as a fact is how a fabricated ROI ends up in a board deck.
 
 ## Report: eight sections
 
@@ -62,6 +62,7 @@ This exists so a team can score a backlog of twenty candidate workloads in CI an
 - A workload with no `minutesPerUnit` and no hourly rate renders payback as **unknowable**, with the missing input named.
 - An irreversible action at `full` autonomy is capped, with the combination named as the blocker.
 - With `ARK_CONTROL_URL` set against a seeded Control, at least one figure flips to `measured` and the uncalibrated banner disappears.
+- `POST /api/measure` on a non-`not-ai` workload runs one Runtime sample (id + task shapes only) and reports whether Control ingest succeeded. `not-ai` is 422 and does not call a provider.
 - Report pages ship negligible page-specific JavaScript — everything except the intake form is server-rendered.
 
 ## Out of scope

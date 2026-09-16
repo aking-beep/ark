@@ -69,6 +69,7 @@ This is the most important page in the product and the only one whose purpose is
 - A pattern with 11 traces is returned by the calibration endpoint, marked, and **not** used by `resolveCallShape`.
 - With Control running and `ARK_CONTROL_URL` set, a business report renders `measured` tags and drops the uncalibrated banner.
 - `npm run setup && npm run dev` produces a working system with data in it, with no services, containers, or cloud account.
+- An org with zero traces names `POST /api/measure` (MY AI for teams), `ARK_CONTROL_URL`, and `ARK_CONTROL_TOKEN` — not only `npm run setup`.
 
 ## Non-goals
 

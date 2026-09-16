@@ -19,9 +19,9 @@ Telemetry uses the existing `POST /api/v1/events` body. Each adapter attempt is 
 
 ## Consequences
 
-**Good.** Assessment routing (`recommendModel`) stays an estimator. Execution routing is a separate, deterministic decision over live adapters. Control does not grow a second event schema. There is no Runtime URL to confuse with the three products.
+**Good.** Assessment routing (`recommendModel`) stays an estimator. Execution routing is a separate, deterministic decision over live adapters. Control does not grow a second event schema. There is no Runtime URL to confuse with the three products. MY AI for teams `POST /api/measure` is the in-repo first-party caller: one synthetic sample, same ingest body.
 
-**Bad.** Bedrock `modelId`s are usually absent from the assessment catalog, so Control will leave those events unpriced unless the caller supplies `costUsd` (Runtime does, when it can map to a catalog row). Operators who ingest `provider: bedrock` should add it to `ARK_PROVIDER_ALLOWLIST`; off-allowlist events are still stored.
+**Bad.** Bedrock `modelId`s are usually absent from the assessment catalog, so Control will leave those events unpriced unless the caller supplies `costUsd` (Runtime does, when it can map to a catalog row). Operators who ingest `provider: bedrock` should add it to `ARK_PROVIDER_ALLOWLIST`; off-allowlist events are still stored. One measure sample does not clear Control's 30-trace calibration floor.
 
 ## Alternatives considered
 

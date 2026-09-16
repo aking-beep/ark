@@ -11,6 +11,7 @@ import {
   Panel, Grid, Stat, Badge, BasisTag, Callout, DimensionList, Table, Td, fmt, type Tone,
 } from '@ark/ui';
 import { decodeWorkload } from '@/lib/encode';
+import { MeasureSample } from '@/components/measure-sample';
 
 export const dynamic = 'force-dynamic';
 
@@ -469,13 +470,18 @@ export default async function Report({
             <p>
               Turns per outcome and failure rate are rubric priors, not measurements. They are the two
               numbers that move the cost figure most, so treat the monthly run cost as an order of
-              magnitude rather than a budget line. Pointing this app at a running ARK Control instance
-              replaces them with your own observed values and re-labels the figures{' '}
-              <span className="font-mono text-good">measured</span>.
+              magnitude rather than a budget line. Set <span className="font-mono">ARK_CONTROL_URL</span>{' '}
+              and <span className="font-mono">ARK_CONTROL_TOKEN</span> so this app can read{' '}
+              <span className="font-mono">GET /api/v1/calibration</span>. A first trace is{' '}
+              <span className="font-mono">POST /api/measure</span> on this app — one synthetic Runtime
+              sample, not a gateway. One sample does not clear the 30-trace floor; it is how Control
+              stops being empty.
             </p>
           </Callout>
         )}
       </Panel>
+
+      {a.suitability.verdict !== 'not-ai' && <MeasureSample workload={workload} />}
 
       <section className="flex flex-wrap items-center gap-3 border-t border-ink-800 pt-6">
         <Link

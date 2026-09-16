@@ -79,12 +79,12 @@ packages/
 my-ai/        MY AI engine — Python scoring, FastAPI, registry, evals (consumer backend)
 apps/
   consumer/   MY AI       — adaptive quiz UI; proxies /v1 to MY AI API
-  business/   MY AI for teams — 8 sections, @ark/core, plus POST /api/assess
+  business/   MY AI for teams — 8 sections, @ark/core, POST /api/assess, POST /api/measure
   control/    ARK Control — ingest, dashboards, budgets, calibration endpoint
 docs/         thesis, architecture, PRDs, methodology, data model, ADRs
 ```
 
-Runtime is not a fourth app. Callers import `@ark/runtime`. There is no `apps/runtime`.
+Runtime is not a fourth app. Callers import `@ark/runtime`. There is no `apps/runtime`. The in-repo first-party caller is MY AI for teams `POST /api/measure` (one synthetic sample into Control).
 
 ### The boundary that matters
 

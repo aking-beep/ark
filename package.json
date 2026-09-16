@@ -21,7 +21,7 @@
     "dev:control": "npm run dev --workspace @ark/control",
     "build": "npm run build:packages && npm run build --workspace @ark/consumer && npm run build --workspace @ark/business && npm run build --workspace @ark/control",
     "typecheck": "npm run build:packages && npm run typecheck --workspaces --if-present",
-    "test": "npm run test --workspace @ark/core && npm run test --workspace @ark/db && npm run test --workspace @ark/sdk && npm run test --workspace @ark/providers && npm run test --workspace @ark/evals && npm run test --workspace @ark/runtime && node --test deploy/runtime.test.mjs && node --experimental-strip-types --test apps/consumer/src/lib/my-ai-proxy.test.ts",
+    "test": "npm run test --workspace @ark/core && npm run test --workspace @ark/db && npm run test --workspace @ark/sdk && npm run test --workspace @ark/providers && npm run test --workspace @ark/evals && npm run test --workspace @ark/runtime && node --test deploy/runtime.test.mjs && node --experimental-strip-types --test apps/consumer/src/lib/my-ai-proxy.test.ts && node --experimental-strip-types --test apps/business/src/lib/measure.test.ts",
     "smoke:runtime": "npm run smoke --workspace @ark/runtime",
     "test:my-ai": "cd my-ai && python3 -m pytest",
     "refresh:models": "node --experimental-strip-types scripts/refresh-models.ts",

@@ -1,0 +1,61 @@
+{
+  "tree": {
+    "products": 23,
+    "productIds": [
+      "chatgpt",
+      "claude",
+      "claude-code",
+      "copilot",
+      "cursor",
+      "deepseek",
+      "fable-editor",
+      "figma",
+      "gamma",
+      "gemini",
+      "github-copilot",
+      "glean",
+      "grok",
+      "julius",
+      "lm-studio",
+      "meta-ai",
+      "midjourney",
+      "mistral",
+      "n8n",
+      "notebooklm",
+      "ollama",
+      "perplexity",
+      "runway"
+    ],
+    "models": 9,
+    "modelIds": [
+      "claude-fable-5-1",
+      "deepseek-r1",
+      "gemini-3-8-flash",
+      "gemma-3",
+      "gpt-5-6-sol",
+      "gpt-oss-20b",
+      "llama-3-1",
+      "open-weight-local",
+      "qwen-3"
+    ],
+    "duplicateItemKeys": 0,
+    "todayMinutesDefault": "''",
+    "todayHourlyDefault": "''",
+    "businessDependsRuntime": true,
+    "appsRuntimeDir": false,
+    "measureRouteExists": true,
+    "emptyMentionsSetup": false,
+    "emptyMentionsMeasure": true,
+    "emptyMentionsTokenEnv": true,
+    "emptyContainsBearerSecret": false,
+    "loginMentionsMeasure": true,
+    "reportMentionsTokenEnv": true,
+    "reportHasMeasureControl": true
+  },
+  "http": {
+    "tried": true,
+    "status": 200,
+    "namesMeasure": true,
+    "bodySnippet": "{\"endpoint\":\"POST /api/measure\",\"accepts\":\"A Workload object (the same shape as POST /api/assess).\",\"returns\":\"One Runtime sample: model, latency, cost estimate, and whether Control ingest succeeded. not-ai is 422 and does not call a provid"
+  }
+}

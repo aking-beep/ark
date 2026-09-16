@@ -68,7 +68,7 @@ export async function GET() {
     accepts: 'A Workload object, or an array of them.',
     returns: 'The full Assessment, including the provenance basis of every figure.',
     note:
-      'Calibration is fetched from ARK_CONTROL_URL when set. When it is not, the assessment still runs and every cost figure is labelled heuristic rather than silently downgraded.',
+      'Calibration is fetched from ARK_CONTROL_URL when set. When it is not, the assessment still runs and every cost figure is labelled heuristic rather than silently downgraded. POST /api/measure sends one Runtime sample to Control for the same Workload.',
     calibrated: Boolean(process.env.ARK_CONTROL_URL),
     example: {
       id: 'wl_example',
