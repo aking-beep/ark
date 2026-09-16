@@ -1,0 +1,26 @@
+{
+  "name": "@ark/runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsc -p tsconfig.json && node --test dist/policy.test.js dist/router.test.js dist/fallback.test.js dist/telemetry.test.js dist/execute.test.js",
+    "smoke": "node dist/smoke.js"
+  },
+  "dependencies": {
+    "@ark/core": "*",
+    "@ark/sdk": "*",
+    "@ark/providers": "*",
+    "@ark/evals": "*",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "@types/node": "^22.9.0"
+  }
+}
