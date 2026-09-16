@@ -1,0 +1,19 @@
+packages:
+core
+db
+evals
+providers
+runtime
+sdk
+ui
+
+apps:
+business
+consumer
+control
+
+apps/runtime exists? no
+
+build:packages: npm run build --workspace @ark/core && npm run build --workspace @ark/db && npm run build --workspace @ark/ui && npm run build --workspace @ark/sdk && npm run build --workspace @ark/providers && npm run build --workspace @ark/evals && npm run build --workspace @ark/runtime
+test: npm run test --workspace @ark/core && npm run test --workspace @ark/db && npm run test --workspace @ark/sdk && npm run test --workspace @ark/providers && npm run test --workspace @ark/evals && npm run test --workspace @ark/runtime && node --test deploy/runtime.test.mjs && node --experimental-strip-types --test apps/consumer/src/lib/my-ai-proxy.test.ts
+smoke:runtime: npm run smoke --workspace @ark/runtime

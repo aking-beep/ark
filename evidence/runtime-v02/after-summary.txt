@@ -1,0 +1,10 @@
+fallback.events	before=1	after=2
+fallback.turns	before=[0]	after=[0,0]
+fallback.statuses	before=[ok]	after=[error,ok]
+refusal.posts	before=1	after=0
+refusal.outcome	before=failure	after=(none)
+leak.errorKind	before="ollama: http: ollama HTTP 500: LEAK_SENTINEL"	after=http
+leak.leakedSentinel	before=true	after=false
+npm.test	after=exit 0
+runtime.tests	after=24 pass / 0 fail
+smoke	after=ok

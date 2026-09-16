@@ -21,9 +21,13 @@ const assessment = assess(workload, { depth: 'business', calibration });
 
 This matters because the failure mode it prevents is the dangerous one. If MY AI for teams could reach the database directly, a partial read or a stale connection would silently produce numbers that *look* measured. Across an HTTP boundary with a strict schema and a null return, the only two states are "measured, with a sample size" and "heuristic, and the page says so."
 
+## Internal execution layer
+
+`@ark/runtime` is a library in `packages/runtime`, not a fourth product and not `apps/runtime`. A caller passes one completion schema through policy, a deterministic router, a provider adapter (`@ark/providers`: Ollama, Bedrock, OpenAI-compatible), `@ark/evals`, and `@ark/sdk` ingest. It POSTs the same `/api/v1/events` body any other instrumented workload uses — one event per adapter attempt, fallback retries on turn 0. `privacy=local-only` excludes cloud adapters before the first `fetch`, including on fallback. A policy refusal is not ingested (it is not a model call). Ingest failure is swallowed. See [ADR-0006](adr/0006-runtime-is-not-a-surface.md).
+
 ## Data flow, end to end
 
-1. **Runtime emits.** A workload in production POSTs to `/api/v1/events` — one row per model call, tagged with a trace id, a turn index, model, provider, token counts, latency, and an outcome when the trace closes.
+1. **Runtime emits.** A workload in production — including `@ark/runtime` — POSTs to `/api/v1/events` — one row per model call, tagged with a trace id, a turn index, model, provider, token counts, latency, and an outcome when the trace closes.
 2. **Control prices and rolls up.** Each event is priced against the model catalog. Unpriceable events (unknown model, off-allowlist provider) are accepted, flagged, and counted — never dropped, because the traffic happened whether or not the catalog knows about it.
 3. **Control detects.** Turn ceiling breached → `loop_runaway`. Trace cost ceiling breached → `circuit_break`. Provider outside the allowlist → `off_allowlist`. Prompt sample matching a sensitive-data detector → `sensitive_data`. Model price past its `asOf` window → `stale_pricing`.
 4. **Control computes priors.** Per architecture pattern, over a rolling window: turns per outcome, context growth per turn, failure rate, retries per failure, cache hit rate, cost per outcome, p95 turns, sample size.

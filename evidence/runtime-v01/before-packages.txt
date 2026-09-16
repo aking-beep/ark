@@ -1,0 +1,20 @@
+total 24
+drwxr-xr-x  6 ubuntu ubuntu 4096 Sep 15 18:49 .
+drwxr-xr-x 18 ubuntu ubuntu 4096 Sep 15 18:49 ..
+drwxr-xr-x  3 ubuntu ubuntu 4096 Sep 15 18:49 core
+drwxr-xr-x  3 ubuntu ubuntu 4096 Sep 15 18:49 db
+drwxr-xr-x  3 ubuntu ubuntu 4096 Sep 15 18:49 sdk
+drwxr-xr-x  3 ubuntu ubuntu 4096 Sep 15 18:49 ui
+
+--- root package.json workspaces/scripts ---
+workspaces: ['packages/*', 'apps/*']
+build:packages: npm run build --workspace @ark/core && npm run build --workspace @ark/db && npm run build --workspace @ark/ui && npm run build --workspace @ark/sdk
+test: npm run test --workspace @ark/core && npm run test --workspace @ark/db && npm run test --workspace @ark/sdk && node --test deploy/runtime.test.mjs && node --experimental-strip-types --test apps/consumer/src/lib/my-ai-proxy.test.ts
+
+--- packages/*/package.json ---
+packages/core: @ark/core
+packages/db: @ark/db
+packages/sdk: @ark/sdk
+packages/ui: @ark/ui
+
+--- runtime/providers/evals presence ---

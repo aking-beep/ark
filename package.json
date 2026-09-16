@@ -7,7 +7,7 @@
   "workspaces": ["packages/*", "apps/*"],
   "engines": { "node": ">=20" },
   "scripts": {
-    "build:packages": "npm run build --workspace @ark/core && npm run build --workspace @ark/db && npm run build --workspace @ark/ui && npm run build --workspace @ark/sdk",
+    "build:packages": "npm run build --workspace @ark/core && npm run build --workspace @ark/db && npm run build --workspace @ark/ui && npm run build --workspace @ark/sdk && npm run build --workspace @ark/providers && npm run build --workspace @ark/evals && npm run build --workspace @ark/runtime",
     "db:push": "npm run push --workspace @ark/db",
     "db:seed": "npm run seed --workspace @ark/db",
     "ingest:live": "npm run ingest:live --workspace @ark/db",
@@ -21,7 +21,8 @@
     "dev:control": "npm run dev --workspace @ark/control",
     "build": "npm run build:packages && npm run build --workspace @ark/consumer && npm run build --workspace @ark/business && npm run build --workspace @ark/control",
     "typecheck": "npm run build:packages && npm run typecheck --workspaces --if-present",
-    "test": "npm run test --workspace @ark/core && npm run test --workspace @ark/db && npm run test --workspace @ark/sdk && node --test deploy/runtime.test.mjs && node --experimental-strip-types --test apps/consumer/src/lib/my-ai-proxy.test.ts",
+    "test": "npm run test --workspace @ark/core && npm run test --workspace @ark/db && npm run test --workspace @ark/sdk && npm run test --workspace @ark/providers && npm run test --workspace @ark/evals && npm run test --workspace @ark/runtime && node --test deploy/runtime.test.mjs && node --experimental-strip-types --test apps/consumer/src/lib/my-ai-proxy.test.ts",
+    "smoke:runtime": "npm run smoke --workspace @ark/runtime",
     "test:my-ai": "cd my-ai && python3 -m pytest",
     "refresh:models": "node --experimental-strip-types scripts/refresh-models.ts",
     "lint": "npm run typecheck"

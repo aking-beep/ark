@@ -69,17 +69,22 @@ Host all four processes (MY AI API + three Next apps) with Docker: [`docs/05-hos
 
 ```
 packages/
-  core/     the engine — schema, scoring, economics, model catalog, calibration client
-  db/       Drizzle schema + seed for Control
-  ui/       shared component vocabulary and Tailwind preset
-  sdk/      ingest client — trace ids, turn indices, POST /api/v1/events
-my-ai/      MY AI engine — Python scoring, FastAPI, registry, evals (consumer backend)
+  core/       the engine — schema, scoring, economics, model catalog, calibration client
+  db/         Drizzle schema + seed for Control
+  ui/         shared component vocabulary and Tailwind preset
+  sdk/        ingest client — trace ids, turn indices, POST /api/v1/events
+  providers/  execution adapters — Ollama (local), Bedrock, OpenAI-compatible
+  evals/      deterministic quality, latency, cost, reliability of one call
+  runtime/    internal execution layer — policy → router → provider → eval → Control
+my-ai/        MY AI engine — Python scoring, FastAPI, registry, evals (consumer backend)
 apps/
-  consumer/ MY AI       — adaptive quiz UI; proxies /v1 to MY AI API
-  business/ MY AI for teams — 8 sections, @ark/core, plus POST /api/assess
-  control/  ARK Control — ingest, dashboards, budgets, calibration endpoint
-docs/       thesis, architecture, PRDs, methodology, data model, ADRs
+  consumer/   MY AI       — adaptive quiz UI; proxies /v1 to MY AI API
+  business/   MY AI for teams — 8 sections, @ark/core, plus POST /api/assess
+  control/    ARK Control — ingest, dashboards, budgets, calibration endpoint
+docs/         thesis, architecture, PRDs, methodology, data model, ADRs
 ```
+
+Runtime is not a fourth app. Callers import `@ark/runtime`. There is no `apps/runtime`.
 
 ### The boundary that matters
 
@@ -93,7 +98,8 @@ Consumer MY AI keeps quiz progress in the browser (`localStorage`) and scores vi
 npm run dev            # MY AI API + consumer + business + control
 npm run dev:ark        # business (:3001) and Control (:3002) only
 npm run build          # packages, then all three apps
-npm run test           # @ark/core, db, SDK
+npm run test           # @ark/core, db, SDK, providers, evals, runtime
+npm run smoke:runtime  # Runtime dry-run (+ live providers when env is set)
 npm run test:my-ai     # MY AI Python engine (pytest)
 npm run typecheck      # every workspace
 npm run db:seed        # regenerate demo telemetry
@@ -109,7 +115,7 @@ npm run ingest:live    # POST live traces for the Northwind org (not SQL-inserte
 5. [`docs/04-roadmap.md`](docs/04-roadmap.md) — phases with exit criteria *and* kill criteria
 6. [`docs/05-hosting.md`](docs/05-hosting.md) — Docker and production env
 7. [`docs/06-aifit-consumer.md`](docs/06-aifit-consumer.md) — MY AI consumer (merged from aifit-engine)
-8. [`docs/adr/`](docs/adr/) — the decisions that would otherwise be re-litigated every quarter
+8. [`docs/adr/`](docs/adr/) — the decisions that would otherwise be re-litigated every quarter (including [ADR-0006](docs/adr/0006-runtime-is-not-a-surface.md): Runtime is a library, not a surface)
 9. [`docs/prd/`](docs/prd/) — one per surface: who it is for, what it refuses to do
 
 If you would rather see the five arguments than read them, [`docs/diagrams/`](docs/diagrams/) is an index of the same material: the system map above, the trace-versus-event comparison, the verdict ladder drawn from the source, the provenance ladder worked end to end, and the calibration loop.
