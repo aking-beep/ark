@@ -23,7 +23,7 @@ This matters because the failure mode it prevents is the dangerous one. If MY AI
 
 ## Internal execution layer
 
-`@ark/runtime` is a library in `packages/runtime`, not a fourth product and not `apps/runtime`. A caller passes one completion schema through policy, a deterministic router, a provider adapter (`@ark/providers`: Ollama, Bedrock, OpenAI-compatible), `@ark/evals`, and `@ark/sdk` ingest. It POSTs the same `/api/v1/events` body any other instrumented workload uses. `privacy=local-only` excludes cloud adapters before the first `fetch`, including on fallback. Ingest failure is swallowed. See [ADR-0006](adr/0006-runtime-is-not-a-surface.md).
+`@ark/runtime` is a library in `packages/runtime`, not a fourth product and not `apps/runtime`. A caller passes one completion schema through policy, a deterministic router, a provider adapter (`@ark/providers`: Ollama, Bedrock, OpenAI-compatible), `@ark/evals`, and `@ark/sdk` ingest. It POSTs the same `/api/v1/events` body any other instrumented workload uses — one event per adapter attempt, fallback retries on turn 0. `privacy=local-only` excludes cloud adapters before the first `fetch`, including on fallback. A policy refusal is not ingested (it is not a model call). Ingest failure is swallowed. See [ADR-0006](adr/0006-runtime-is-not-a-surface.md).
 
 ## Data flow, end to end
 

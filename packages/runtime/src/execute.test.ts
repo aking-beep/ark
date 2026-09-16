@@ -15,6 +15,23 @@ function failingIngest(): ArkIngest {
   });
 }
 
+function capturingIngest(posted: unknown[]): ArkIngest {
+  return new ArkIngest({
+    baseUrl: 'http://control.test',
+    orgId: 'org_demo',
+    timeoutMs: 50,
+    fetch: (async (_url, init) => {
+      posted.push(JSON.parse(String(init?.body)));
+      return new Response(
+        JSON.stringify({
+          accepted: 1, tracesClosed: 1, priced: 1, unpriced: 0, alerts: 0, circuitBreaks: [],
+        }),
+        { status: 202 },
+      );
+    }) as typeof fetch,
+  });
+}
+
 describe('execute', () => {
   test('local-only never calls a cloud adapter, even when local is missing', async () => {
     let cloud = 0;
@@ -58,6 +75,7 @@ describe('execute', () => {
     assert.equal(result.adapterId, 'openai-compatible');
     assert.equal(result.text, 'ok:openai-compatible');
     assert.equal(result.attempts.length, 2);
+    assert.equal(result.attempts[0]!.errorKind, 'http');
     assert.equal(result.routing.basis, 'heuristic');
     assert.equal(result.latency.basis, 'measured');
     assert.ok(result.cost.basis === 'benchmark' || result.cost.basis === 'heuristic');
@@ -71,6 +89,46 @@ describe('execute', () => {
     assert.equal(result.text, 'ok:ollama');
     assert.equal(result.telemetry.ok, false);
     assert.equal(result.telemetry.attempted, true);
+  });
+
+  test('fallback ingest is one event per attempt on turn 0', async () => {
+    const posted: unknown[] = [];
+    const ollama = fakeAdapter({
+      id: 'ollama',
+      residency: 'local',
+      complete: async () => {
+        throw new ProviderError('http', 'ollama HTTP 404: LEAK_SENTINEL', 'ollama');
+      },
+    });
+    const result = await execute(
+      { messages: [{ role: 'user', content: 'secret prompt' }], constraints: { privacy: 'any' }, maxFallbacks: 1 },
+      { adapters: [ollama, trio.frontier()], ingest: capturingIngest(posted) },
+    );
+    assert.equal(result.adapterId, 'openai-compatible');
+    const body = posted[0] as {
+      events: { status: string; turn: number; errorKind?: string }[];
+      traces: { outcome: string; retries: number }[];
+    };
+    assert.equal(body.events.length, 2);
+    assert.deepEqual(body.events.map((e) => e.turn), [0, 0]);
+    assert.equal(body.events[0]!.status, 'error');
+    assert.equal(body.events[0]!.errorKind, 'http');
+    assert.equal(body.events[1]!.status, 'ok');
+    assert.equal(body.traces[0]!.retries, 1);
+    assert.equal(JSON.stringify(body).includes('LEAK_SENTINEL'), false);
+  });
+
+  test('policy refusal does not post a trace', async () => {
+    const posted: unknown[] = [];
+    await assert.rejects(
+      () =>
+        execute(
+          { messages: [{ role: 'user', content: 'hi' }], constraints: { privacy: 'local-only' } },
+          { adapters: [trio.bedrock()], ingest: capturingIngest(posted) },
+        ),
+      PolicyError,
+    );
+    assert.equal(posted.length, 0);
   });
 
   test('the same request schema runs across all three adapters', async () => {

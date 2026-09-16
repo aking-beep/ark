@@ -3,7 +3,12 @@ import { ArkIngest } from '@ark/sdk';
 import type { EvalReport } from '@ark/evals';
 import type { NormalizedCompletion, ProviderAdapter } from '@ark/providers';
 import { catalogModelId } from './catalog.js';
-import type { Attempt, RuntimeRequest } from './types.js';
+import {
+  INGEST_ERROR_KINDS,
+  type Attempt,
+  type IngestErrorKind,
+  type RuntimeRequest,
+} from './types.js';
 
 export interface TelemetryInput {
   ingest?: ArkIngest;
@@ -22,6 +27,13 @@ export interface TelemetryOutcome {
   error?: string;
 }
 
+const KIND_SET = new Set<string>(INGEST_ERROR_KINDS);
+
+function closedErrorKind(kind?: string): IngestErrorKind {
+  if (kind && KIND_SET.has(kind)) return kind as IngestErrorKind;
+  return 'unknown';
+}
+
 function optionalCostUsd(completion: NormalizedCompletion, adapter: ProviderAdapter): number | undefined {
   const catalogId = byId(completion.modelId) ? completion.modelId : catalogModelId(adapter, completion.modelId);
   const model = byId(catalogId);
@@ -35,36 +47,60 @@ function optionalCostUsd(completion: NormalizedCompletion, adapter: ProviderAdap
 /**
  * Best-effort Control ingest. Failures are returned, never thrown — a hung
  * or missing Control must not fail the completion. Prompts are not attached.
+ *
+ * One event per adapter attempt. Fallback retries share turn 0: they are
+ * retries of the same business turn, not a new agent turn. Policy refusal
+ * is not a model call, so it is not ingested.
  */
 export async function emitTelemetry(input: TelemetryInput): Promise<TelemetryOutcome> {
+  if (input.refused) {
+    return { attempted: false, ok: false, error: 'policy refusal — no model call, not ingested' };
+  }
   if (!input.ingest) return { attempted: false, ok: false, error: 'no ingest client' };
   try {
-    const workloadId = input.request.workloadId;
-    const handle = input.ingest.trace(workloadId);
+    const handle = input.ingest.trace(input.request.workloadId);
+    const application = input.request.application ?? 'ark-runtime';
     const retries = Math.max(0, input.attempts.filter((a) => !a.ok).length);
-    if (input.completion && input.adapter) {
-      const costUsd = optionalCostUsd(input.completion, input.adapter);
+
+    for (const attempt of input.attempts) {
+      if (attempt.ok && input.completion && input.completion.adapterId === attempt.adapterId) {
+        const costUsd = input.adapter ? optionalCostUsd(input.completion, input.adapter) : undefined;
+        handle.event({
+          provider: input.completion.catalogProvider,
+          modelId: input.completion.modelId,
+          inputTokens: input.completion.inputTokens,
+          outputTokens: input.completion.outputTokens,
+          latencyMs: input.completion.latencyMs,
+          status: 'ok',
+          application,
+          turn: 0,
+          ...(costUsd !== undefined ? { costUsd } : {}),
+        });
+        continue;
+      }
+      if (attempt.ok) {
+        handle.event({
+          provider: attempt.catalogProvider,
+          modelId: attempt.modelId,
+          latencyMs: attempt.latencyMs,
+          status: 'ok',
+          application,
+          turn: 0,
+        });
+        continue;
+      }
+      const errorKind = closedErrorKind(attempt.errorKind);
       handle.event({
-        provider: input.completion.catalogProvider,
-        modelId: input.completion.modelId,
-        inputTokens: input.completion.inputTokens,
-        outputTokens: input.completion.outputTokens,
-        latencyMs: input.completion.latencyMs,
-        status: 'ok',
-        application: input.request.application ?? 'ark-runtime',
-        ...(costUsd !== undefined ? { costUsd } : {}),
-      });
-    } else {
-      const last = input.attempts[input.attempts.length - 1];
-      handle.event({
-        provider: input.adapter?.catalogProvider ?? 'local',
-        modelId: input.adapter?.defaultModel() ?? 'none',
-        status: input.refused ? 'refused' : 'error',
-        errorKind: last?.error?.slice(0, 120) ?? (input.refused ? 'policy' : 'provider_error'),
-        application: input.request.application ?? 'ark-runtime',
-        latencyMs: last?.latencyMs ?? 0,
+        provider: attempt.catalogProvider,
+        modelId: attempt.modelId,
+        latencyMs: attempt.latencyMs,
+        status: errorKind === 'timeout' ? 'timeout' : 'error',
+        errorKind,
+        application,
+        turn: 0,
       });
     }
+
     if (input.evaluation) {
       handle.qualitySample({
         correct: input.evaluation.quality.pass && input.evaluation.reliability.pass,

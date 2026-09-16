@@ -15,7 +15,7 @@ Runtime is three workspace packages, imported by callers, never a Next app:
 - `@ark/evals` — deterministic quality / latency / cost / reliability of one call
 - `@ark/runtime` — policy → router → fallback → eval → `@ark/sdk` ingest
 
-Telemetry uses the existing `POST /api/v1/events` body. Prompts are not attached. Ingest failure does not fail inference. `privacy=local-only` is enforced before any adapter is called, including on fallback.
+Telemetry uses the existing `POST /api/v1/events` body. Each adapter attempt is one event; fallback retries share `turn: 0` so Control does not count them as extra agent turns. `errorKind` is a closed enum (`timeout | http | network | parse | config | unknown`), never a provider HTTP body. Policy refusal is not ingested — Control's `failureRate` is traces with `outcome <> success`, and a request that never called a model is not a failed outcome. Prompts are not attached. Ingest failure does not fail inference. `privacy=local-only` is enforced before any adapter is called, including on fallback.
 
 ## Consequences
 

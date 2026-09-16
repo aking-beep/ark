@@ -37,6 +37,7 @@ describe('bounded fallback', () => {
     assert.equal(out.completion?.text, 'from-bedrock');
     assert.equal(out.attempts.length, 2);
     assert.equal(out.attempts[0]!.ok, false);
+    assert.equal(out.attempts[0]!.errorKind, 'http');
     assert.equal(out.attempts[1]!.ok, true);
     assert.equal(secondary, 1);
   });

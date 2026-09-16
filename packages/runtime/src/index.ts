@@ -4,5 +4,5 @@ export { applyPolicy } from './policy.js';
 export { route } from './router.js';
 export { runFallback } from './fallback.js';
 export { emitTelemetry, ingestFromEnv } from './telemetry.js';
-export { RuntimeRequest, RuntimeConstraints, PolicyError } from './types.js';
-export type { RuntimeResult, RouteDecision, Attempt, Exclusion } from './types.js';
+export { RuntimeRequest, RuntimeConstraints, PolicyError, INGEST_ERROR_KINDS } from './types.js';
+export type { RuntimeResult, RouteDecision, Attempt, Exclusion, IngestErrorKind } from './types.js';

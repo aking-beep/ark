@@ -2,8 +2,12 @@ import { z } from 'zod';
 import { ChatMessage } from '@ark/providers';
 import { ADAPTER_IDS } from '@ark/providers';
 import type { AdapterId, NormalizedCompletion } from '@ark/providers';
-import type { Basis, Estimate } from '@ark/core';
+import type { Basis, Estimate, Provider } from '@ark/core';
 import type { EvalReport } from '@ark/evals';
+
+/** Closed set posted to Control. Never a provider HTTP body. */
+export const INGEST_ERROR_KINDS = ['timeout', 'http', 'network', 'parse', 'config', 'unknown'] as const;
+export type IngestErrorKind = (typeof INGEST_ERROR_KINDS)[number];
 
 export const RuntimeConstraints = z.object({
   privacy: z.enum(['any', 'local-only']).default('any'),
@@ -64,8 +68,12 @@ export interface RouteDecision {
 
 export interface Attempt {
   adapterId: AdapterId;
+  catalogProvider: Provider;
+  modelId: string;
   ok: boolean;
+  /** In-process diagnostic. Must not be copied into Control ingest. */
   error?: string;
+  errorKind?: IngestErrorKind;
   latencyMs: number;
 }
 

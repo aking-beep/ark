@@ -8,6 +8,8 @@ export function localCatalogId(modelId: string): string {
   const m = modelId.toLowerCase();
   if (m.includes('70b')) return 'local-70b';
   if (m.includes('14b')) return 'local-14b';
+  // Unmatched Ollama ids (32B, 7B, "llama3.2", …) inherit the 8B catalog row.
+  // That is a known under-price for a 32B, not a guess that it is 70B or 14B.
   return 'local-8b';
 }
 

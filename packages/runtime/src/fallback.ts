@@ -1,7 +1,7 @@
 import type { AdapterId, CompletionRequest, NormalizedCompletion, ProviderAdapter } from '@ark/providers';
 import { ProviderError } from '@ark/providers';
 import { hintAdapter } from './catalog.js';
-import type { Attempt } from './types.js';
+import type { Attempt, IngestErrorKind } from './types.js';
 
 export interface FallbackInput {
   chain: ProviderAdapter[];
@@ -21,15 +21,26 @@ export async function runFallback(input: FallbackInput): Promise<FallbackOutput>
   const attempts: Attempt[] = [];
   for (const adapter of input.chain) {
     const started = Date.now();
+    const req = requestFor(adapter, input.request);
+    const modelId = req.model ?? adapter.defaultModel();
     try {
-      const completion = await adapter.complete(requestFor(adapter, input.request));
-      attempts.push({ adapterId: adapter.id, ok: true, latencyMs: Date.now() - started });
+      const completion = await adapter.complete(req);
+      attempts.push({
+        adapterId: adapter.id,
+        catalogProvider: adapter.catalogProvider,
+        modelId: completion.modelId,
+        ok: true,
+        latencyMs: Date.now() - started,
+      });
       return { completion, attempts };
     } catch (err) {
       attempts.push({
         adapterId: adapter.id,
+        catalogProvider: adapter.catalogProvider,
+        modelId,
         ok: false,
         error: describeError(err, adapter.id),
+        errorKind: classifyError(err),
         latencyMs: Date.now() - started,
       });
     }
@@ -51,4 +62,9 @@ function describeError(err: unknown, adapterId: AdapterId): string {
   if (err instanceof ProviderError) return `${adapterId}: ${err.kind}: ${err.message}`;
   if (err instanceof Error) return `${adapterId}: ${err.message}`;
   return `${adapterId}: ${String(err)}`;
+}
+
+function classifyError(err: unknown): IngestErrorKind {
+  if (err instanceof ProviderError) return err.kind;
+  return 'unknown';
 }
