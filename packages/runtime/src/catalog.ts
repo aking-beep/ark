@@ -4,12 +4,59 @@ import type { RuntimeConstraints } from './types.js';
 
 const LATENCY_MS = { fast: 1500, standard: 4000, slow: 12_000 } as const;
 
+/** Open-weight chat families Ollama actually runs. Not gpt-* / Claude / Bedrock ARNs. */
+const OPEN_WEIGHT = [
+  'deepseek',
+  'llama',
+  'mistral',
+  'mixtral',
+  'qwen',
+  'phi',
+  'gemma',
+  'yi',
+  'glm',
+  'internlm',
+  'falcon',
+  'vicuna',
+  'wizard',
+  'dolphin',
+  'hermes',
+  'openchat',
+  'solar',
+  'olmo',
+  'smol',
+  'granite',
+  'starcoder',
+  'codellama',
+  'command-r',
+  'commandr',
+  'aya',
+  'nous',
+  'orca',
+  'zephyr',
+  'tinyllama',
+  'stablelm',
+  'rwkv',
+  'dbrx',
+  'jamba',
+  'nemotron',
+  'llava',
+  'minicpm',
+  'baichuan',
+];
+
+export function isOpenWeightModel(model: string): boolean {
+  const m = model.toLowerCase();
+  return OPEN_WEIGHT.some((tag) => m.includes(tag));
+}
+
 export function localCatalogId(modelId: string): string {
   const m = modelId.toLowerCase();
-  if (m.includes('70b')) return 'local-70b';
-  if (m.includes('14b')) return 'local-14b';
-  // Unmatched Ollama ids (32B, 7B, "llama3.2", …) inherit the 8B catalog row.
-  // That is a known under-price for a 32B, not a guess that it is 70B or 14B.
+  if (m.includes('70b') || m.includes('72b') || m.includes('405b') || m.includes('671b')) return 'local-70b';
+  if (m.includes('14b') || m.includes('13b')) return 'local-14b';
+  // 32B/34B is closer to the 14B row than to 8B. Still an under-price, not a 70B guess.
+  if (m.includes('32b') || m.includes('33b') || m.includes('34b')) return 'local-14b';
+  // Unmatched Ollama ids (7B, "llama3.2", smollm2:135m, …) inherit the 8B catalog row.
   return 'local-8b';
 }
 
@@ -44,10 +91,14 @@ export function hintAdapter(model: string | undefined): AdapterId | undefined {
   ) {
     return 'bedrock';
   }
+  // Hosted DeepSeek (open-weight) uses the Chat Completions protocol, not Ollama.
+  if (m === 'deepseek-chat' || m === 'deepseek-reasoner') {
+    return 'openai-compatible';
+  }
   if (m.startsWith('gpt-') || m.startsWith('o1') || m.startsWith('o3') || m.startsWith('o4')) {
     return 'openai-compatible';
   }
-  if (m.includes('llama') || m.includes('mistral') || m.includes('qwen') || m.includes('phi') || m.includes('gemma')) {
+  if (isOpenWeightModel(model)) {
     return 'ollama';
   }
   return undefined;

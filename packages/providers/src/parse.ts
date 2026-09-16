@@ -15,7 +15,7 @@ export function parseOllamaChat(body: unknown, latencyMs: number, fallbackModel:
   }
   const b = body as Record<string, unknown>;
   const message = b.message && typeof b.message === 'object' ? (b.message as Record<string, unknown>) : {};
-  const text = str(message.content);
+  const text = str(message.content) || str(message.thinking);
   const done = str(b.done_reason);
   return {
     text,
