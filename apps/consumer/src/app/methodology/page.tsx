@@ -44,7 +44,12 @@ export default function MethodologyPage() {
           <h2 className="text-lg font-semibold">4. Version</h2>
           <p className="mt-2 text-muted-foreground">
             MY AI 0.4. Usually four scenes (about five minutes), continuing only when a core habit still is not clear.
-            Scoring stays on the server. Catalog last reviewed 12 September 2026.
+            Scoring stays on the server. The catalog last-reviewed date is derived from each row&apos;s{" "}
+            <code>last_evaluated_at</code> and shown on the{" "}
+            <Link href="/registry" className="underline underline-offset-4">
+              product and model registry
+            </Link>
+            .
           </p>
         </div>
         <div>

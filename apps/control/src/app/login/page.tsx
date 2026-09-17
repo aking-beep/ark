@@ -50,7 +50,10 @@ export default async function LoginPage({
         </button>
       </form>
       <p className="mt-6 text-2xs leading-relaxed text-ink-500">
-        Local demo: <span className="font-mono">dana@riverbend.example</span> / <span className="font-mono">riverbend-demo</span>
+        Open this page at <span className="font-mono">http://localhost:3002</span>, not{' '}
+        <span className="font-mono">127.0.0.1</span> — the session cookie is host-bound and will not
+        follow a redirect between those two. Local demo:{' '}
+        <span className="font-mono">dana@riverbend.example</span> / <span className="font-mono">riverbend-demo</span>
         {' '}(Demo Co) or <span className="font-mono">sam@northwind.example</span> / <span className="font-mono">northwind-demo</span>
         {' '}(Northwind — empty until MY AI for teams <span className="font-mono">POST /api/measure</span>
         {' '}with <span className="font-mono">ARK_CONTROL_URL</span> / <span className="font-mono">ARK_CONTROL_TOKEN</span>,

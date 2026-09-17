@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { Workload } from '@ark/core';
+import { MEASURE_TIMEOUT_MS } from '@/lib/measure-timeout';
 
 type State =
   | { kind: 'idle' }
@@ -19,6 +20,7 @@ export function MeasureSample({ workload }: { workload: Workload }) {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(workload),
+        signal: AbortSignal.timeout(MEASURE_TIMEOUT_MS),
       });
       const body = (await res.json()) as {
         ok?: boolean;
@@ -42,9 +44,16 @@ export function MeasureSample({ workload }: { workload: Workload }) {
         ingestOk: Boolean(body.telemetry?.ok),
       });
     } catch (err) {
+      const aborted =
+        (err instanceof DOMException && err.name === 'TimeoutError') ||
+        (err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError'));
       setState({
         kind: 'err',
-        message: err instanceof Error ? err.message : 'measure failed',
+        message: aborted
+          ? `measure timed out after ${MEASURE_TIMEOUT_MS}ms`
+          : err instanceof Error
+            ? err.message
+            : 'measure failed',
       });
     }
   }
@@ -54,7 +63,9 @@ export function MeasureSample({ workload }: { workload: Workload }) {
       <p className="text-sm font-medium text-ink-100">Measure a sample in ARK Control</p>
       <p className="mt-1 text-xs leading-relaxed text-ink-400">
         Runs one synthetic completion through Runtime (id and task shapes only — not your
-        description) and posts the trace to Control when{' '}
+        description) on the operator&apos;s configured model (
+        <span className="font-mono">ARK_OLLAMA_MODEL</span>
+        ), not the catalog estimate, and posts the trace to Control when{' '}
         <span className="font-mono">ARK_CONTROL_URL</span> and{' '}
         <span className="font-mono">ARK_CONTROL_TOKEN</span> are set. One sample does not
         clear the 30-trace calibration floor.
@@ -68,14 +79,18 @@ export function MeasureSample({ workload }: { workload: Workload }) {
         {state.kind === 'pending' ? 'Measuring…' : 'Send measured sample'}
       </button>
       {state.kind === 'ok' && (
-        <p className="mt-2 text-xs text-ink-300">
+        <p className="mt-2 text-xs text-ink-300" data-testid="measure-outcome">
           {state.modelId} in {state.latencyMs}ms.{' '}
           {state.ingestOk
             ? 'Control accepted the trace.'
             : 'Completion ran; Control ingest did not (check ARK_CONTROL_URL / ARK_CONTROL_TOKEN).'}
         </p>
       )}
-      {state.kind === 'err' && <p className="mt-2 text-xs text-danger">{state.message}</p>}
+      {state.kind === 'err' && (
+        <p className="mt-2 text-xs text-danger" data-testid="measure-outcome">
+          {state.message}
+        </p>
+      )}
     </div>
   );
 }

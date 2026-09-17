@@ -1,0 +1,40 @@
+{
+  "tree": {
+    "passesCatalogPrimaryAsModel": false,
+    "mentionsOllamaModelEnv": true,
+    "registryHardcoded12Sep": false,
+    "methodologyHardcoded12Sep": false,
+    "freshnessHasLastReviewed": true,
+    "readmeDate": "2026-09-16",
+    "measureSampleIndex": 5283,
+    "uncalibratedIndex": 4383,
+    "footerIndex": 22190,
+    "measureBeforeFooter": true,
+    "measureNearUncalibrated": false,
+    "clientAbort": true,
+    "loginMentionsLocalhost": true,
+    "loginMentions127": true,
+    "loginMentionsCookie": true
+  },
+  "http": {
+    "tried": true,
+    "getStatus": 200,
+    "getNamesOllamaModel": true,
+    "notAi": {
+      "status": 422,
+      "ok": false,
+      "reason": "not-ai",
+      "message": "This workload was scored not-ai. Measuring it with a model would be the thing the report just refused.",
+      "modelId": null,
+      "mentionsLocal70b": false
+    },
+    "support": {
+      "status": 200,
+      "ok": true,
+      "reason": null,
+      "message": null,
+      "modelId": "smollm2:135m",
+      "mentionsLocal70b": false
+    }
+  }
+}

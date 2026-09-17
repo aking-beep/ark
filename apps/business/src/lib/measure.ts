@@ -8,6 +8,7 @@ import {
   type RuntimeResult,
 } from '@ark/runtime';
 
+/** Keep in sync with `measure-timeout.ts` (client-safe copy; this file pulls Runtime). */
 export const MEASURE_TIMEOUT_MS = 15_000;
 
 export type MeasureFailureReason = 'not-ai' | 'timeout' | 'no_provider' | 'execution_failed';
@@ -15,6 +16,16 @@ export type MeasureFailureReason = 'not-ai' | 'timeout' | 'no_provider' | 'execu
 export type MeasureResult =
   | { ok: true; result: RuntimeResult; verdict: Verdict }
   | { ok: false; reason: MeasureFailureReason; message: string; verdict?: Verdict };
+
+/**
+ * Operator-configured Ollama tag for a synthetic sample.
+ * Catalog estimate ids (`local-70b`) are cost rows, not installed tags — never
+ * pass those as RuntimeRequest.model.
+ */
+export function sampleModelId(env: NodeJS.Dict<string> = process.env): string | undefined {
+  const configured = env.ARK_OLLAMA_MODEL?.trim();
+  return configured || undefined;
+}
 
 /**
  * One synthetic Runtime request for a teams workload. The prompt carries the
@@ -43,6 +54,7 @@ export async function measureWorkload(
   workload: Workload,
   deps?: ExecuteDeps,
   timeoutMs = MEASURE_TIMEOUT_MS,
+  env: NodeJS.Dict<string> = process.env,
 ): Promise<MeasureResult> {
   const assessment = assess(workload, { depth: 'business' });
   const verdict = assessment.suitability.verdict;
@@ -58,8 +70,8 @@ export async function measureWorkload(
   const run = (async (): Promise<MeasureResult> => {
     try {
       const result = await execute(
-        sampleRequestFor(workload, assessment.model.primary.id),
-        deps ?? createRuntime(),
+        sampleRequestFor(workload, sampleModelId(env)),
+        deps ?? createRuntime({ env }),
       );
       return { ok: true, result, verdict };
     } catch (err) {

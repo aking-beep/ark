@@ -1,0 +1,40 @@
+{
+  "tree": {
+    "passesCatalogPrimaryAsModel": true,
+    "mentionsOllamaModelEnv": false,
+    "registryHardcoded12Sep": true,
+    "methodologyHardcoded12Sep": true,
+    "freshnessHasLastReviewed": false,
+    "readmeDate": "2026-09-12",
+    "measureSampleIndex": 21853,
+    "uncalibratedIndex": 20954,
+    "footerIndex": 22178,
+    "measureBeforeFooter": true,
+    "measureNearUncalibrated": false,
+    "clientAbort": false,
+    "loginMentionsLocalhost": false,
+    "loginMentions127": false,
+    "loginMentionsCookie": false
+  },
+  "http": {
+    "tried": true,
+    "getStatus": 200,
+    "getNamesOllamaModel": false,
+    "notAi": {
+      "status": 422,
+      "ok": false,
+      "reason": "not-ai",
+      "message": "This workload was scored not-ai. Measuring it with a model would be the thing the report just refused.",
+      "modelId": null,
+      "mentionsLocal70b": false
+    },
+    "support": {
+      "status": 502,
+      "ok": false,
+      "reason": "execution_failed",
+      "message": "runtime execution failed: ollama: config: ollama model 'local-70b' is not installed (have: smollm2:135m). ollama pull local-70b, or set ARK_OLLAMA_PULL=1",
+      "modelId": null,
+      "mentionsLocal70b": true
+    }
+  }
+}

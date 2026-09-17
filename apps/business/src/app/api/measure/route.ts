@@ -66,6 +66,8 @@ export async function GET() {
       ARK_CONTROL_URL: 'Control origin. Unset = sample still runs, ingest is skipped and telemetry.ok is false.',
       ARK_CONTROL_TOKEN: 'Bearer matching an org_tokens row.',
       ARK_OLLAMA_URL: 'Local adapter. Other adapters follow Runtime from-env rules.',
+      ARK_OLLAMA_MODEL:
+        'Installed Ollama tag for the sample. Catalog ids like local-70b are estimates, not tags.',
     },
     timeoutMs: 15_000,
     note: 'This is not a gateway. It does not sit in the request path of production traffic.',
