@@ -11,7 +11,7 @@ an alert instead of passing silently.
 
 ## How it was measured
 
-Two artefacts, both repeatable from a clean checkout.
+Three artefacts, all repeatable from a clean checkout.
 
 **A probe, run identically before and after.** `evidence/protocol-evidence-plane/probe.mjs`
 pushes the DDL into a scratch libSQL file, posts bodies through the real
@@ -40,6 +40,18 @@ npm run setup                      # push schema, seed
 npm run dev -w @ark/control        # localhost:3002
 node evidence/protocol-evidence-plane/shots.mjs after
 node evidence/protocol-evidence-plane/pages.mjs > evidence/protocol-evidence-plane/after-pages.txt
+```
+
+**A second probe for the round-1 review findings.** `findings.mjs` feeds the
+reviewer's own inputs to the fixed code and prints what it does now. It is a
+separate script on purpose: `probe.mjs` is valuable precisely because the same
+assertions ran before the first line of feature code, and adding assertions to
+it now would produce an after-state with no before-state. The before-state for
+these lines is `REVIEW.md`, which records each input and what the code did with
+it.
+
+```bash
+node evidence/protocol-evidence-plane/findings.mjs > evidence/protocol-evidence-plane/after-findings.txt
 ```
 
 Conditions: seeded demo data (`npm run setup`), warm dev server, headless
@@ -90,9 +102,32 @@ Repo checks, run at the tip of the branch:
 | Command | Result |
 |---|---|
 | `npm run typecheck` | exit 0 |
-| `npm run test` | 267 tests, 267 pass, 0 fail (161 before this branch; +106 new) |
+| `npm run test` | 284 tests, 284 pass, 0 fail (161 before this branch; +123 new) |
 | `npm run build` | exit 0, `/protocols` in the route manifest |
 | `npm ci && npm run setup` | exit 0 from a clean lockfile install |
+
+### Round 1 findings, closed
+
+The reviewer withheld criterion 4 on two findings and raised six non-blocking
+notes. All of round 1 is addressed; `after-findings.txt` is the measurement.
+
+| Finding | Before (from `REVIEW.md`) | After |
+|---|---|---|
+| 1 — the redaction alert persisted caller key names | posting `{"victim.bob@example.com_token": "x"}` wrote that key, and so that email address, into `alerts.message` | the alert names the class (`a field named as a payload or a credential`); the key appears nowhere in `alerts`, and `detectSensitive` finds nothing in the message |
+| 2 — `recentEvidence` and `traceStory` joined `workloads` unscoped | an org naming another tenant's workload id read back `Project Redacted - M&A due diligence` | `workloadName` resolves to null across the boundary and still resolves for the org's own rows |
+| 3 — the denylist missed payload words that were not at the end of a key | 16 of 16 names survived (`argsJson`, `promptText`, `resultData`, …) | 0 of 16 survive; all 19 metadata keys the adapters emit still do |
+| 4 — the redaction alert named the wrong workload | attributed to the first row in the batch carrying any workload | attributed to the row that carried the field (`wl_dirty`), and the clean row raises nothing |
+| 5 — `evidence()` let a caller override the trace id, `event()` did not | an adapter result carrying a stale `traceId` re-pointed the observation | the handle's trace id wins, as in `event()`; the workload may still be overridden |
+| 6 — A2UI stored whatever it was handed as a component name | a form value passed as a component type was stored | non-identifier entries are rejected and counted in `componentsRejected`; `Card,MyOrgChart` is kept and the form values are not |
+| 8 — one value query per protocol | 4 + one per protocol | one `GROUP BY protocol`; five queries behind the page |
+
+Note 7 — the evidence loop is not transactional — is left as it is. It is the
+pre-existing pattern for events, actions and quality samples, the idempotent
+primary key means a re-posted batch converges, and changing it for one grain
+would make the four inconsistent. It belongs in its own spec.
+
+`probe.mjs` was re-run unchanged after the fixes and its output is byte-identical
+to the capture taken before them, so none of this moved the original claims.
 
 The rest of the platform, started by `npm run dev` and recorded in
 `after-platform.txt`: MY AI (consumer, 3000) 200, MY AI for teams (business,
@@ -111,17 +146,19 @@ MCP server, a real A2A peer, a real merchant or a real payment network, and the
 adapters were written against published specifications rather than against
 traffic. The first real client will find fields these adapters name differently.
 
-**Redaction is proved against the payloads we thought to try.** The probe and
+**Redaction is proved against the payloads we thought to try.** The probes and
 the tests show that the denylist, the scalar-only metadata schema and the
 adapters' allowlists stop raw arguments, message bodies, application data and
-signatures. They do not prove a caller cannot smuggle sensitive text through a
-key the denylist does not know — `operation`, `actor` and `target` are free
-strings by design, and a caller determined to put an email address in
-`operation` will succeed.
+signatures, and the round-1 review found sixteen key names the denylist missed,
+which are now caught. That is the point: a denylist catches the names it knows,
+and the next reviewer will find more. It is the weakest of the three layers and
+the adapters' allowlist is the one that actually holds. Nor does any of this
+stop a caller putting an email address in `operation`, `actor` or `target` —
+those are free strings by design.
 
 **One browser, one viewport, one machine.** Headless Chrome at 1440×900, local
 dev server, SQLite file. Nothing was tested at another width, in another
-browser, against Postgres, or under load. The `/protocols` page issues four
+browser, against Postgres, or under load. The `/protocols` page issues six
 queries per render against 321 rows; at a million rows that is an unmeasured
 question.
 
@@ -146,8 +183,16 @@ them, and the version each was built against is recorded in
 to normalise six shapes into one row would have added six upgrade treadmills for
 no behaviour.
 
-**No test was changed or removed.** `git diff main...HEAD --numstat -- '*.test.ts'`
-shows zero deleted lines. The 106 new cases are additive.
+**One test was changed, and it was wrong.** `packages/db/src/evidence.test.ts`
+asserted `assert.match(message, /toolArguments/, 'the alert names the key')` —
+it locked in the behaviour of round-1 finding 1, requiring the alert to quote
+the caller's key name. It is replaced by a block asserting the opposite: the
+alert names the class, and no key reaches the alerts table. Three tests that
+used `note` as an example of an innocent key now use `stepName`, because `note`
+is a denied key after the finding-3 fix and those tests were meant to exercise
+the *value* detector rather than the denylist. No other test was changed, and
+none was removed: `git diff main...HEAD --numstat -- '*.test.ts'` shows the
+remaining files are additions only. The 123 new cases are additive.
 
 **Two things were fixed that the spec did not ask for**, both inside the feature's
 own surface and both visible in the screenshots. `fmt.when` clamped at zero, so
@@ -166,14 +211,19 @@ and the script says so rather than silently allowing any status.
 - **Cost / latency impact:** One new table and four indexes; nothing is written
   unless a caller sends `evidence[]`, so an existing installation that does not
   use the adapters pays one extra empty-array check per ingest. The `/protocols`
-  page adds four queries, all covered by the new indexes, against 321 seeded
-  rows. No provider calls, no network, no background job: the adapters are pure
-  functions. Not measured at production row counts — see above.
+  page adds six queries, all covered by the new indexes, against 321 seeded
+  rows — a count that does not grow with the number of protocols. No provider
+  calls, no network, no background job: the adapters are pure functions. Not
+  measured at production row counts — see above.
 - **Observability for new failure modes:** The two failure modes this introduces
   are a payload reaching the database and an operation completing without its
-  approval. The first raises a `sensitive_data` alert when ingest has to redact
-  something the SDK should already have stripped, so a mis-integrated client is
-  visible rather than silent. The second is the `approval_missing` alert, whose
+  approval. The first raises a `sensitive_data` alert, per observation, when
+  ingest has to redact something the SDK should already have stripped, so a
+  mis-integrated client is visible rather than silent — and the alert reports
+  the class of thing dropped, from a fixed vocabulary, rather than the caller's
+  field names, because a field name can itself be the sensitive value. The
+  names go back to the sender in the ingest response, which is not stored.
+  The second is the `approval_missing` alert, whose
   severity follows the recorded risk, surfaced on the Protocols page and in
   Budgets & alerts. A blocked or denied operation is recorded as evidence with
   that outcome and counted on the page.
