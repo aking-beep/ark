@@ -118,7 +118,26 @@ line('wrap: outside run() is a no-op', wrapOutsideRun);
 /* ---------------------------------------------------------------- HTTP pages */
 const consumer = await get('http://localhost:3000/');
 const teams = await get('http://localhost:3001/');
-const start = await get('http://localhost:3002/start');
+
+let start = { status: 0, body: '' };
+try {
+  const login = await fetch('http://localhost:3002/api/session', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'sam@northwind.example', password: 'northwind-demo' }),
+    redirect: 'manual',
+  });
+  const cookie = login.headers.get('set-cookie') ?? '';
+  const token = /ark_session=([^;]+)/.exec(cookie)?.[1];
+  if (token) {
+    const res = await fetch('http://localhost:3002/start', { headers: { cookie: `ark_session=${token}` }, redirect: 'manual' });
+    start = { status: res.status, body: await res.text() };
+  } else {
+    start = await get('http://localhost:3002/start');
+  }
+} catch (err) {
+  start = { status: 0, body: String(err) };
+}
 
 line('GET :3000/ status', String(consumer.status || ABSENT));
 line('consumer names CLAUDE.md', consumer.body.includes('CLAUDE.md') ? 'yes' : ABSENT);
