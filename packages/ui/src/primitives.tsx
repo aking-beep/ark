@@ -443,7 +443,9 @@ export const fmt = {
     return fmt.usd(v, 2);
   },
   when(ts: number): string {
-    const mins = Math.round((Date.now() - ts) / 60000);
+    // Clamped at zero. Clock skew between a caller and Control is normal, and
+    // a timestamp a minute ahead should read "0m ago", not "-1m ago".
+    const mins = Math.max(0, Math.round((Date.now() - ts) / 60000));
     if (mins < 60) return `${mins}m ago`;
     if (mins < 1440) return `${Math.round(mins / 60)}h ago`;
     return `${Math.round(mins / 1440)}d ago`;

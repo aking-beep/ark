@@ -1,0 +1,30 @@
+@ark/core resolves                             yes
+@ark/db resolves                               yes
+@ark/protocols resolves                        ABSENT
+core exports EvidenceInput                     ABSENT
+core exports redactEvidence                    ABSENT
+DDL declares protocol_evidence                 ABSENT
+tables in pushed schema                        14
+protocol_evidence table exists                 ABSENT
+evidence-only body parses                      no
+evidence accepted by applyIngest               ABSENT
+duplicate evidence id is a no-op               ABSENT
+evidence trace/workload/org                    ABSENT
+mcp adapter leaks raw args/results             ABSENT
+a2ui adapter leaks application data            ABSENT
+nested metadata rejected at schema             ABSENT
+redactEvidence strips payload metadata         ABSENT
+approval_missing fires on completed            ABSENT
+approval_missing silent while pending          ABSENT
+evidence rows per org                          ABSENT
+sdk trace.evidence() correlation               no trace.evidence()
+model event: unpriced but stored               1/1
+model event: loop_runaway breaks               true
+action: unapproved_action fires                1/1
+event: sample scanned then discarded           ["email"] / no sample column=true
+adapter mcp                                    ABSENT
+adapter a2a                                    ABSENT
+adapter ag-ui                                  ABSENT
+adapter a2ui                                   ABSENT
+adapter ucp                                    ABSENT
+adapter ap2                                    ABSENT

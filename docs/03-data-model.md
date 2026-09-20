@@ -1,6 +1,6 @@
 # Data model
 
-Nine tables. The shape of this schema is an argument about what an AI workload actually is, so it is worth reading before the SQL.
+Ten tables. The shape of this schema is an argument about what an AI workload actually is, so it is worth reading before the SQL.
 
 ## The distinction the whole system rests on
 
@@ -23,8 +23,9 @@ Cost per outcome — the headline number in every MY AI for teams report — is 
 | `traces` | One per unit of business work | The denominator of every cost figure. |
 | `events` | One per model call | The raw priced fact. |
 | `actions` | One per side effect | What the model *did*, as distinct from what it said. |
+| `protocolEvidence` | One per normalised protocol observation | What the agent did over MCP, A2A, AG-UI, A2UI, UCP or AP2. |
 | `budgets` | One per scope + period | The ceiling, and what happens at it. |
-| `alerts` | One per detection | Nine kinds, listed below. |
+| `alerts` | One per detection | Ten kinds, listed below. |
 | `qualitySamples` | One per judged output | The only source of an accuracy number that is not a guess. |
 | `calibrationSnapshots` | One per computation | Versioned history of the priors. |
 
@@ -68,6 +69,18 @@ Each row carries a `blastRadius` and a nullable `approvedBy`.
 
 **`approvedBy` is nullable on purpose.** A schema that required it could not represent the thing worth detecting. An irreversible action with a null approver is SEC-05 firing — the system did something it could not undo and no human signed for it. Making the column `NOT NULL` would have made that state unrepresentable in the data and therefore invisible in the product, which is a very tidy way of not finding out.
 
+### `protocolEvidence`
+
+One normalised observation from an agent protocol: an MCP tool call, an A2A delegation, an AG-UI approval, an A2UI render, a UCP checkout, an AP2 mandate. Per row: `protocol`, `protocolVersion`, `kind`, `operation`, `actor`, `target`, `outcome`, `latencyMs`, `valueUsd`, `currency`, `requiredApproval`, `approvedBy`, `risk`, `evidenceRef` and a scalar-only `metadata` JSON column. Indexed on `(org_id, ts)`, `(protocol, ts)`, `(trace_id)` and `(workload_id, ts)`.
+
+**It is a separate grain from `events`, and that is the point.** An event is one model call and is priced. An observation is one thing an agent did over a protocol and is governed. An MCP `tools/list` has no tokens and no cost; putting it in `events` would make `SUM(cost_usd)` meaningless and `COUNT(*)` a number nobody could name. They are correlated by `trace_id`, which is what lets `/workloads/[id]` read one unit of work across model cost, protocol chain, side effects and verdict at once.
+
+**There is no column a protocol payload could be written to.** No arguments, no message body, no rendered data model, no signature, no credential. `metadata` accepts scalars only — at most 32 keys, string values at most 200 characters — and a nested object is a parse error rather than a flattening, because flattening is how a tool-argument blob arrives one key at a time. `evidenceRef` is a pointer into the system of record (a task id, a mandate id, a receipt id), never a copy of the object. The full argument, and the three redaction layers that enforce it, are in [Protocol evidence](07-protocol-evidence.md) and [ADR-0007](adr/0007-protocols-are-adapters-not-surfaces.md).
+
+**`outcome` carries `pending` for the same reason `actions.approvedBy` is nullable.** Without it, an approval that has been requested and not yet answered is indistinguishable from one that completed with nobody signing, and `approval_missing` would fire on every in-flight request.
+
+`valueUsd` is populated only when the observation was in USD. A non-USD amount keeps its `currency` and its raw amount in metadata, unconverted — converting at ingest would turn an observation into an estimate, and no surface could then tell you which of the two it was showing.
+
 ### `budgets`
 
 Scope, period, `limitUsd`, `warnAtPct`, and an `enforcement` mode:
@@ -80,11 +93,13 @@ Four modes rather than a boolean because a budget that can only do nothing or ki
 
 ### `alerts`
 
-Nine kinds: `loop_runaway`, `circuit_break`, `off_allowlist`, `sensitive_data`, `stale_pricing`, `budget_warn`, `budget_breach`, `unapproved_action`, `quality_regression`.
+Ten kinds: `loop_runaway`, `circuit_break`, `off_allowlist`, `sensitive_data`, `stale_pricing`, `budget_warn`, `budget_breach`, `unapproved_action`, `approval_missing`, `quality_regression`.
 
-They split cleanly into three groups — cost (`loop_runaway`, `circuit_break`, `budget_*`), correctness (`quality_regression`, `stale_pricing`), and safety (`off_allowlist`, `sensitive_data`, `unapproved_action`). Every security control the business report emits with `blocking: true` maps to one of these, which is what lets the `verifiedBy` column say something specific instead of "monitor this".
+They split cleanly into three groups — cost (`loop_runaway`, `circuit_break`, `budget_*`), correctness (`quality_regression`, `stale_pricing`), and safety (`off_allowlist`, `sensitive_data`, `unapproved_action`, `approval_missing`). Every security control the business report emits with `blocking: true` maps to one of these, which is what lets the `verifiedBy` column say something specific instead of "monitor this".
 
-A `sensitive_data` alert records the *class* of thing found and the workload it was found in. It does not record the value, and there is no column it could be written to. The reasoning is in [Architecture § Sensitive data handling in ingest](01-architecture.md#sensitive-data-handling-in-ingest).
+`approval_missing` is `unapproved_action` for the protocol grain: it fires when a protocol operation that required a human signature ran to completion (`outcome` of `ok` or `approved`) with `approvedBy` null. It does not fire on `pending`, `error`, `blocked` or `denied` — an approval in flight is the system working, and the other three mean nothing happened, so nothing needed approving. Severity follows the observation's recorded `risk`.
+
+A `sensitive_data` alert records the *class* of thing found and the workload it was found in. It does not record the value, and there is no column it could be written to. The same alert kind fires when ingest has to redact protocol evidence metadata, and follows the same rule: it reports how many fields were dropped and what class each fell into, never the value and never the caller's key — a key name can be the sensitive value itself. The reasoning is in [Architecture § Sensitive data handling in ingest](01-architecture.md#sensitive-data-handling-in-ingest).
 
 ### `qualitySamples`
 
@@ -100,9 +115,11 @@ The priors change as traffic changes. If each computation replaced the last, the
 
 ## What the ingest endpoint accepts
 
-`POST /api/v1/events` takes a batch. Each row is an event with its trace id and turn index. A trace closes when a row arrives with an outcome.
+`POST /api/v1/events` takes a batch of `events[]`, `traces[]`, `actions[]`, `qualitySamples[]` and `evidence[]`. Each event is one model call with its trace id and turn index; each evidence row is one normalised protocol observation. A trace closes when a row arrives with an outcome.
 
-The endpoint is deliberately permissive about content and strict about shape: unknown models, off-allowlist providers, and unpriceable combinations are all accepted and flagged, while a malformed row is rejected outright. Telemetry that rejects real traffic because the catalog is behind is telemetry that under-reports exactly when something unusual is happening.
+The endpoint is deliberately permissive about content and strict about shape: unknown models, off-allowlist providers, unpriceable combinations and protocol operations no adapter recognises are all accepted and flagged, while a malformed row is rejected outright. Telemetry that rejects real traffic because the catalog is behind is telemetry that under-reports exactly when something unusual is happening.
+
+The one thing it is strict about beyond shape is payloads. Evidence metadata is re-redacted before the `INSERT` even though the SDK already did it, because a hand-rolled POST did not, and that is the last place a tool-argument blob can be stopped.
 
 ## Portability
 

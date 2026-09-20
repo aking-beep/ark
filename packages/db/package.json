@@ -12,10 +12,11 @@
     "push": "node dist/push.js",
     "seed": "node dist/seed.js",
     "ingest:live": "node dist/live-ingest.js",
-    "test": "tsc -p tsconfig.json && node --test dist/ingest.test.js dist/auth.test.js dist/alerts.test.js dist/session-token.test.js"
+    "test": "tsc -p tsconfig.json && node --test dist/ingest.test.js dist/evidence.test.js dist/auth.test.js dist/alerts.test.js dist/session-token.test.js"
   },
   "dependencies": {
     "@ark/core": "*",
+    "@ark/protocols": "*",
     "@libsql/client": "^0.14.0",
     "drizzle-orm": "^0.36.0"
   },

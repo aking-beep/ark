@@ -1,0 +1,15 @@
+npm run dev — all four surfaces, after the branch
+
+  http://localhost:3000/         200   MY AI (consumer)
+  http://localhost:3001/         200   MY AI for teams (business)
+  http://localhost:3002/login    200   ARK Control
+  http://127.0.0.1:8472/health   200   MY AI API (python)
+
+my-ai python suite (npm run test:my-ai)
+  23 passed, 2 warnings in 0.44s
+
+@ark/runtime is a package, not an app:
+  workspaces: packages/* apps/*
+  apps/business
+  apps/consumer
+  apps/control

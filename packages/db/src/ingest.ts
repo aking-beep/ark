@@ -3,10 +3,13 @@ import {
   type IngestBody,
   type EventInput,
   type ActionInput,
+  type EvidenceInput,
   priceEvent,
   sensitiveLabels,
+  redactEvidence,
   budgetAction,
   strictestAction,
+  COMPLETED_OUTCOMES,
   type BudgetEnforcement,
   type BudgetAction,
 } from '@ark/core';
@@ -39,6 +42,9 @@ export interface IngestResult {
   tracesClosed: number;
   actionsAccepted: number;
   qualityAccepted: number;
+  evidenceAccepted: number;
+  /** Metadata keys dropped before the INSERT, by name. Never the values. */
+  evidenceRedacted: string[];
   priced: number;
   unpriced: number;
   alerts: number;
@@ -55,7 +61,7 @@ const s = (v: unknown) => String(v ?? '');
  */
 export async function applyIngest(body: IngestBody, opts: ApplyIngestOpts): Promise<IngestResult> {
   const c = opts.client ?? raw();
-  const { orgId, events, traces, actions, qualitySamples } = body;
+  const { orgId, events, traces, actions, qualitySamples, evidence } = body;
   const qualityMin = opts.qualityMinSamples ?? 20;
   const alerts: IngestAlert[] = [];
   const breakers: CircuitBreak[] = [];
@@ -191,6 +197,47 @@ export async function applyIngest(body: IngestBody, opts: ApplyIngestOpts): Prom
     if (qreg) alerts.push(qreg);
   }
 
+  const evidenceRedacted = new Set<string>();
+  for (const raw of evidence) {
+    // Redact again on this side of the wire. The SDK already did it, but a
+    // hand-rolled POST did not, and this is the last place before the INSERT
+    // where a payload can still be stopped.
+    const { evidence: e, redacted, classes } = redactEvidence(raw);
+    for (const key of redacted) evidenceRedacted.add(key);
+    if (classes.length > 0) alerts.push(redactionAlert(e, classes, redacted.length));
+    const ts = e.ts ?? Date.now();
+
+    if (e.traceId) {
+      // Same as actions: an observation that names a trace makes that trace
+      // real, so the cross-grain view on /workloads/[id] can find it. The row
+      // stays `pending` and carries no cost until model events arrive.
+      await c.execute({
+        sql: `INSERT OR IGNORE INTO traces (id, org_id, workload_id, started_at, outcome, total_cost_usd, total_turns, retries, escalated_to_human)
+              VALUES (?,?,?,?,'pending',0,0,0,0)`,
+        args: [e.traceId, orgId, e.workloadId ?? 'unknown', ts],
+      });
+    }
+
+    await c.execute({
+      sql: `INSERT OR IGNORE INTO protocol_evidence
+              (id, org_id, trace_id, workload_id, ts, protocol, protocol_version, kind, operation,
+               actor, target, outcome, latency_ms, value_usd, currency,
+               required_approval, approved_by, risk, evidence_ref, metadata)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      args: [
+        e.id, orgId, e.traceId ?? null, e.workloadId ?? null, ts,
+        e.protocol, e.protocolVersion ?? null, e.kind, e.operation,
+        e.actor ?? null, e.target ?? null, e.outcome, e.latencyMs ?? null,
+        e.valueUsd ?? null, e.currency ?? null,
+        e.requiredApproval ? 1 : 0, e.approvedBy ?? null, e.risk, e.evidenceRef ?? null,
+        Object.keys(e.metadata).length ? JSON.stringify(e.metadata) : null,
+      ],
+    });
+
+    const missing = approvalMissingAlert(e);
+    if (missing) alerts.push(missing);
+  }
+
   if (accepted > 0) {
     alerts.push(...(await budgetAlerts(c, orgId)));
   }
@@ -210,6 +257,8 @@ export async function applyIngest(body: IngestBody, opts: ApplyIngestOpts): Prom
     tracesClosed: traces.length,
     actionsAccepted: actions.length,
     qualityAccepted: qualitySamples.length,
+    evidenceAccepted: evidence.length,
+    evidenceRedacted: [...evidenceRedacted].sort(),
     priced,
     unpriced,
     alerts: alerts.length,
@@ -246,6 +295,87 @@ function eventAlerts(
     });
   }
   return out;
+}
+
+/**
+ * English for each class `redactMetadata` can report. A fixed table, because
+ * the point of the class vocabulary is that everything written here is ours.
+ */
+const REDACTION_CLASS_LABELS: Record<string, string> = {
+  payload_name: 'a field named as a payload or a credential',
+  non_scalar: 'a nested object or array',
+  email: 'an email address',
+  us_ssn: 'a national insurance or social security number',
+  credit_card: 'a card number',
+  us_phone: 'a phone number',
+  api_key: 'an API key',
+  iban: 'a bank account number',
+};
+
+/**
+ * Something reached ingest that the SDK should already have stripped, which
+ * means a sender is mis-integrated. Raised per observation, so it names the
+ * workload that actually carried the field rather than whichever row in the
+ * batch happened to have a workload id.
+ *
+ * What it must not do is repeat the caller's key names. They are free text of
+ * up to 64 characters and a key can be the sensitive value itself —
+ * `bob@example.com_token` is both a key name and an email address — so an
+ * alert that quoted them would make this control the very leak it exists to
+ * report. The names go back to the sender in the ingest response, which is not
+ * stored; what is stored is the class, drawn from a table this file owns. The
+ * identifying fields below (`id`, `operation`) are columns on the evidence row
+ * itself, so naming them here adds no channel that the row did not already
+ * open.
+ */
+function redactionAlert(e: EvidenceInput, classes: string[], fields: number): IngestAlert {
+  const what = classes.map((c) => REDACTION_CLASS_LABELS[c] ?? c).join(', ');
+  return {
+    // Derived from the evidence id, like the alert below, so a retried batch
+    // reports the finding once.
+    id: `al_redact_${e.id}`,
+    kind: 'sensitive_data',
+    severity: 'warn',
+    workloadId: e.workloadId ?? null,
+    message: `Protocol evidence "${e.operation}" arrived with ${fields} metadata ${fields === 1 ? 'field' : 'fields'} that could not be stored: ${what}. They were dropped before storage — ARK records normalised evidence, not protocol payloads. The field names are in the ingest response rather than here, because a key name can itself be the sensitive value. Normalise with @ark/protocols; see docs/07-protocol-evidence.md.`,
+  };
+}
+
+/**
+ * An operation that required a human signature, completed anyway, and has no
+ * signature on it.
+ *
+ * Three conditions, and the third is the one that is easy to get wrong.
+ * `pending` is not a finding — an approval that has been requested and not yet
+ * answered is the system working, and alerting on it would mean every
+ * in-flight request pages somebody. Neither are `error`, `blocked` or
+ * `denied`: nothing happened, so nothing needed approving. The finding is an
+ * operation that *went through* with nobody accountable for it, which is the
+ * same shape as `unapproved_action` on the actions table and for the same
+ * reason.
+ *
+ * Severity follows the risk the observer attached, because a missing signature
+ * on a $475 payment mandate and one on a read-only tool call are not the same
+ * page at 3am.
+ */
+function approvalMissingAlert(e: EvidenceInput): IngestAlert | null {
+  if (!e.requiredApproval) return null;
+  if (e.approvedBy) return null;
+  if (!COMPLETED_OUTCOMES.includes(e.outcome)) return null;
+
+  const severity = e.risk === 'critical' || e.risk === 'high' ? 'critical' : e.risk === 'medium' ? 'warn' : 'info';
+  const where = [e.actor, e.target].filter(Boolean).join(' → ');
+  const value = e.valueUsd != null ? ` It acted on $${e.valueUsd.toFixed(2)}.` : '';
+
+  return {
+    // Derived from the evidence id, so re-posting the same observation does
+    // not accumulate alerts. Matches `al_unap_` on actions.
+    id: `al_apprmiss_${e.id}`,
+    kind: 'approval_missing',
+    severity,
+    workloadId: e.workloadId ?? null,
+    message: `${e.protocol.toUpperCase()} "${e.operation}"${where ? ` (${where})` : ''} completed with no approval record, and this operation requires one.${value} Risk was recorded as ${e.risk}.`,
+  };
 }
 
 async function qualityRegressionAlert(

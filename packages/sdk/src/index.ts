@@ -1,10 +1,13 @@
 import {
   IngestBody,
   EventInput,
+  EvidenceInput,
   type TraceClose,
   type ActionInput,
   type QualitySampleInput,
+  type EvidenceObservation,
   detectSensitive,
+  redactEvidence,
 } from '@ark/core';
 
 export interface ArkClientOptions {
@@ -16,8 +19,9 @@ export interface ArkClientOptions {
   /** Bound on the ingest POST. A hung Control must not hang the caller. */
   timeoutMs?: number;
   /**
-   * Scan `sample` locally and send labels only. Default true — the prompt
-   * never has to leave the process if you set this.
+   * Scan `sample` locally and send labels only, and redact protocol evidence
+   * metadata before it is posted. Default true — with it on, neither a prompt
+   * nor a protocol payload has to leave the process at all.
    */
   scanLocally?: boolean;
 }
@@ -96,6 +100,9 @@ export interface IngestResponse {
   tracesClosed: number;
   actionsAccepted?: number;
   qualityAccepted?: number;
+  evidenceAccepted?: number;
+  /** Metadata keys Control dropped before storing. Names only, never values. */
+  evidenceRedacted?: string[];
   priced: number;
   unpriced: number;
   alerts: number;
@@ -107,6 +114,7 @@ export class TraceHandle {
   private events: EventInput[] = [];
   private actions: ActionInput[] = [];
   private quality: QualitySampleInput[] = [];
+  private evidenceRows: EvidenceInput[] = [];
   private closed: TraceClose | null = null;
 
   constructor(
@@ -152,6 +160,31 @@ export class TraceHandle {
     return this;
   }
 
+  /**
+   * Record one normalised protocol observation on this trace.
+   *
+   * Takes what `@ark/protocols` produces, so the usual call reads
+   * `trace.evidence(mcpEvidence({ ... }))`. The trace id is this handle's and
+   * is not overridable, exactly as in `event()` and `action()` above: that is
+   * the whole point of recording on a handle, and an adapter that carried a
+   * stale `traceId` would otherwise silently re-point the observation at
+   * another unit of work. The workload may be overridden, because one trace
+   * can legitimately touch more than one.
+   *
+   * With `scanLocally` on (the default) metadata is redacted here, before the
+   * POST, so a payload the caller attached never leaves this process.
+   */
+  evidence(observation: EvidenceObservation): this {
+    const parsed = EvidenceInput.parse({
+      ...observation,
+      id: observation.id ?? id('pe'),
+      traceId: this.traceId,
+      workloadId: observation.workloadId ?? this.workloadId,
+    });
+    this.evidenceRows.push(this.scanLocally ? redactEvidence(parsed).evidence : parsed);
+    return this;
+  }
+
   qualitySample(draft: Omit<QualitySampleInput, 'id' | 'workloadId'> & { id?: string }): this {
     this.quality.push({
       ...draft,
@@ -184,10 +217,12 @@ export class TraceHandle {
       traces: this.closed ? [this.closed] : [],
       actions: this.actions,
       qualitySamples: this.quality,
+      evidence: this.evidenceRows,
     };
     this.events = [];
     this.actions = [];
     this.quality = [];
+    this.evidenceRows = [];
     return this.client.ingest(body);
   }
 }

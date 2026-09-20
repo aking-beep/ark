@@ -1,0 +1,21 @@
+{
+  "name": "@ark/protocols",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsc -p tsconfig.json && node --test dist/mcp.test.js dist/a2a.test.js dist/ag-ui.test.js dist/a2ui.test.js dist/ucp.test.js dist/ap2.test.js dist/redaction.test.js"
+  },
+  "dependencies": {
+    "@ark/core": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "@types/node": "^22.9.0"
+  }
+}

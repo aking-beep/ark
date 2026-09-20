@@ -1,7 +1,11 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { listWorkloads, spendSummary, observedShape, actionAudit, qualityByWorkload } from '@ark/db';
-import { Panel, Grid, Stat, Badge, BasisTag, Table, Td, Callout, fmt } from '@ark/ui';
+import {
+  listWorkloads, spendSummary, observedShape, actionAudit, qualityByWorkload,
+  richestProtocolTrace, traceStory, type TraceStory,
+} from '@ark/db';
+import { PROTOCOL_LABELS } from '@ark/protocols';
+import { Panel, Grid, Stat, Badge, BasisTag, Table, Td, Callout, fmt, type Tone } from '@ark/ui';
 import { requireOrg, WINDOW_DAYS } from '@/lib/org';
 
 export const dynamic = 'force-dynamic';
@@ -20,6 +24,11 @@ export default async function WorkloadDetail({ params }: { params: Promise<{ id:
 
   const w = workloads.find((x) => x.id === id);
   if (!w) notFound();
+
+  // The trace that crosses the most protocols, read across all four grains.
+  // A trace with one protocol on it demonstrates nothing the rollup did not.
+  const richest = await richestProtocolTrace(orgId, id, WINDOW_DAYS);
+  const story = richest ? await traceStory(orgId, richest) : null;
 
   const s = spend.byWorkload.find((x) => x.workloadId === id);
   const q = quality.find((x) => x.workloadId === id);
@@ -152,6 +161,8 @@ export default async function WorkloadDetail({ params }: { params: Promise<{ id:
         </div>
       </div>
 
+      {story && <TraceStoryPanel story={story} />}
+
       {a?.security?.controls?.length ? (
         <Panel
           title="Security controls"
@@ -173,6 +184,118 @@ export default async function WorkloadDetail({ params }: { params: Promise<{ id:
         </Panel>
       ) : null}
     </div>
+  );
+}
+
+const OUTCOME_TONE: Record<string, Tone> = {
+  ok: 'good', approved: 'good', pending: 'info', error: 'danger', blocked: 'warn', denied: 'warn',
+  success: 'good', failure: 'danger', escalated: 'warn', abandoned: 'warn',
+};
+
+/**
+ * One unit of business work, read across all four grains at once.
+ *
+ * The model cost comes from `events`, the protocol chain from
+ * `protocol_evidence`, the side effects from `actions` and the verdict from
+ * `traces`. They are four tables joined on one trace id, and they stay four
+ * tables: merging them would make every count on the Spend page ambiguous
+ * about what it was counting.
+ */
+function TraceStoryPanel({ story }: { story: TraceStory }) {
+  return (
+    <Panel
+      title="One trace, end to end"
+      subtitle="The trace in this workload crossing the most protocols. Four grains, one unit of work, correlated by trace id."
+      right={<span className="font-mono">{story.traceId}</span>}
+    >
+      <ol className="space-y-0">
+        {story.models.map((m) => (
+          <StoryStep key={m.modelId} grain="MODEL" tone="signal" title={m.modelId}>
+            {fmt.int(m.calls)} {m.calls === 1 ? 'call' : 'calls'} on {m.provider} &middot;{' '}
+            <span className="font-mono text-ink-200">{fmt.usd(m.costUsd)}</span>
+          </StoryStep>
+        ))}
+
+        {story.evidence.map((e) => (
+          <StoryStep
+            key={e.id}
+            grain={PROTOCOL_LABELS[e.protocol as keyof typeof PROTOCOL_LABELS] ?? e.protocol.toUpperCase()}
+            tone={OUTCOME_TONE[e.outcome] ?? 'neutral'}
+            title={e.operation}
+          >
+            {e.actor || e.target ? (
+              <span className="font-mono">
+                {e.actor ?? '—'} <span className="text-ink-600">→</span> {e.target ?? '—'}
+              </span>
+            ) : null}
+            {e.valueUsd != null && <> &middot; <span className="font-mono text-ink-200">{fmt.usd(e.valueUsd, 2)}</span></>}
+            {e.requiredApproval && (
+              <>
+                {' '}
+                &middot;{' '}
+                {e.approvedBy ? (
+                  <span className="text-good">approved by {e.approvedBy}</span>
+                ) : e.outcome === 'pending' ? (
+                  <span className="text-info">awaiting approval</span>
+                ) : (
+                  <span className="text-danger">no approval on record</span>
+                )}
+              </>
+            )}
+            {e.latencyMs != null && <span className="ml-2 font-mono text-ink-600">{fmt.int(e.latencyMs)}ms</span>}
+          </StoryStep>
+        ))}
+
+        {story.actions.map((x, i) => (
+          <StoryStep key={`${x.name}-${i}`} grain="ACTION" tone="warn" title={x.name}>
+            <span className="font-mono">{x.system}</span> &middot; {x.blastRadius}
+            {x.valueUsd != null && <> &middot; <span className="font-mono text-ink-200">{fmt.usd(x.valueUsd, 2)}</span></>}
+            {x.approvedBy && <> &middot; <span className="text-good">approved by {x.approvedBy}</span></>}
+          </StoryStep>
+        ))}
+
+        <StoryStep grain="OUTCOME" tone={OUTCOME_TONE[story.outcome] ?? 'neutral'} title={story.outcome} last>
+          {fmt.int(story.totalTurns)} {story.totalTurns === 1 ? 'turn' : 'turns'} &middot;{' '}
+          <span className="font-mono text-ink-200">{fmt.usd(story.totalCostUsd)}</span> of model spend &middot;{' '}
+          {fmt.when(story.startedAt)}
+        </StoryStep>
+      </ol>
+
+      <p className="mt-4 text-2xs leading-relaxed text-ink-500">
+        Model spend on this trace is {fmt.usd(story.totalCostUsd)}. The protocol evidence above cost nothing to
+        record and is the only reason you can tell what that money bought.
+      </p>
+    </Panel>
+  );
+}
+
+function StoryStep({
+  grain, tone, title, children, last,
+}: {
+  grain: string;
+  tone: Tone;
+  title: string;
+  children?: React.ReactNode;
+  last?: boolean;
+}) {
+  const dot: Record<Tone, string> = {
+    neutral: 'bg-ink-500', good: 'bg-good', warn: 'bg-warn',
+    danger: 'bg-danger', info: 'bg-info', signal: 'bg-signal',
+  };
+  return (
+    <li className="flex gap-4">
+      <div className="flex w-20 shrink-0 justify-end pt-1">
+        <span className="font-mono text-2xs uppercase tracking-wider text-ink-500">{grain}</span>
+      </div>
+      <div className="relative flex flex-col items-center">
+        <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${dot[tone]}`} />
+        {!last && <span className="w-px flex-1 bg-ink-700" />}
+      </div>
+      <div className={last ? 'min-w-0 pb-0' : 'min-w-0 pb-4'}>
+        <p className="text-sm text-ink-100">{title}</p>
+        {children && <p className="mt-0.5 text-xs leading-relaxed text-ink-400">{children}</p>}
+      </div>
+    </li>
   );
 }
 

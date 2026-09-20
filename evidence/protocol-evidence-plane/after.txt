@@ -1,0 +1,30 @@
+@ark/core resolves                             yes
+@ark/db resolves                               yes
+@ark/protocols resolves                        yes
+core exports EvidenceInput                     yes
+core exports redactEvidence                    yes
+DDL declares protocol_evidence                 yes
+tables in pushed schema                        15
+protocol_evidence table exists                 yes
+evidence-only body parses                      yes
+evidence accepted by applyIngest               1
+duplicate evidence id is a no-op               yes (1 row after 2 posts)
+evidence trace/workload/org                    tr_probe/wl_probe/org_demo
+mcp adapter leaks raw args/results             no
+a2ui adapter leaks application data            no
+nested metadata rejected at schema             yes
+redactEvidence strips payload metadata         yes (arguments,note)
+approval_missing fires on completed            yes (critical)
+approval_missing silent while pending          yes
+evidence rows per org                          org_demo=3 org_other=1
+sdk trace.evidence() correlation               tr_sdk/wl_probe
+model event: unpriced but stored               1/1
+model event: loop_runaway breaks               true
+action: unapproved_action fires                1/1
+event: sample scanned then discarded           ["email"] / no sample column=true
+adapter mcp                                    mcp v2026-07-28 tool tools/call:search_customer ok risk=medium
+adapter a2a                                    a2a v1.0 delegation delegate ok risk=medium
+adapter ag-ui                                  ag-ui v1.0 approval approval.requested pending risk=medium
+adapter a2ui                                   a2ui v0.9.1 ui updateComponents ok risk=medium
+adapter ucp                                    ucp v2026-08-25 commerce complete_checkout ok risk=high
+adapter ap2                                    ap2 v0.2 payment payment_mandate ok risk=high
