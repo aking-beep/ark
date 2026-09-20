@@ -20,7 +20,7 @@ That is the whole product thesis in one sentence: **the estimator does not get m
 
 ## How it fits together
 
-Three products, one loop, two things that are not products.
+Three products — not one suite with three tabs. Two libraries that are not products.
 
 - **MY AI** (`:3000`) is a personal quiz. Paste-ready `CLAUDE.md`, Cursor rules, `AGENTS.md`. It does not talk to the other two, and they do not link to it.
 - **MY AI for teams** (`:3001`) is the estimator. Thirty questions, a verdict that can be `not-ai`, every figure labelled.

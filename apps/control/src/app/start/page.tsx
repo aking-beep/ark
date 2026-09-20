@@ -19,17 +19,20 @@ export default async function Start() {
         </p>
       </header>
 
-      <ol className="grid gap-4 lg:grid-cols-3">
-        <Step n="1" title="Wrap the SDK you already have">
+      <Step n="1" title="Wrap the SDK you already have">
+        <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
           <p>
             <code className="font-mono text-signal">run()</code> is one unit of business work.{' '}
             <code className="font-mono text-signal">instrumentFetch</code> records each OpenAI{' '}
             <code className="font-mono">/chat/completions</code> or Anthropic{' '}
             <code className="font-mono">/v1/messages</code> call as a turn on that unit. The prompt never
-            leaves the process.
+            leaves the process. This is Control&apos;s path. It does not open MY AI or MY AI for teams.
           </p>
-          <pre className="mt-3 overflow-x-auto rounded-lg bg-ink-900 p-4 font-mono text-2xs leading-relaxed text-ink-200">{SDK_SNIPPET}</pre>
-        </Step>
+          <pre className="overflow-x-auto rounded-lg bg-ink-900 p-4 font-mono text-2xs leading-relaxed text-ink-200">{SDK_SNIPPET}</pre>
+        </div>
+      </Step>
+
+      <div className="grid gap-4 lg:grid-cols-2">
         <Step n="2" title="Or send one sample from MY AI for teams">
           <p>
             A report on port 3001 can <code className="font-mono text-signal">POST /api/measure</code> — one
@@ -47,7 +50,7 @@ export default async function Start() {
           </p>
           <pre className="mt-3 overflow-x-auto rounded-lg bg-ink-900 p-4 font-mono text-2xs leading-relaxed text-ink-200">{EVIDENCE_SNIPPET}</pre>
         </Step>
-      </ol>
+      </div>
 
       <Callout tone="info" title="The token stays in the environment">
         Snippets name <code className="font-mono">ARK_CONTROL_URL</code> and{' '}

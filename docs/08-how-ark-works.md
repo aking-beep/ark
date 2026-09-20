@@ -2,6 +2,18 @@
 
 This is the map. The thesis is [why](00-thesis.md). The architecture is [how it is built](01-architecture.md). This page is **what talks to what**, what a request looks like from a quiz to a drift number, and what is forbidden.
 
+## Three products, not one suite
+
+**MY AI**, **MY AI for teams**, and **ARK Control** are three products. They share a thesis — a guess and a measurement never look the same on screen — and they do not share a homepage, a login, or a funnel.
+
+- **MY AI** (`:3000`) is a personal fit quiz. Five minutes. You walk away with `CLAUDE.md`, Cursor rules, and `AGENTS.md`. It talks only to its own Python API.
+- **MY AI for teams** (`:3001`) is a workload estimator. Thirty questions about one repeating job. It can say `not-ai`. It talks only to Control.
+- **ARK Control** (`:3002`) is production measurement. Traces, protocol evidence, spend per outcome, drift. It does not sit in the request path.
+
+A person who finishes the quiz is not invited to assess a workload. A team that finishes an assessment is not invited to take the quiz. Control does not deep-link either of them as a next step. That is a product decision, not an omission. See [`specs/three-product-runtime.md`](../specs/three-product-runtime.md).
+
+The rest of this page is how they flow together **when they do talk** — which is only teams ↔ Control.
+
 ## Three products, two libraries that are not products
 
 ```
@@ -31,7 +43,7 @@ This is the map. The thesis is [why](00-thesis.md). The architecture is [how it 
 | **`@ark/runtime`** | — | Policy → router → provider → eval → ingest. | Imported. Not an app. |
 | **`@ark/protocols`** | — | MCP, A2A, AG-UI, A2UI, UCP, AP2 → one evidence grain. | Imported. Executes nothing. |
 
-MY AI and MY AI for teams **do not link to each other.** That is a product decision, not an omission: the consumer quiz is not a funnel that softens a team workload assessment. See [`specs/three-product-runtime.md`](../specs/three-product-runtime.md).
+MY AI and MY AI for teams **do not link to each other.** The consumer quiz is not a funnel that softens a team workload assessment.
 
 ## The only runtime wire: teams ↔ Control
 
