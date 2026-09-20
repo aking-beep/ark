@@ -27,11 +27,24 @@ This matters because the failure mode it prevents is the dangerous one. If MY AI
 
 The first-party caller in this repo is **MY AI for teams** `POST /api/measure`. It runs one synthetic sample (workload id and task shapes, never the description) through `execute` on the operator's configured model (`ARK_OLLAMA_MODEL` when set — not the estimator's catalog id) and lets Runtime ingest it. It is opt-in from a report, not a gateway sitting in production traffic.
 
+## Protocol observation layer
+
+`@ark/protocols` is a library in `packages/protocols`, not six products and not six routes. It normalises MCP, A2A, AG-UI, A2UI, UCP and AP2 into one canonical `EvidenceInput` that `@ark/core` owns, and the dependency points one way: `@ark/core` does not depend on `@ark/protocols`, or the canonical schema would become a function of six external release cycles.
+
+```
+MCP  A2A  AG-UI  A2UI  UCP  AP2  →  @ark/protocols  →  @ark/sdk  →  POST /api/v1/events
+                                    normalise+redact    same trace     evidence[]
+```
+
+It executes nothing — no tool call, no task submission, no render, no checkout, no payment — and has no I/O. It is fed by whatever already observes the protocol.
+
+Protocol evidence is a **fourth grain**, in `protocol_evidence`, correlated to model events, actions and traces by trace id rather than merged with them. An MCP `tools/list` has no cost; folding it into `events` would make `SUM(cost_usd)` meaningless. See [Protocol evidence](07-protocol-evidence.md) and [ADR-0007](adr/0007-protocols-are-adapters-not-surfaces.md).
+
 ## Data flow, end to end
 
 1. **Runtime emits.** A workload in production — including `@ark/runtime` via MY AI for teams `POST /api/measure` — POSTs to `/api/v1/events` — one row per model call, tagged with a trace id, a turn index, model, provider, token counts, latency, and an outcome when the trace closes.
 2. **Control prices and rolls up.** Each event is priced against the model catalog. Unpriceable events (unknown model, off-allowlist provider) are accepted, flagged, and counted — never dropped, because the traffic happened whether or not the catalog knows about it.
-3. **Control detects.** Turn ceiling breached → `loop_runaway`. Trace cost ceiling breached → `circuit_break`. Provider outside the allowlist → `off_allowlist`. Prompt sample matching a sensitive-data detector → `sensitive_data`. Model price past its `asOf` window → `stale_pricing`.
+3. **Control detects.** Turn ceiling breached → `loop_runaway`. Trace cost ceiling breached → `circuit_break`. Provider outside the allowlist → `off_allowlist`. Prompt sample matching a sensitive-data detector → `sensitive_data`. Model price past its `asOf` window → `stale_pricing`. A protocol operation that required a human signature, completed, and has none → `approval_missing`.
 4. **Control computes priors.** Per architecture pattern, over a rolling window: turns per outcome, context growth per turn, failure rate, retries per failure, cache hit rate, cost per outcome, p95 turns, sample size.
 5. **MY AI for teams consumes.** `GET /api/v1/calibration?days=30` returns those priors with `basis: "measured"`. Patterns below the 30-trace floor are returned but marked, and `resolveCallShape` declines to use them.
 6. **Control closes the loop.** `/workloads/[id]` compares what MY AI for teams predicted against what the workload actually costs and renders the drift as a percentage. This is the page that keeps the rubric honest, and it is the reason the estimate has a name and a date attached to it.
@@ -45,6 +58,8 @@ One design decision does most of the work in step 4 above: events carry a `turn`
 The ingest endpoint accepts an optional `sample` field — a prompt excerpt — so it can detect PII, credentials, and payment data reaching a model provider. It scans the sample and then discards it. The alert records what class of thing was found and in which workload; it does not record the value.
 
 A control that logs the PII it found in order to warn you about PII is not a control.
+
+Protocol evidence applies the same rule at three depths. The adapters in `@ark/protocols` build their output from named safe fields rather than by spreading the caller's input, so a tool-argument blob has no path into the output at all. `EvidenceInput.metadata` admits scalars only, so a nested payload is a parse error rather than a flattening. And `redactEvidence` runs in the SDK before the POST and again in `applyIngest` before the `INSERT`, dropping keys that name a payload or a credential and values that trip the same detectors. Ingest reports the *names* of what it dropped and raises `sensitive_data`; it never reports the value. Full reasoning in [Protocol evidence § Redaction](07-protocol-evidence.md#redaction-three-layers-and-none-of-them-is-a-promise).
 
 ## Why SQLite first
 

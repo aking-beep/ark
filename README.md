@@ -6,7 +6,7 @@ Three products, one engine, one commitment: **a guess and a measurement never lo
 |---|---|---|
 | **MY AI** (consumer) | 3000 | Five-minute quiz: your AI style, matched tools, paste-ready setup files. |
 | **MY AI for teams** (business) | 3001 | Thirty questions about one workload. Verdict, architecture, model, controls, eval plan, cost, roadmap. |
-| **ARK Control** | 3002 | Telemetry ingest and cost governance for AI workloads in production. Measures what MY AI for teams estimated. |
+| **ARK Control** | 3002 | The evidence and control plane for production AI: telemetry ingest, cost governance, and protocol evidence from MCP, A2A, AG-UI, A2UI, UCP and AP2. Measures what MY AI for teams estimated. |
 
 ![Three surfaces, one engine, one wire between them](docs/diagrams/system-map.svg)
 
@@ -17,6 +17,16 @@ Most tools in this category are estimators: they take a description of a workloa
 ARK Control is the thing that manufactures ground truth. It ingests traces from running workloads, computes observed call shapes per architecture pattern, and serves them at `GET /api/v1/calibration`. MY AI for teams calls that endpoint. When it answers, cost figures are labelled `measured` and carry a sample size. When it does not answer — which is the default, because most people will run MY AI for teams before they run Control — the assessment still completes and every figure is labelled `heuristic`.
 
 That is the whole product thesis in one sentence: **the estimator does not get more confident over time, it gets more informed, and it tells you which one just happened.**
+
+## Protocols are adapters, not products
+
+A production agent calls a CRM over MCP, delegates to a peer over A2A, asks a human over AG-UI, renders a confirmation over A2UI, completes a checkout over UCP and authorises the money over AP2. Control used to see one thing from all of that: a row of model calls and a cost.
+
+It now sees all six, as **one grain**. `@ark/protocols` normalises each protocol into a canonical `EvidenceInput` that rides the existing `POST /api/v1/events` on the existing trace id, and `/protocols` answers which protocols are active, what ran, where humans intervened, which required approvals are missing, and how much money was acted on. There is no MCP product, no AP2 dashboard and no table per protocol — adding a seventh protocol is one file. The alternatives, and why they lose, are in [ADR-0007](docs/adr/0007-protocols-are-adapters-not-surfaces.md).
+
+**ARK does not store the protocol payload.** No tool arguments, no message bodies, no rendered data models, no signed mandates, no credentials. The adapters build their output from named safe fields rather than filtering the caller's input, so a payload has no path in; the schema admits scalars only; and redaction runs once in the SDK before the POST and again in ingest before the `INSERT`. An AP2 mandate is recorded as `evidenceRef: 'mandate_829'` — a pointer into the credential store that already holds it. See [`docs/07-protocol-evidence.md`](docs/07-protocol-evidence.md).
+
+`@ark/protocols` executes nothing. No tool is called, no task submitted, no UI rendered, no checkout completed, no money moved.
 
 ## The provenance ladder
 
@@ -71,8 +81,9 @@ Host all four processes (MY AI API + three Next apps) with Docker: [`docs/05-hos
 packages/
   core/       the engine — schema, scoring, economics, model catalog, calibration client
   db/         Drizzle schema + seed for Control
+  protocols/  protocol adapters — MCP, A2A, AG-UI, A2UI, UCP, AP2 → one evidence grain
   ui/         shared component vocabulary and Tailwind preset
-  sdk/        ingest client — trace ids, turn indices, POST /api/v1/events
+  sdk/        ingest client — trace ids, turn indices, protocol evidence, POST /api/v1/events
   providers/  execution adapters — Ollama (local), Bedrock, OpenAI-compatible
   evals/      deterministic quality, latency, cost, reliability of one call
   runtime/    internal execution layer — policy → router → provider → eval → Control
@@ -86,6 +97,8 @@ docs/         thesis, architecture, PRDs, methodology, data model, ADRs
 
 Runtime is not a fourth app. Callers import `@ark/runtime`. There is no `apps/runtime`. The in-repo first-party caller is MY AI for teams `POST /api/measure` (one synthetic sample into Control).
 
+`@ark/protocols` is not six apps either, for the same reason. It depends on `@ark/core` and nothing else, and `@ark/core` does not depend on it — the canonical evidence schema must not become a function of six external release cycles.
+
 ### The boundary that matters
 
 `apps/consumer` and `apps/business` **do not depend on `@ark/db`**. Consumer MY AI uses the Python engine under `my-ai/`; business uses `@ark/core`. The only coupling between **business** MY AI for teams and Control is one documented HTTP call that is allowed to fail. `fetchCalibration()` returns `null` on timeout, non-200, or schema mismatch, and the product degrades honestly rather than breaking or — worse — silently substituting a guess for a measurement.
@@ -98,7 +111,7 @@ Consumer MY AI keeps quiz progress in the browser (`localStorage`) and scores vi
 npm run dev            # MY AI API + consumer + business + control
 npm run dev:ark        # business (:3001) and Control (:3002) only
 npm run build          # packages, then all three apps
-npm run test           # @ark/core, db, SDK, providers, evals, runtime
+npm run test           # @ark/core, protocols, db, SDK, providers, evals, runtime
 npm run smoke:runtime  # Runtime dry-run (+ live providers when env is set)
 npm run test:my-ai     # MY AI Python engine (pytest)
 npm run typecheck      # every workspace
@@ -115,8 +128,9 @@ npm run ingest:live    # POST live traces for the Northwind org (not SQL-inserte
 5. [`docs/04-roadmap.md`](docs/04-roadmap.md) — phases with exit criteria *and* kill criteria
 6. [`docs/05-hosting.md`](docs/05-hosting.md) — Docker and production env
 7. [`docs/06-aifit-consumer.md`](docs/06-aifit-consumer.md) — MY AI consumer (merged from aifit-engine)
-8. [`docs/adr/`](docs/adr/) — the decisions that would otherwise be re-litigated every quarter (including [ADR-0006](docs/adr/0006-runtime-is-not-a-surface.md): Runtime is a library, not a surface)
-9. [`docs/prd/`](docs/prd/) — one per surface: who it is for, what it refuses to do
+8. [`docs/07-protocol-evidence.md`](docs/07-protocol-evidence.md) — the six protocols, the fourth grain, and the three redaction layers
+9. [`docs/adr/`](docs/adr/) — the decisions that would otherwise be re-litigated every quarter (including [ADR-0006](docs/adr/0006-runtime-is-not-a-surface.md): Runtime is a library, not a surface, and [ADR-0007](docs/adr/0007-protocols-are-adapters-not-surfaces.md): protocols are adapters, not surfaces)
+10. [`docs/prd/`](docs/prd/) — one per surface: who it is for, what it refuses to do
 
 If you would rather see the five arguments than read them, [`docs/diagrams/`](docs/diagrams/) is an index of the same material: the system map above, the trace-versus-event comparison, the verdict ladder drawn from the source, the provenance ladder worked end to end, and the calibration loop.
 
