@@ -106,6 +106,22 @@ line('same in the cross-grain trace view', story?.evidence[0]?.workloadName === 
 const ours = await db.recentEvidence('org_demo');
 line('own rows still resolve their name', ours.some((r) => r.workloadName === 'Project Redacted - M&A due diligence') ? 'yes' : 'NO');
 
+/* --- round-2 note 1: the same join, on the alert list this feature feeds --- */
+// recentAlerts was already unscoped, but until protocol evidence existed an
+// alert's workload_id came from a workload ARK had matched. The two evidence
+// alerts carry the sender's, so the gap became reachable through this diff.
+await db.applyIngest(
+  core.IngestBody.parse({
+    orgId: 'org_other',
+    evidence: [ev({ id: 'pe_f2b', workloadId: 'wl_secret', operation: 'tools/call:peek2', metadata: { arguments: 'x' } })],
+  }),
+  opts,
+);
+const theirAlert = (await db.recentAlerts('org_other')).find((a) => a.kind === 'sensitive_data');
+line('alert list resolves a foreign workload name', theirAlert?.workloadName === null ? 'no' : `YES (${theirAlert?.workloadName})`);
+const ourAlerts = await db.recentAlerts('org_demo');
+line('own alerts still name their workload', ourAlerts.some((a) => a.workloadName === 'Project Redacted - M&A due diligence') ? 'yes' : 'NO');
+
 /* --- finding 3: the denylist only caught payload words at the end of a key --- */
 const NAMES = [
   'argsJson', 'toolInput', 'userText', 'msg', 'requestBlob', 'resultData',

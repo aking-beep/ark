@@ -9,6 +9,8 @@ cross-org row still claims the id                  wl_secret
 cross-org read resolves the name                   no
 same in the cross-grain trace view                 no
 own rows still resolve their name                  yes
+alert list resolves a foreign workload name        no
+own alerts still name their workload               yes
 payload-ish names the denylist misses              0/16
 adapter metadata still survives the denylist       19/19
 sdk evidence trace id                              tr_real

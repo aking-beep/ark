@@ -102,7 +102,7 @@ Repo checks, run at the tip of the branch:
 | Command | Result |
 |---|---|
 | `npm run typecheck` | exit 0 |
-| `npm run test` | 284 tests, 284 pass, 0 fail (161 before this branch; +123 new) |
+| `npm run test` | 285 tests, 285 pass, 0 fail (161 before this branch; +124 new) |
 | `npm run build` | exit 0, `/protocols` in the route manifest |
 | `npm ci && npm run setup` | exit 0 from a clean lockfile install |
 
@@ -125,6 +125,18 @@ Note 7 — the evidence loop is not transactional — is left as it is. It is th
 pre-existing pattern for events, actions and quality samples, the idempotent
 primary key means a re-posted batch converges, and changing it for one grain
 would make the four inconsistent. It belongs in its own spec.
+
+### One more, found in round 2
+
+`recentAlerts` (`queries.ts:242`) had the same unscoped join, and round 1 parked
+it as pre-existing and out of scope. Round 2 showed it is not out of scope any
+more: until this feature existed, an alert's `workload_id` came from a workload
+ARK had already matched, and the two evidence alerts are the first to carry the
+`workloadId` the *sender* supplied. Round 2 confirmed the disclosure by posting
+as one org and reading `Project Redacted - M&A due diligence` off its own
+`/dashboard`. This diff opened it, so this diff closes it: `AND w.org_id =
+a.org_id`, measured in `after-findings.txt`, with the org's own alerts still
+naming their workload.
 
 `probe.mjs` was re-run unchanged after the fixes and its output is byte-identical
 to the capture taken before them, so none of this moved the original claims.
@@ -201,6 +213,15 @@ and the seed now draws only from traces that have already started, because
 `started_at` is jittered across its day and today's traces sit in the future. The
 first is a one-line change in a shared primitive and does affect other pages —
 it can only make a negative duration render as zero, which no page wants.
+
+**One pre-existing function was changed:** `recentAlerts`, which `/dashboard`
+and `/budgets` both read. The spec did not ask for it and round 1 ruled the
+unscoped join out of scope as pre-existing. Round 2 showed this diff is what
+makes it reachable — the evidence alerts are the first to carry a caller-supplied
+`workloadId` — so leaving it would have meant shipping a cross-tenant
+disclosure that this feature opened. The change is one predicate on a join and
+cannot widen what a page returns, only narrow it to the org already being
+queried.
 
 **The route sweep expects a 404.** `pages.mjs` asserts that Northwind gets 404 on
 the demo org's workload URL. That 404 is the tenancy boundary, not a broken page,
