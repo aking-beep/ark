@@ -104,6 +104,68 @@ export const actions = sqliteTable('actions', {
   credentialId: text('credential_id'),
 }, (t) => ({ byTrace: index('actions_trace_idx').on(t.traceId) }));
 
+/**
+ * One normalised observation from an agent protocol.
+ *
+ * A fourth grain, beside events (one model call), actions (one side effect)
+ * and traces (one unit of business work). Folding protocol observations into
+ * `events` would break the one number the whole schema exists to compute:
+ * cost per outcome is `SUM(events.cost) / COUNT(DISTINCT traces)`, and an MCP
+ * tool call has no cost and is not a call to a model.
+ *
+ * Every column here is a label, an identifier or a measurement. There is no
+ * column a tool argument, a message body, a rendered data model or a signed
+ * mandate could be written to, which is the point — see ADR-0007 and
+ * docs/07-protocol-evidence.md.
+ */
+export const protocolEvidence = sqliteTable('protocol_evidence', {
+  id: text('id').primaryKey(),
+  orgId: text('org_id').notNull(),
+  /** Correlates to the unit of business work. Null for uncorrelated observation. */
+  traceId: text('trace_id'),
+  workloadId: text('workload_id'),
+  ts: integer('ts', { mode: 'timestamp' }).notNull(),
+
+  protocol: text('protocol', { enum: ['mcp', 'a2a', 'ag-ui', 'a2ui', 'ucp', 'ap2'] }).notNull(),
+  /** The protocol's own version string, as observed. Never ARK's. */
+  protocolVersion: text('protocol_version'),
+
+  kind: text('kind', {
+    enum: ['tool', 'resource', 'prompt', 'discovery', 'delegation', 'task',
+           'human_input', 'approval', 'ui', 'commerce', 'payment', 'receipt', 'other'],
+  }).notNull(),
+  /** The operation in the protocol's vocabulary, e.g. `tools/call:search_customer`. */
+  operation: text('operation').notNull(),
+
+  actor: text('actor'),
+  target: text('target'),
+
+  outcome: text('outcome', { enum: ['ok', 'error', 'blocked', 'pending', 'approved', 'denied'] })
+    .notNull().default('ok'),
+  latencyMs: integer('latency_ms'),
+
+  /** Only populated when the observed currency was USD. See `currency`. */
+  valueUsd: real('value_usd'),
+  currency: text('currency'),
+
+  requiredApproval: integer('required_approval', { mode: 'boolean' }).notNull().default(false),
+  /** Null when no approval record exists — the condition `approval_missing` reads. */
+  approvedBy: text('approved_by'),
+
+  risk: text('risk', { enum: ['low', 'medium', 'high', 'critical'] }).notNull().default('low'),
+
+  /** A pointer into the system of record — task id, mandate id, receipt id. Never the object. */
+  evidenceRef: text('evidence_ref'),
+
+  /** Low-cardinality scalars only. Enforced by @ark/core's EvidenceInput, not by SQLite. */
+  metadata: text('metadata', { mode: 'json' }).$type<Record<string, string | number | boolean>>(),
+}, (t) => ({
+  byTs: index('protocol_evidence_ts_idx').on(t.orgId, t.ts),
+  byProtocol: index('protocol_evidence_protocol_idx').on(t.protocol, t.ts),
+  byTrace: index('protocol_evidence_trace_idx').on(t.traceId),
+  byWorkload: index('protocol_evidence_workload_idx').on(t.workloadId, t.ts),
+}));
+
 /** Spend ceilings with an enforcement mode. A budget you cannot enforce is a wish. */
 export const budgets = sqliteTable('budgets', {
   id: text('id').primaryKey(),
@@ -123,7 +185,8 @@ export const alerts = sqliteTable('alerts', {
   ts: integer('ts', { mode: 'timestamp' }).notNull(),
   kind: text('kind', {
     enum: ['budget_warn', 'budget_breach', 'circuit_break', 'sensitive_data', 'off_allowlist',
-           'unapproved_action', 'loop_runaway', 'quality_regression', 'stale_pricing'],
+           'unapproved_action', 'loop_runaway', 'quality_regression', 'stale_pricing',
+           'approval_missing'],
   }).notNull(),
   severity: text('severity', { enum: ['info', 'warn', 'critical'] }).notNull(),
   workloadId: text('workload_id'),
@@ -159,6 +222,7 @@ export type Workload = typeof workloads.$inferSelect;
 export type Trace = typeof traces.$inferSelect;
 export type Event = typeof events.$inferSelect;
 export type Action = typeof actions.$inferSelect;
+export type ProtocolEvidence = typeof protocolEvidence.$inferSelect;
 export type Budget = typeof budgets.$inferSelect;
 export type Alert = typeof alerts.$inferSelect;
 

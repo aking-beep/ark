@@ -265,6 +265,263 @@ export async function actionAudit(orgId: string, days = 30) {
   }));
 }
 
+export interface ProtocolRollup {
+  protocol: string;
+  events: number;
+  operations: number;
+  errors: number;
+  blocked: number;
+  pending: number;
+  approvalsRequired: number;
+  missingApprovals: number;
+  valueUsd: number;
+  /** Observations whose amount was not in USD, and so is not in `valueUsd`. */
+  nonUsdEvents: number;
+  medianLatencyMs: number;
+  /** The protocol version most recently observed, which may not be the newest. */
+  protocolVersion: string | null;
+  lastSeen: number;
+}
+
+export interface ProtocolSummary {
+  total: number;
+  blockedOrDenied: number;
+  approvalsRequired: number;
+  missingApprovals: number;
+  valueUsd: number;
+  nonUsdEvents: number;
+  byProtocol: ProtocolRollup[];
+}
+
+/**
+ * The Protocols page, in one pass.
+ *
+ * `missingApprovals` repeats the `approval_missing` condition rather than
+ * counting alert rows, because an acknowledged alert is still a missing
+ * approval — the signature did not appear because somebody clicked
+ * acknowledge. Counting alerts would let the number be cleared by reading it.
+ */
+export async function protocolSummary(orgId: string, days = 30): Promise<ProtocolSummary> {
+  const c = raw();
+  const from = since(days);
+
+  const rows = await c.execute({
+    sql: `SELECT protocol,
+                 COUNT(*) events,
+                 COUNT(DISTINCT operation) operations,
+                 SUM(CASE WHEN outcome='error' THEN 1 ELSE 0 END) errors,
+                 SUM(CASE WHEN outcome IN ('blocked','denied') THEN 1 ELSE 0 END) blocked,
+                 SUM(CASE WHEN outcome='pending' THEN 1 ELSE 0 END) pending,
+                 SUM(CASE WHEN required_approval=1 THEN 1 ELSE 0 END) approvals_required,
+                 SUM(CASE WHEN required_approval=1 AND approved_by IS NULL
+                           AND outcome IN ('ok','approved') THEN 1 ELSE 0 END) missing,
+                 COALESCE(SUM(value_usd),0) value_usd,
+                 SUM(CASE WHEN currency IS NOT NULL AND currency<>'USD' THEN 1 ELSE 0 END) non_usd,
+                 MAX(ts) last_seen
+          FROM protocol_evidence WHERE org_id=? AND ts>=? GROUP BY protocol`,
+    args: [orgId, from],
+  });
+
+  // Median rather than mean: protocol latency is long-tailed (one cold MCP
+  // server, one human taking a coffee break) and a mean reports the tail as
+  // if it were the middle.
+  const latencies = await c.execute({
+    sql: `SELECT protocol, latency_ms FROM protocol_evidence
+          WHERE org_id=? AND ts>=? AND latency_ms IS NOT NULL ORDER BY protocol, latency_ms`,
+    args: [orgId, from],
+  });
+  const byProtocolLatency = new Map<string, number[]>();
+  for (const r of latencies.rows) {
+    const key = s(r.protocol);
+    const list = byProtocolLatency.get(key) ?? [];
+    list.push(n(r.latency_ms));
+    byProtocolLatency.set(key, list);
+  }
+
+  const versions = await c.execute({
+    sql: `SELECT protocol, protocol_version, MAX(ts) FROM protocol_evidence
+          WHERE org_id=? AND ts>=? AND protocol_version IS NOT NULL GROUP BY protocol`,
+    args: [orgId, from],
+  });
+  const versionByProtocol = new Map(versions.rows.map((r) => [s(r.protocol), s(r.protocol_version)]));
+
+  const byProtocol = rows.rows.map((r) => {
+    const protocol = s(r.protocol);
+    return {
+      protocol,
+      events: n(r.events),
+      operations: n(r.operations),
+      errors: n(r.errors),
+      blocked: n(r.blocked),
+      pending: n(r.pending),
+      approvalsRequired: n(r.approvals_required),
+      missingApprovals: n(r.missing),
+      valueUsd: n(r.value_usd),
+      nonUsdEvents: n(r.non_usd),
+      medianLatencyMs: median(byProtocolLatency.get(protocol) ?? []),
+      protocolVersion: versionByProtocol.get(protocol) ?? null,
+      lastSeen: n(r.last_seen),
+    };
+  });
+
+  const sum = (pick: (p: ProtocolRollup) => number) => byProtocol.reduce((acc, p) => acc + pick(p), 0);
+  return {
+    total: sum((p) => p.events),
+    blockedOrDenied: sum((p) => p.blocked),
+    approvalsRequired: sum((p) => p.approvalsRequired),
+    missingApprovals: sum((p) => p.missingApprovals),
+    valueUsd: sum((p) => p.valueUsd),
+    nonUsdEvents: sum((p) => p.nonUsdEvents),
+    byProtocol: byProtocol.sort((a, b) => b.events - a.events),
+  };
+}
+
+function median(sorted: number[]): number {
+  if (sorted.length === 0) return 0;
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid]! : Math.round((sorted[mid - 1]! + sorted[mid]!) / 2);
+}
+
+export interface EvidenceRow {
+  id: string;
+  ts: number;
+  protocol: string;
+  protocolVersion: string | null;
+  kind: string;
+  operation: string;
+  actor: string | null;
+  target: string | null;
+  outcome: string;
+  latencyMs: number | null;
+  valueUsd: number | null;
+  currency: string | null;
+  requiredApproval: boolean;
+  approvedBy: string | null;
+  risk: string;
+  evidenceRef: string | null;
+  traceId: string | null;
+  workloadId: string | null;
+  workloadName: string | null;
+}
+
+export async function recentEvidence(orgId: string, limit = 40, days = 30): Promise<EvidenceRow[]> {
+  const r = await raw().execute({
+    sql: `SELECT p.*, w.name wname FROM protocol_evidence p
+          LEFT JOIN workloads w ON w.id = p.workload_id
+          WHERE p.org_id=? AND p.ts>=? ORDER BY p.ts DESC LIMIT ?`,
+    args: [orgId, since(days), limit],
+  });
+  return r.rows.map(toEvidenceRow);
+}
+
+function toEvidenceRow(x: Record<string, unknown>): EvidenceRow {
+  return {
+    id: s(x.id),
+    ts: n(x.ts),
+    protocol: s(x.protocol),
+    protocolVersion: x.protocol_version ? s(x.protocol_version) : null,
+    kind: s(x.kind),
+    operation: s(x.operation),
+    actor: x.actor ? s(x.actor) : null,
+    target: x.target ? s(x.target) : null,
+    outcome: s(x.outcome),
+    latencyMs: x.latency_ms == null ? null : n(x.latency_ms),
+    valueUsd: x.value_usd == null ? null : n(x.value_usd),
+    currency: x.currency ? s(x.currency) : null,
+    requiredApproval: n(x.required_approval) === 1,
+    approvedBy: x.approved_by ? s(x.approved_by) : null,
+    risk: s(x.risk),
+    evidenceRef: x.evidence_ref ? s(x.evidence_ref) : null,
+    traceId: x.trace_id ? s(x.trace_id) : null,
+    workloadId: x.workload_id ? s(x.workload_id) : null,
+    workloadName: x.wname ? s(x.wname) : null,
+  };
+}
+
+export interface TraceStory {
+  traceId: string;
+  workloadId: string;
+  startedAt: number;
+  outcome: string;
+  totalCostUsd: number;
+  totalTurns: number;
+  models: { modelId: string; provider: string; calls: number; costUsd: number }[];
+  evidence: EvidenceRow[];
+  actions: { name: string; system: string; blastRadius: string; valueUsd: number | null; approvedBy: string | null }[];
+}
+
+/**
+ * One business outcome, read across all four grains at once.
+ *
+ * This is the reason the grains are separate rather than merged. The model
+ * cost comes from `events`, the protocol chain from `protocol_evidence`, the
+ * side effects from `actions`, and the verdict from `traces` — joined on one
+ * trace id, and each still countable on its own terms. A single table holding
+ * all four would make every aggregate in this file ambiguous.
+ */
+export async function traceStory(orgId: string, traceId: string): Promise<TraceStory | null> {
+  const c = raw();
+  const t = await c.execute({
+    sql: `SELECT id, workload_id, started_at, outcome, total_cost_usd, total_turns
+          FROM traces WHERE org_id=? AND id=?`,
+    args: [orgId, traceId],
+  });
+  const head = t.rows[0];
+  if (!head) return null;
+
+  const models = await c.execute({
+    sql: `SELECT model_id, provider, COUNT(*) calls, COALESCE(SUM(cost_usd),0) cost
+          FROM events WHERE org_id=? AND trace_id=? GROUP BY model_id, provider ORDER BY cost DESC`,
+    args: [orgId, traceId],
+  });
+  const evidence = await c.execute({
+    sql: `SELECT p.*, w.name wname FROM protocol_evidence p
+          LEFT JOIN workloads w ON w.id = p.workload_id
+          WHERE p.org_id=? AND p.trace_id=? ORDER BY p.ts ASC`,
+    args: [orgId, traceId],
+  });
+  const actions = await c.execute({
+    sql: `SELECT name, system, blast_radius, value_usd, approved_by FROM actions
+          WHERE org_id=? AND trace_id=? ORDER BY ts ASC`,
+    args: [orgId, traceId],
+  });
+
+  return {
+    traceId: s(head.id),
+    workloadId: s(head.workload_id),
+    startedAt: n(head.started_at),
+    outcome: s(head.outcome),
+    totalCostUsd: n(head.total_cost_usd),
+    totalTurns: n(head.total_turns),
+    models: models.rows.map((x) => ({
+      modelId: s(x.model_id), provider: s(x.provider), calls: n(x.calls), costUsd: n(x.cost),
+    })),
+    evidence: evidence.rows.map(toEvidenceRow),
+    actions: actions.rows.map((x) => ({
+      name: s(x.name), system: s(x.system), blastRadius: s(x.blast_radius),
+      valueUsd: x.value_usd == null ? null : n(x.value_usd),
+      approvedBy: x.approved_by ? s(x.approved_by) : null,
+    })),
+  };
+}
+
+/**
+ * The trace in this workload that crosses the most protocols — the one worth
+ * putting on the page, because a trace with one protocol on it demonstrates
+ * nothing the protocol rollup did not already say.
+ */
+export async function richestProtocolTrace(orgId: string, workloadId: string, days = 30): Promise<string | null> {
+  const r = await raw().execute({
+    sql: `SELECT trace_id, COUNT(DISTINCT protocol) protocols, COUNT(*) rows_
+          FROM protocol_evidence
+          WHERE org_id=? AND workload_id=? AND ts>=? AND trace_id IS NOT NULL
+          GROUP BY trace_id ORDER BY protocols DESC, rows_ DESC, trace_id DESC LIMIT 1`,
+    args: [orgId, workloadId, since(days)],
+  });
+  const id = r.rows[0]?.trace_id;
+  return id ? s(id) : null;
+}
+
 /** Measured accuracy from human judgements — the other half of unit economics. */
 export async function qualityByWorkload(orgId: string, days = 30) {
   const r = await raw().execute({

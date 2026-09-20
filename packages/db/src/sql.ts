@@ -40,6 +40,24 @@ export const DDL: string[] = [
   approved_by TEXT, required_approval INTEGER NOT NULL DEFAULT 0, credential_id TEXT)`,
 `CREATE INDEX IF NOT EXISTS actions_trace_idx ON actions(trace_id)`,
 
+// Fourth grain, beside events, actions and traces. No column here can hold a
+// tool argument, a message body, a rendered data model or a signed mandate.
+// See packages/db/src/schema.ts for the reasoning and ADR-0007 for the decision.
+`CREATE TABLE IF NOT EXISTS protocol_evidence (
+  id TEXT PRIMARY KEY, org_id TEXT NOT NULL, trace_id TEXT, workload_id TEXT, ts INTEGER NOT NULL,
+  protocol TEXT NOT NULL, protocol_version TEXT,
+  kind TEXT NOT NULL, operation TEXT NOT NULL,
+  actor TEXT, target TEXT,
+  outcome TEXT NOT NULL DEFAULT 'ok', latency_ms INTEGER,
+  value_usd REAL, currency TEXT,
+  required_approval INTEGER NOT NULL DEFAULT 0, approved_by TEXT,
+  risk TEXT NOT NULL DEFAULT 'low',
+  evidence_ref TEXT, metadata TEXT)`,
+`CREATE INDEX IF NOT EXISTS protocol_evidence_ts_idx ON protocol_evidence(org_id, ts)`,
+`CREATE INDEX IF NOT EXISTS protocol_evidence_protocol_idx ON protocol_evidence(protocol, ts)`,
+`CREATE INDEX IF NOT EXISTS protocol_evidence_trace_idx ON protocol_evidence(trace_id)`,
+`CREATE INDEX IF NOT EXISTS protocol_evidence_workload_idx ON protocol_evidence(workload_id, ts)`,
+
 `CREATE TABLE IF NOT EXISTS budgets (
   id TEXT PRIMARY KEY, org_id TEXT NOT NULL, scope TEXT NOT NULL, scope_id TEXT,
   period TEXT NOT NULL DEFAULT 'month', limit_usd REAL NOT NULL,

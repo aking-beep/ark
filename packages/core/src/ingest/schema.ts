@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { byId } from '../models/catalog.js';
 import { costOfCall } from '../economics/tokens.js';
 import { detectSensitive } from './sensitive.js';
+import { EvidenceInput } from './evidence.js';
 
 /**
  * The ingest contract. Shared by Control (who persists it) and @ark/sdk
@@ -88,10 +89,11 @@ export const IngestBody = z
     traces: z.array(TraceClose).max(500).default([]),
     actions: z.array(ActionInput).max(500).default([]),
     qualitySamples: z.array(QualitySampleInput).max(500).default([]),
+    evidence: z.array(EvidenceInput).max(1000).default([]),
   })
   /**
    * Arrays default to empty so a caller can post events without traces or
-   * traces without events. All four empty is a different thing: it means the
+   * traces without events. All five empty is a different thing: it means the
    * body had none of the keys, or had them under the wrong names, and the
    * only reason it parsed is that the defaults filled in for it.
    *
@@ -102,10 +104,11 @@ export const IngestBody = z
       b.events.length > 0 ||
       b.traces.length > 0 ||
       b.actions.length > 0 ||
-      b.qualitySamples.length > 0,
+      b.qualitySamples.length > 0 ||
+      b.evidence.length > 0,
     {
       message:
-        'Body contained no events, traces, actions or qualitySamples. Expected at least one of those keys — see GET /api/v1/events for the shape.',
+        'Body contained no events, traces, actions, qualitySamples or evidence. Expected at least one of those keys — see GET /api/v1/events for the shape.',
     },
   );
 export type IngestBody = z.infer<typeof IngestBody>;
