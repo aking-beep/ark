@@ -12,7 +12,8 @@ process.env.ARK_DATABASE_URL = `file:${path.join(dir, 'test.db')}`;
 const { createClient } = await import('@libsql/client');
 const { DDL } = await import('./sql.js');
 const { applyIngest } = await import('./ingest.js');
-const { protocolSummary, recentEvidence, traceStory, richestProtocolTrace } = await import('./queries.js');
+const { protocolSummary, recentEvidence, traceStory, richestProtocolTrace, recentAlerts } =
+  await import('./queries.js');
 const { IngestBody, detectSensitive } = await import('@ark/core');
 const { mcpEvidence, a2aEvidence, agUiEvidence, a2uiEvidence, ucpEvidence, ap2Evidence } =
   await import('@ark/protocols');
@@ -339,6 +340,26 @@ describe('org isolation', () => {
     const story = await traceStory('org_other', 'tr_other');
     assert.ok(story, 'the other org can read its own trace');
     assert.equal(story.evidence[0]!.workloadName, null);
+  });
+
+  test('nor does an alert this evidence raised carry the name onto a dashboard', async () => {
+    // The two evidence alerts take their workload from the sender, which is
+    // why the alert list has to apply the boundary the ingest could not.
+    await applyIngest(IngestBody.parse({
+      orgId: 'org_other',
+      evidence: [ev({
+        id: 'pe_other_alert', workloadId: 'wl_support', operation: 'tools/call:peek',
+        metadata: { arguments: 'x' },
+      })],
+    }), opts);
+
+    const theirs = await recentAlerts('org_other');
+    const raised = theirs.find((a) => a.kind === 'sensitive_data');
+    assert.ok(raised, 'the alert is there');
+    assert.equal(raised.workloadName, null, 'without org_demo’s workload name on it');
+
+    const ours = await recentAlerts('org_demo');
+    assert.ok(ours.some((a) => a.workloadName === 'Support triage'), 'our own alerts still name their workload');
   });
 });
 

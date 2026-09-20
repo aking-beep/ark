@@ -237,9 +237,18 @@ export async function budgetStatus(orgId: string): Promise<BudgetStatus[]> {
   return out.sort((a, b) => b.pct - a.pct);
 }
 
+/**
+ * The org predicate on the join is load-bearing now in a way it was not
+ * before protocol evidence existed. An alert's `workload_id` used to come
+ * from a workload ARK had already matched; the two evidence alerts carry the
+ * `workloadId` the sender supplied, which nothing validates. Without
+ * `w.org_id = a.org_id`, an org could name another tenant's workload in an
+ * observation and read that tenant's workload name off its own dashboard.
+ */
 export async function recentAlerts(orgId: string, limit = 25) {
   const r = await raw().execute({
-    sql: `SELECT a.*, w.name wname FROM alerts a LEFT JOIN workloads w ON w.id=a.workload_id
+    sql: `SELECT a.*, w.name wname FROM alerts a
+          LEFT JOIN workloads w ON w.id=a.workload_id AND w.org_id=a.org_id
           WHERE a.org_id=? ORDER BY a.ts DESC LIMIT ?`,
     args: [orgId, limit],
   });
