@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { applyIngest, deliverAlerts, orgFromBearer, bearerFrom } from '@ark/db';
+import { PROTOCOL_SPEC_VERSIONS } from '@ark/protocols';
 import { IngestBody, allowlist } from '@/lib/ingest';
 
 export const runtime = 'nodejs';
@@ -74,7 +75,7 @@ export async function GET() {
       evidence: [
         {
           id: 'pe_1', traceId: 'tr_1', workloadId: 'wl_support_triage',
-          protocol: 'mcp', protocolVersion: '2025-06-18',
+          protocol: 'mcp', protocolVersion: PROTOCOL_SPEC_VERSIONS.mcp,
           kind: 'tool', operation: 'tools/call:search_customer',
           actor: 'support-agent', target: 'crm-mcp',
           outcome: 'ok', latencyMs: 84, risk: 'low', requiredApproval: false,
@@ -82,7 +83,7 @@ export async function GET() {
         },
         {
           id: 'pe_2', traceId: 'tr_1', workloadId: 'wl_support_triage',
-          protocol: 'ap2', protocolVersion: '0.1',
+          protocol: 'ap2', protocolVersion: PROTOCOL_SPEC_VERSIONS.ap2,
           kind: 'payment', operation: 'payment_mandate',
           actor: 'procurement-agent', target: 'aws',
           outcome: 'approved', valueUsd: 475, currency: 'USD',
