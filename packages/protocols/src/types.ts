@@ -143,9 +143,31 @@ export function money(amount: number | undefined, currency: string | undefined):
   };
 }
 
-/** Sorted, de-duplicated, comma-joined — a vocabulary, not a payload. */
-export function vocabulary(names: readonly string[] | undefined): string | undefined {
-  if (!names?.length) return undefined;
-  const unique = [...new Set(names.map((n) => String(n).trim()).filter(Boolean))].sort();
-  return unique.length ? unique.join(',') : undefined;
+/**
+ * A type name: a letter, then letters, digits or underscores, up to 32.
+ *
+ * The contract on a vocabulary field is that it holds type *names*, and until
+ * something enforces that it is a contract the caller keeps rather than one
+ * the adapter holds — a form value passed where a component list was expected
+ * would be stored verbatim. Shape, not allowlist: A2UI permits custom
+ * catalogues, so `MyOrgChart` has to survive while `bob@example.com`,
+ * `4111 1111 1111 1111` and a sentence do not.
+ */
+const TYPE_NAME = /^[A-Za-z][A-Za-z0-9_]{0,31}$/;
+
+export interface Vocabulary {
+  /** Sorted, de-duplicated, comma-joined — a vocabulary, not a payload. */
+  names: string | undefined;
+  /** How many entries did not look like type names and were dropped. */
+  rejected: number;
+}
+
+export function vocabulary(names: readonly string[] | undefined): Vocabulary {
+  if (!names?.length) return { names: undefined, rejected: 0 };
+  const trimmed = names.map((n) => String(n).trim()).filter(Boolean);
+  const kept = [...new Set(trimmed.filter((n) => TYPE_NAME.test(n)))].sort();
+  return {
+    names: kept.length ? kept.join(',') : undefined,
+    rejected: trimmed.length - trimmed.filter((n) => TYPE_NAME.test(n)).length,
+  };
 }

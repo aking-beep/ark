@@ -142,6 +142,34 @@ describe('ArkIngest', () => {
     assert.ok(serialised.includes('http'));
   });
 
+  test('an observation cannot re-point itself at another trace', async () => {
+    const posted: unknown[] = [];
+    const client = new ArkIngest({
+      baseUrl: 'http://control.test',
+      fetch: (async (_url, init) => {
+        posted.push(JSON.parse(String(init?.body)));
+        return new Response(JSON.stringify({
+          accepted: 0, tracesClosed: 0, evidenceAccepted: 1,
+          priced: 0, unpriced: 0, alerts: 0, circuitBreaks: [],
+        }), { status: 202 });
+      }) as typeof fetch,
+    });
+
+    const t = client.trace('wl_support_triage', 'tr_real');
+    t.evidence({
+      // An adapter result reused from an earlier trace, or a copied literal.
+      // The handle decides, exactly as it does for event() and action().
+      traceId: 'tr_somewhere_else',
+      workloadId: 'wl_other',
+      protocol: 'a2a', kind: 'delegation', operation: 'message/send',
+    });
+    await t.flush();
+
+    const body = posted[0] as { evidence: { traceId: string; workloadId: string }[] };
+    assert.equal(body.evidence[0]!.traceId, 'tr_real');
+    assert.equal(body.evidence[0]!.workloadId, 'wl_other', 'the workload may still be overridden');
+  });
+
   test('ingest fails closed when Control does not answer', async () => {
     const client = new ArkIngest({
       baseUrl: 'http://control.test',

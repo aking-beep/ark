@@ -139,6 +139,11 @@ const DENIED_METADATA_KEYS = [
   // conversation and prompt bodies
   'prompt', 'prompts', 'message', 'messages', 'systemprompt', 'instructions', 'reasoning',
   'completion', 'response', 'answer', 'query', 'question', 'transcript',
+  'msg', 'usertext', 'usermessage', 'userinput', 'toolinput', 'tooloutput',
+  // free-text containers: not payload words, but conventionally where prose
+  // ends up, and prose is where an address or an account number hides
+  'note', 'notes', 'memo', 'comment', 'comments', 'description', 'summary',
+  'detail', 'details', 'reason', 'freeform',
   // UI state
   'datamodel', 'components', 'state', 'statedelta', 'surface', 'a2uiclientdatamodel',
   // credentials and cryptography
@@ -152,25 +157,74 @@ const DENIED_METADATA_KEYS = [
 ] as const;
 
 /**
- * Payload words that stay payload words when something is prefixed onto them,
- * so `toolArgs`, `mandate_signature` and `checkoutJwt` are caught too. Kept
- * deliberately short: a suffix rule on a common word drops honest metadata
- * (`metadata` ends in `data`, `componentCount` ends in `count`), which is why
- * the broad list above is matched whole and only these are matched by suffix.
+ * Payload words that are payload words wherever they appear in a key, so
+ * `toolArgs`, `argsJson`, `mandate_signature` and `checkoutJwt` are all
+ * caught. Every entry is a word with no honest use as part of an identifier
+ * describing an operation — there is no legitimate metadata field with
+ * `signature` or `apikey` in its name.
+ */
+const DENIED_PAYLOAD_SUBSTRINGS = [
+  'arguments', 'args', 'payload', 'datamodel', 'signature', 'credential',
+  'password', 'privatekey', 'apikey', 'secret', 'disclosures', 'jwt',
+  'cardnumber', 'cvv',
+] as const;
+
+/**
+ * Payload words that are only payload words at the *end* of a key, because
+ * the same letters are load-bearing elsewhere: `contentType` is a MIME type,
+ * `tokenCount` is a number, `promptName` is an identifier and `nobody` is not
+ * a body. A substring rule on these would drop honest metadata; a suffix rule
+ * catches `responseBody`, `systemPrompt`, `promptText` and `resultData`
+ * without doing so.
+ *
+ * It is not free. `metadata` ends in `data` and `context` ends in `text`, so
+ * both are denied keys. That is the trade accepted here: neither is a field
+ * any adapter emits, both are likelier to hold prose than a scalar fact, and
+ * a caller who loses one learns so from the ingest response.
+ *
+ * A denylist only ever catches the names it knows, which is why it is the
+ * weakest of the three layers and why the adapters build from an allowlist
+ * instead. Widening it is not the fix for a payload that gets through.
  */
 const DENIED_METADATA_SUFFIXES = [
-  'arguments', 'args', 'payload', 'body', 'content', 'contents', 'datamodel',
-  'signature', 'credential', 'credentials', 'token', 'secret', 'password',
-  'privatekey', 'apikey', 'jwt', 'prompt', 'messages', 'disclosures',
+  'body', 'content', 'contents', 'token', 'prompt', 'message', 'messages',
+  'text', 'data', 'blob',
 ] as const;
 
 const normaliseKey = (k: string) => k.toLowerCase().replace(/[_\-.]/g, '');
 const DENIED = new Set<string>(DENIED_METADATA_KEYS.map(normaliseKey));
+const DENIED_SUBSTRINGS = DENIED_PAYLOAD_SUBSTRINGS.map(normaliseKey);
 const DENIED_SUFFIXES = DENIED_METADATA_SUFFIXES.map(normaliseKey);
 
 function isDeniedKey(key: string): boolean {
   const k = normaliseKey(key);
-  return DENIED.has(k) || DENIED_SUFFIXES.some((s) => k.length > s.length && k.endsWith(s));
+  return DENIED.has(k)
+    || DENIED_SUBSTRINGS.some((s) => k.includes(s))
+    || DENIED_SUFFIXES.some((s) => k.length > s.length && k.endsWith(s));
+}
+
+/**
+ * Why an entry was dropped, drawn from a fixed vocabulary.
+ *
+ * The key name is the caller's string and the value is the caller's data;
+ * neither is safe to persist, which is the whole premise of this module. The
+ * *reason* is ours. `payload_name` and `non_scalar` are named here, and the
+ * rest are `detectSensitive` labels, which the events grain already stores for
+ * exactly this purpose.
+ *
+ * This is what ingest is allowed to write into an alert. See `redactMetadata`.
+ */
+export type RedactionClass = 'payload_name' | 'non_scalar' | string;
+
+export interface RedactedMetadata {
+  metadata: EvidenceMetadata;
+  /**
+   * Keys removed, by name only. The caller's own strings: safe to hand back to
+   * the caller that sent them, never safe to store. Use `classes` for that.
+   */
+  redacted: string[];
+  /** Why, from the fixed vocabulary above. Sorted, deduplicated, storable. */
+  classes: RedactionClass[];
 }
 
 /**
@@ -187,24 +241,28 @@ function isDeniedKey(key: string): boolean {
  * caller's process), and ingest can run it again before the INSERT, all with
  * the same result.
  *
- * Returns the keys removed. Never the values — a control that logs the payload
- * it found in order to warn you about the payload is not a control.
+ * Returns the keys removed and, separately, the classes they were removed
+ * under. Never the values — a control that logs the payload it found in order
+ * to warn you about the payload is not a control. The same reasoning applies
+ * to the key: `bob@example.com_token` is a key name and an email address at
+ * once, so anything that outlives the request reports the class, not the key.
  */
-export function redactMetadata(meta: Record<string, unknown> | undefined): {
-  metadata: EvidenceMetadata;
-  redacted: string[];
-} {
+export function redactMetadata(meta: Record<string, unknown> | undefined): RedactedMetadata {
   const metadata: EvidenceMetadata = {};
   const redacted: string[] = [];
+  const classes = new Set<RedactionClass>();
   for (const [key, value] of Object.entries(meta ?? {})) {
     if (value === undefined || value === null) continue;
     if (isDeniedKey(key)) {
       redacted.push(key);
+      classes.add('payload_name');
       continue;
     }
     if (typeof value === 'string') {
-      if (detectSensitive(value).length > 0) {
+      const hits = detectSensitive(value);
+      if (hits.length > 0) {
         redacted.push(key);
+        for (const h of hits) classes.add(h);
         continue;
       }
       metadata[key] = value.slice(0, EVIDENCE_METADATA_MAX_VALUE_CHARS);
@@ -215,17 +273,22 @@ export function redactMetadata(meta: Record<string, unknown> | undefined): {
       continue;
     }
     redacted.push(key);
+    classes.add('non_scalar');
   }
-  return { metadata, redacted };
+  return { metadata, redacted, classes: [...classes].sort() };
 }
 
 export interface RedactedEvidence {
   evidence: EvidenceInput;
-  /** Metadata keys removed, by name only. */
+  /** Metadata keys removed, by name only. Return to the sender; do not store. */
   redacted: string[];
+  /** Why they were removed, from a fixed vocabulary. Safe to store. */
+  classes: RedactionClass[];
 }
 
 export function redactEvidence(e: EvidenceInput): RedactedEvidence {
-  const { metadata, redacted } = redactMetadata(e.metadata);
-  return redacted.length === 0 ? { evidence: e, redacted } : { evidence: { ...e, metadata }, redacted };
+  const { metadata, redacted, classes } = redactMetadata(e.metadata);
+  return redacted.length === 0
+    ? { evidence: e, redacted, classes }
+    : { evidence: { ...e, metadata }, redacted, classes };
 }

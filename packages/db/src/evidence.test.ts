@@ -13,7 +13,7 @@ const { createClient } = await import('@libsql/client');
 const { DDL } = await import('./sql.js');
 const { applyIngest } = await import('./ingest.js');
 const { protocolSummary, recentEvidence, traceStory, richestProtocolTrace } = await import('./queries.js');
-const { IngestBody } = await import('@ark/core');
+const { IngestBody, detectSensitive } = await import('@ark/core');
 const { mcpEvidence, a2aEvidence, agUiEvidence, a2uiEvidence, ucpEvidence, ap2Evidence } =
   await import('@ark/protocols');
 
@@ -94,21 +94,82 @@ describe('protocol evidence ingest', () => {
     const r = await applyIngest(IngestBody.parse({
       evidence: [ev({
         id: 'pe_leak', workloadId: 'wl_support',
-        metadata: { toolArguments: 'accountId=129923', note: 'call ada@example.com', transport: 'http' },
+        metadata: { toolArguments: 'accountId=129923', stepName: 'call ada@example.com', transport: 'http' },
       })],
     }), opts);
 
-    assert.deepEqual(r.evidenceRedacted, ['note', 'toolArguments']);
+    // The key names go back to the sender, which is not a place anything is
+    // stored. See the block below for what may be written down.
+    assert.deepEqual(r.evidenceRedacted, ['stepName', 'toolArguments']);
     const row = await client.execute({ sql: 'SELECT metadata FROM protocol_evidence WHERE id=?', args: ['pe_leak'] });
     const stored = String(row.rows[0]!.metadata);
     assert.ok(!stored.includes('129923'));
     assert.ok(!stored.includes('ada@example.com'));
     assert.ok(stored.includes('http'));
+  });
+});
 
-    const alerts = await client.execute(`SELECT message FROM alerts WHERE kind='sensitive_data'`);
-    const message = alerts.rows.map((x) => String(x.message)).join('\n');
-    assert.match(message, /toolArguments/, 'the alert names the key');
-    assert.ok(!message.includes('129923'), 'the alert never carries the value');
+describe('the alert that reports a redaction', () => {
+  test('says what class of thing was dropped, and how many', async () => {
+    await applyIngest(IngestBody.parse({
+      evidence: [ev({
+        id: 'pe_alert', workloadId: 'wl_support', operation: 'tools/call:leaky',
+        metadata: { toolArguments: 'accountId=129923', stepName: 'call ada@example.com' },
+      })],
+    }), opts);
+
+    const a = await client.execute({ sql: 'SELECT * FROM alerts WHERE id=?', args: ['al_redact_pe_alert'] });
+    assert.equal(a.rows.length, 1);
+    assert.equal(String(a.rows[0]!.kind), 'sensitive_data');
+    assert.equal(String(a.rows[0]!.severity), 'warn');
+    const message = String(a.rows[0]!.message);
+    assert.match(message, /2 metadata fields/);
+    assert.match(message, /an email address/);
+    assert.match(message, /named as a payload or a credential/);
+  });
+
+  test('never writes the caller’s key names, even when a key is itself the leak', async () => {
+    // A key name is caller free text up to 64 characters, so it can be the
+    // sensitive value. This is the whole reason the alert reports classes.
+    await applyIngest(IngestBody.parse({
+      evidence: [ev({
+        id: 'pe_keyleak', workloadId: 'wl_support', operation: 'tools/call:keyleak',
+        metadata: { 'victim.bob@example.com_token': 'x' },
+      })],
+    }), opts);
+
+    const a = await client.execute({ sql: 'SELECT message FROM alerts WHERE id=?', args: ['al_redact_pe_keyleak'] });
+    const message = String(a.rows[0]!.message);
+    assert.ok(!message.includes('victim.bob@example.com_token'), 'the key is not in the alert');
+    assert.deepEqual(detectSensitive(message), [], 'and the alert trips no detector of its own');
+
+    const everything = await client.execute(`SELECT message FROM alerts`);
+    const all = everything.rows.map((x) => String(x.message)).join('\n');
+    assert.ok(!all.includes('bob@example.com'), 'nor anywhere else in the alerts table');
+  });
+
+  test('names the workload that carried the field, not the first one in the batch', async () => {
+    await applyIngest(IngestBody.parse({
+      evidence: [
+        ev({ id: 'pe_clean_a', workloadId: 'wl_support', operation: 'tools/call:clean' }),
+        ev({ id: 'pe_dirty_b', workloadId: 'wl_other', operation: 'tools/call:dirty', metadata: { arguments: 'x' } }),
+      ],
+    }), opts);
+
+    const a = await client.execute({ sql: 'SELECT workload_id FROM alerts WHERE id=?', args: ['al_redact_pe_dirty_b'] });
+    assert.equal(String(a.rows[0]!.workload_id), 'wl_other');
+    const none = await client.execute({ sql: 'SELECT id FROM alerts WHERE id=?', args: ['al_redact_pe_clean_a'] });
+    assert.equal(none.rows.length, 0, 'the clean row raises nothing');
+  });
+
+  test('a retried batch reports the finding once', async () => {
+    const body = IngestBody.parse({
+      evidence: [ev({ id: 'pe_retry', workloadId: 'wl_support', metadata: { payload: 'x' } })],
+    });
+    await applyIngest(body, opts);
+    await applyIngest(body, opts);
+    const a = await client.execute(`SELECT id FROM alerts WHERE id='al_redact_pe_retry'`);
+    assert.equal(a.rows.length, 1);
   });
 });
 
@@ -254,6 +315,30 @@ describe('org isolation', () => {
 
     const summary = await protocolSummary('org_other');
     assert.equal(summary.total, 1, 'the other org sees exactly its own one row');
+  });
+
+  test('naming another tenant’s workload id does not read back its name', async () => {
+    // `workloadId` on an observation is caller input and nothing validates it
+    // against the org's own workloads. The storage boundary holds — the row is
+    // written under org_other — so the boundary that has to hold on the way
+    // out is the join.
+    const rows = await recentEvidence('org_other');
+    const planted = rows.find((r) => r.id === 'pe_other');
+    assert.ok(planted, 'the row is there');
+    assert.equal(planted.workloadId, 'wl_support', 'still carrying the id it claimed');
+    assert.equal(planted.workloadName, null, 'but org_demo’s workload name is not resolved for it');
+
+    const ours = await recentEvidence('org_demo');
+    assert.ok(
+      ours.some((r) => r.workloadName === 'Support triage'),
+      'while our own rows still resolve the name',
+    );
+  });
+
+  test('the cross-grain trace view applies the same boundary', async () => {
+    const story = await traceStory('org_other', 'tr_other');
+    assert.ok(story, 'the other org can read its own trace');
+    assert.equal(story.evidence[0]!.workloadName, null);
   });
 });
 

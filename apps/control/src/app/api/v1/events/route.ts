@@ -102,7 +102,7 @@ export async function GET() {
       'Prefer @ark/sdk — it assigns trace ids and turn indices so cost per outcome stays honest.',
       'evidence[] is one normalised protocol observation per row. It is a separate grain from events: an event is one model call and is priced, an observation is one thing an agent did over a protocol and is governed.',
       'evidence.metadata takes scalars only — at most 32 keys, strings at most 200 characters. A nested object or array is a 422, because that is how a tool-argument blob arrives.',
-      'Control redacts evidence metadata again before storing it, dropping keys that name a payload or a credential and values that trip the sensitive-data detectors. The response lists the dropped key names in evidenceRedacted and raises a sensitive_data alert. Fix the sender.',
+      'Control redacts evidence metadata again before storing it, dropping keys that name a payload or a credential and values that trip the sensitive-data detectors. The dropped key names come back to you in evidenceRedacted and are not stored; the sensitive_data alert records how many fields fell and what class each fell into, because a key name can itself be the sensitive value. Fix the sender.',
       'Normalise with @ark/protocols rather than hand-building evidence: its adapters construct output from an allowlist, so a payload field has no path in at all.',
       'requiredApproval with no approvedBy on an outcome of ok or approved raises approval_missing. An outcome of pending does not — an approval in flight is not a finding.',
     ],

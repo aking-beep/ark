@@ -112,8 +112,23 @@ describe('money', () => {
 
 describe('vocabulary', () => {
   test('sorts, de-duplicates and drops blanks', () => {
-    assert.equal(vocabulary(['Card', 'Text', 'Card', ' ']), 'Card,Text');
-    assert.equal(vocabulary([]), undefined);
-    assert.equal(vocabulary(undefined), undefined);
+    assert.deepEqual(vocabulary(['Card', 'Text', 'Card', ' ']), { names: 'Card,Text', rejected: 0 });
+    assert.deepEqual(vocabulary([]), { names: undefined, rejected: 0 });
+    assert.deepEqual(vocabulary(undefined), { names: undefined, rejected: 0 });
+  });
+
+  test('keeps a custom catalogue’s type names', () => {
+    // A2UI allows catalogues beyond the Basic 18, so this cannot be an
+    // allowlist without dropping legitimate components.
+    assert.deepEqual(vocabulary(['MyOrgChart', 'Acme_Gauge2']), {
+      names: 'Acme_Gauge2,MyOrgChart',
+      rejected: 0,
+    });
+  });
+
+  test('a form value passed as a component type is counted, not stored', () => {
+    const v = vocabulary(['Card', 'bob@example.com', '4111 1111 1111 1111', 'Please confirm your address']);
+    assert.equal(v.names, 'Card');
+    assert.equal(v.rejected, 3);
   });
 });

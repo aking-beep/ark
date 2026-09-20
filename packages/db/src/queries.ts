@@ -310,8 +310,22 @@ export interface ProtocolSummary {
 const VALUE_ACTED_ON = `
   SELECT COALESCE(SUM(v), 0) total FROM (
     SELECT MAX(value_usd) v FROM protocol_evidence
-    WHERE org_id=? AND ts>=? AND value_usd IS NOT NULL {AND}
+    WHERE org_id=? AND ts>=? AND value_usd IS NOT NULL
     GROUP BY COALESCE(trace_id, id))`;
+
+/**
+ * The same de-duplication, applied within each protocol.
+ *
+ * These do not sum to the figure above and are not meant to: AP2 seeing the
+ * same $89.50 that UCP saw is the normal case, so each protocol reports what
+ * it witnessed and the headline counts the money once.
+ */
+const VALUE_ACTED_ON_BY_PROTOCOL = `
+  SELECT protocol, COALESCE(SUM(v), 0) total FROM (
+    SELECT protocol, MAX(value_usd) v FROM protocol_evidence
+    WHERE org_id=? AND ts>=? AND value_usd IS NOT NULL
+    GROUP BY protocol, COALESCE(trace_id, id))
+  GROUP BY protocol`;
 
 /**
  * The Protocols page, in one pass.
@@ -341,19 +355,9 @@ export async function protocolSummary(orgId: string, days = 30): Promise<Protoco
     args: [orgId, from],
   });
 
-  const valueTotal = await c.execute({
-    sql: VALUE_ACTED_ON.replace('{AND}', ''),
-    args: [orgId, from],
-  });
-  const valueByProtocol = new Map<string, number>();
-  for (const r of rows.rows) {
-    const protocol = s(r.protocol);
-    const v = await c.execute({
-      sql: VALUE_ACTED_ON.replace('{AND}', 'AND protocol=?'),
-      args: [orgId, from, protocol],
-    });
-    valueByProtocol.set(protocol, n(v.rows[0]?.total));
-  }
+  const valueTotal = await c.execute({ sql: VALUE_ACTED_ON, args: [orgId, from] });
+  const values = await c.execute({ sql: VALUE_ACTED_ON_BY_PROTOCOL, args: [orgId, from] });
+  const valueByProtocol = new Map(values.rows.map((r) => [s(r.protocol), n(r.total)]));
 
   // Median rather than mean: protocol latency is long-tailed (one cold MCP
   // server, one human taking a coffee break) and a mean reports the tail as
@@ -435,16 +439,28 @@ export interface EvidenceRow {
   risk: string;
   evidenceRef: string | null;
   traceId: string | null;
+  /**
+   * The workload the sender said this happened in. Caller input: nothing
+   * checks that it names a workload this org owns, or any workload at all.
+   */
   workloadId: string | null;
+  /** Resolved only when that workload is this org's. Null otherwise. */
   workloadName: string | null;
   /** Low-cardinality scalars only, already redacted. Never a payload. */
   metadata: Record<string, string | number | boolean>;
 }
 
+/**
+ * The join carries `w.org_id = p.org_id` because `p.workload_id` is caller
+ * input, not a foreign key ARK validated. Without it, an org that posts
+ * evidence naming another tenant's workload id reads that tenant's workload
+ * name back out of an org-scoped function — the storage boundary holds, and
+ * the read boundary is where it would have leaked.
+ */
 export async function recentEvidence(orgId: string, limit = 40, days = 30): Promise<EvidenceRow[]> {
   const r = await raw().execute({
     sql: `SELECT p.*, w.name wname FROM protocol_evidence p
-          LEFT JOIN workloads w ON w.id = p.workload_id
+          LEFT JOIN workloads w ON w.id = p.workload_id AND w.org_id = p.org_id
           WHERE p.org_id=? AND p.ts>=? ORDER BY p.ts DESC LIMIT ?`,
     args: [orgId, since(days), limit],
   });
@@ -524,7 +540,7 @@ export async function traceStory(orgId: string, traceId: string): Promise<TraceS
   });
   const evidence = await c.execute({
     sql: `SELECT p.*, w.name wname FROM protocol_evidence p
-          LEFT JOIN workloads w ON w.id = p.workload_id
+          LEFT JOIN workloads w ON w.id = p.workload_id AND w.org_id = p.org_id
           WHERE p.org_id=? AND p.trace_id=? ORDER BY p.ts ASC`,
     args: [orgId, traceId],
   });

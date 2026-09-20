@@ -97,6 +97,7 @@ export function a2uiEvidence(o: A2uiObservation): NormalisedEvidence {
   const components = vocabulary(o.components);
   const policy = o.policy;
 
+
   return compose(o, {
     protocol: 'a2ui',
     protocolVersion: CANDIDATE_ONLY.has(operation) ? A2UI_CANDIDATE_SPEC_VERSION : A2UI_SPEC_VERSION,
@@ -111,8 +112,12 @@ export function a2uiEvidence(o: A2uiObservation): NormalisedEvidence {
     evidenceRef: o.surfaceId,
     metadata: {
       catalogId: o.catalogId,
-      componentTypes: components,
+      componentTypes: components.names,
       componentCount: o.componentCount ?? o.components?.length,
+      // Something was passed as a component type that is not shaped like one,
+      // which usually means a caller sent the tree rather than the vocabulary.
+      // Counted rather than dropped in silence.
+      componentsRejected: components.rejected || undefined,
       policy,
       errorKind: o.errorKind,
       operationKnown: KNOWN.has(operation),

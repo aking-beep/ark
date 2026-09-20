@@ -139,14 +139,29 @@ flattening is how a tool-argument blob arrives one key at a time.
 **3. `redactEvidence` runs on both sides of the wire.** It drops metadata whose
 *key* names a payload or a credential, and metadata whose *value* trips the
 sensitive-data detectors ARK already uses on prompt samples — which catches an
-innocently named `note` carrying an email address. The SDK runs it before the
-POST, so the value need never leave the caller's process, and `applyIngest`
+innocently named `stepName` carrying an email address. The SDK runs it before
+the POST, so the value need never leave the caller's process, and `applyIngest`
 runs it again before the `INSERT`, which is the last place a hand-rolled POST
 can still be stopped.
 
-When ingest has to redact, it raises a `sensitive_data` alert naming the keys
-it dropped and never their values. A control that logs the payload it found in
-order to warn you about the payload is not a control.
+When ingest has to redact, it raises a `sensitive_data` alert against the
+observation that carried the field. The alert says how many fields were dropped
+and what *class* each fell into — a payload name, a nested value, or one of the
+detector labels — and that vocabulary is fixed in ARK's own code.
+
+It does not repeat the key. A metadata key is caller free text of up to 64
+characters and can be the sensitive value itself: `bob@example.com_token` is a
+key name and an email address at once. A control that logs the payload it found
+in order to warn you about the payload is not a control, and that holds for the
+name as much as the value. The key names go back to the sender in the ingest
+response under `evidenceRedacted`, which is not stored anywhere.
+
+None of the three layers is a promise, and the first is the only one that is
+structural. A denylist catches the names it knows; the scalar cap stops a shape,
+not a string; only the adapters, which build their output from named fields
+rather than by spreading the caller's input, give a payload no path at all.
+Normalise with `@ark/protocols` and the other two layers are a backstop rather
+than the defence.
 
 For cryptographic protocols, the rule is the same one the rest of the system
 follows: store the *reference*, not the object. An AP2 mandate is an SD-JWT

@@ -164,10 +164,12 @@ export class TraceHandle {
    * Record one normalised protocol observation on this trace.
    *
    * Takes what `@ark/protocols` produces, so the usual call reads
-   * `trace.evidence(mcpEvidence({ ... }))`. The trace id and workload are
-   * this handle's, which is the whole point: the MCP tool call, the A2A
-   * delegation and the model calls that paid for both end up correlated by
-   * the same id, in three tables, on one unit of business work.
+   * `trace.evidence(mcpEvidence({ ... }))`. The trace id is this handle's and
+   * is not overridable, exactly as in `event()` and `action()` above: that is
+   * the whole point of recording on a handle, and an adapter that carried a
+   * stale `traceId` would otherwise silently re-point the observation at
+   * another unit of work. The workload may be overridden, because one trace
+   * can legitimately touch more than one.
    *
    * With `scanLocally` on (the default) metadata is redacted here, before the
    * POST, so a payload the caller attached never leaves this process.
@@ -176,7 +178,7 @@ export class TraceHandle {
     const parsed = EvidenceInput.parse({
       ...observation,
       id: observation.id ?? id('pe'),
-      traceId: observation.traceId ?? this.traceId,
+      traceId: this.traceId,
       workloadId: observation.workloadId ?? this.workloadId,
     });
     this.evidenceRows.push(this.scanLocally ? redactEvidence(parsed).evidence : parsed);

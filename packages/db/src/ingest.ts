@@ -202,8 +202,9 @@ export async function applyIngest(body: IngestBody, opts: ApplyIngestOpts): Prom
     // Redact again on this side of the wire. The SDK already did it, but a
     // hand-rolled POST did not, and this is the last place before the INSERT
     // where a payload can still be stopped.
-    const { evidence: e, redacted } = redactEvidence(raw);
+    const { evidence: e, redacted, classes } = redactEvidence(raw);
     for (const key of redacted) evidenceRedacted.add(key);
+    if (classes.length > 0) alerts.push(redactionAlert(e, classes, redacted.length));
     const ts = e.ts ?? Date.now();
 
     if (e.traceId) {
@@ -235,15 +236,6 @@ export async function applyIngest(body: IngestBody, opts: ApplyIngestOpts): Prom
 
     const missing = approvalMissingAlert(e);
     if (missing) alerts.push(missing);
-  }
-
-  if (evidenceRedacted.size > 0) {
-    alerts.push({
-      kind: 'sensitive_data',
-      severity: 'warn',
-      workloadId: evidence.find((e) => e.workloadId)?.workloadId ?? null,
-      message: `Protocol evidence arrived carrying ${[...evidenceRedacted].sort().join(', ')}. Those fields were dropped before storage — ARK records normalised evidence, not protocol payloads. Fix the sender; see docs/07-protocol-evidence.md.`,
-    });
   }
 
   if (accepted > 0) {
@@ -303,6 +295,50 @@ function eventAlerts(
     });
   }
   return out;
+}
+
+/**
+ * English for each class `redactMetadata` can report. A fixed table, because
+ * the point of the class vocabulary is that everything written here is ours.
+ */
+const REDACTION_CLASS_LABELS: Record<string, string> = {
+  payload_name: 'a field named as a payload or a credential',
+  non_scalar: 'a nested object or array',
+  email: 'an email address',
+  us_ssn: 'a national insurance or social security number',
+  credit_card: 'a card number',
+  us_phone: 'a phone number',
+  api_key: 'an API key',
+  iban: 'a bank account number',
+};
+
+/**
+ * Something reached ingest that the SDK should already have stripped, which
+ * means a sender is mis-integrated. Raised per observation, so it names the
+ * workload that actually carried the field rather than whichever row in the
+ * batch happened to have a workload id.
+ *
+ * What it must not do is repeat the caller's key names. They are free text of
+ * up to 64 characters and a key can be the sensitive value itself —
+ * `bob@example.com_token` is both a key name and an email address — so an
+ * alert that quoted them would make this control the very leak it exists to
+ * report. The names go back to the sender in the ingest response, which is not
+ * stored; what is stored is the class, drawn from a table this file owns. The
+ * identifying fields below (`id`, `operation`) are columns on the evidence row
+ * itself, so naming them here adds no channel that the row did not already
+ * open.
+ */
+function redactionAlert(e: EvidenceInput, classes: string[], fields: number): IngestAlert {
+  const what = classes.map((c) => REDACTION_CLASS_LABELS[c] ?? c).join(', ');
+  return {
+    // Derived from the evidence id, like the alert below, so a retried batch
+    // reports the finding once.
+    id: `al_redact_${e.id}`,
+    kind: 'sensitive_data',
+    severity: 'warn',
+    workloadId: e.workloadId ?? null,
+    message: `Protocol evidence "${e.operation}" arrived with ${fields} metadata ${fields === 1 ? 'field' : 'fields'} that could not be stored: ${what}. They were dropped before storage — ARK records normalised evidence, not protocol payloads. The field names are in the ingest response rather than here, because a key name can itself be the sensitive value. Normalise with @ark/protocols; see docs/07-protocol-evidence.md.`,
+  };
 }
 
 /**

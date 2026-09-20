@@ -99,7 +99,7 @@ They split cleanly into three groups — cost (`loop_runaway`, `circuit_break`, 
 
 `approval_missing` is `unapproved_action` for the protocol grain: it fires when a protocol operation that required a human signature ran to completion (`outcome` of `ok` or `approved`) with `approvedBy` null. It does not fire on `pending`, `error`, `blocked` or `denied` — an approval in flight is the system working, and the other three mean nothing happened, so nothing needed approving. Severity follows the observation's recorded `risk`.
 
-A `sensitive_data` alert records the *class* of thing found and the workload it was found in. It does not record the value, and there is no column it could be written to. The same alert kind fires when ingest has to redact protocol evidence metadata: it names the keys it dropped, never their values. The reasoning is in [Architecture § Sensitive data handling in ingest](01-architecture.md#sensitive-data-handling-in-ingest).
+A `sensitive_data` alert records the *class* of thing found and the workload it was found in. It does not record the value, and there is no column it could be written to. The same alert kind fires when ingest has to redact protocol evidence metadata, and follows the same rule: it reports how many fields were dropped and what class each fell into, never the value and never the caller's key — a key name can be the sensitive value itself. The reasoning is in [Architecture § Sensitive data handling in ingest](01-architecture.md#sensitive-data-handling-in-ingest).
 
 ### `qualitySamples`
 
