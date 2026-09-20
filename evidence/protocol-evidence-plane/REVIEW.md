@@ -329,3 +329,256 @@ verbatim. The one unused field is `EvidenceRow.workloadName`, named in finding 2
    says). Bounded at six protocols and indexed, so it does not matter at this
    size; `GROUP BY protocol` over the same de-duplicating subquery would fold it
    into one.
+
+## Round 2 — 5/5
+
+Reviewed independently of round 1's verdict and of the builder's claims.
+Inputs: `specs/protocol-evidence-plane.md`, `evidence/protocol-evidence-plane/`
+(read first), `git diff main...HEAD`. Claims were re-measured, not trusted:
+`npm run typecheck` (exit 0), `npm run test` (284/284, 0 fail), a fresh run of
+`probe.mjs` byte-identical to `after.txt`, a fresh run of `findings.mjs`
+byte-identical to `after-findings.txt`, sqlite against `/workspace/ark.db`,
+HTTP fetches of every Control route as both demo orgs, and a reviewer-written
+probe that posted the round-1 inputs and then dumped **every table** looking
+for the caller strings.
+
+| # | Criterion | Point | Finding |
+|---|---|---|---|
+| 1 | Spec satisfied | ✅ | All ten acceptance criteria still hold. The one test that changed was wrong (it required the leak); the correction is declared in `EVIDENCE.md` § Deviations. |
+| 2 | Evidence proves it | ✅ | Before captured at `646fe6f` before any feature code; same probe, same viewport, same routes; round-2 findings have their own after-state whose before-state is round 1's `REVIEW.md`; "what this does not prove" is still specific. |
+| 3 | Structure holds | ✅ | Edge → service → adapter holds. No new third-party dependency. `@ark/core` still does not import `@ark/protocols`. |
+| 4 | Fails safely | ✅ | The two withheld channels are closed: denied metadata keys do not appear in any persisted column, and both evidence reads scope the workload join on `org_id`. Remaining notes below are either pre-existing (parked in round 1) or the documented free-string fields. |
+| 5 | Readable | ✅ | The round-2 comments explain why the alert reports classes and why the join carries `org_id`. Tests were strengthened, not weakened. |
+
+**Blocking:** none.
+**Non-blocking:** notes 1–3.
+
+---
+
+### 1. It does what the spec said — ✅
+
+Re-checked against the spec as written, after commit `892ac03`.
+
+1. **Canonical grain.** `EvidenceInput` still has the nineteen fields
+   (`packages/core/src/ingest/evidence.ts:61-104`). `protocol_evidence` is in
+   both Drizzle (`packages/db/src/schema.ts:121-167`) and DDL
+   (`packages/db/src/sql.ts:46-59`) with the four indexes. Live `ark.db`: 321
+   evidence rows, 12,315 events — no protocol observation in `events`.
+
+2. **`@ark/protocols` cannot carry a payload.** Independent serialisation of
+   `a2uiEvidence` handed `bob@example.com` / a PAN / a sentence as component
+   types stored `Card,MyOrgChart` and counted 3 rejects; the form values are
+   not in the JSON. `@ark/core` still has no `protocols` import.
+
+3. **Redaction at the ARK boundary.** SDK still redacts before POST
+   (`packages/sdk/src/index.ts:184`); ingest still redacts before INSERT
+   (`packages/db/src/ingest.ts:205`). Ingest now reports **classes** in the
+   persisted alert and **key names** only in `evidenceRedacted` on the HTTP
+   result, which `POST /api/v1/events` returns after stripping `alertRecords`
+   (`apps/control/src/app/api/v1/events/route.ts:43-50`). Spec criterion 3
+   asked for class, never the value. That holds.
+
+4. **Ingest, idempotently, under existing auth.** Untouched in substance.
+   Org still forced from the bearer.
+
+5. **`approval_missing`.** Still fires on `ok`/`approved` only, severity
+   follows risk, id is `al_apprmiss_${e.id}`. Live DB has exactly one row,
+   `critical`, naming the AP2 mandate.
+
+6. **SDK correlation.** `TraceHandle.evidence()` now forces
+   `traceId: this.traceId` (`packages/sdk/src/index.ts:181`), matching
+   `event()`. Workload remains overridable. Probe: posting `traceId:
+   'tr_somewhere_else'` on handle `tr_real` stored `tr_real`.
+
+7. **Protocols page.** Screenshot and a live fetch both show 321 observations,
+   the four headlines, six cards, the seven columns, and Northwind's empty
+   state (200, not 500).
+
+8. **One trace across grains.** `after-workload.png` and a live fetch of
+   `/workloads/wl_support_triage` both render the ordered story.
+
+9. **Seed.** Live counts still MCP 157 / A2A 49 / AG-UI 46 / A2UI 26 / AP2 22
+   / UCP 21, one `approval_missing`. Seed still throws if ingest redacts
+   (`packages/db/src/seed.ts:445-446`).
+
+10. **Nothing that worked stops working.** typecheck and the 284 tests pass.
+    `git diff main...HEAD --numstat -- '*.test.ts'` is additions-only versus
+    `main`; the only pre-existing test file touched is
+    `packages/sdk/src/index.test.ts`, which **appends** cases after the
+    original three. Spend, Workloads, Optimise, Budgets, Calibration all
+    return 200 for the demo org; Northwind's foreign workload URL is 404.
+    Runtime is still a package.
+
+    A Control fetch of `http://localhost:3001/` returned 500 with
+    `Cannot find module './901.js'` under `apps/business/.next`. This branch
+    does not touch `apps/business`; that is a stale Next chunk, not a feature
+    regression, and `after-platform.txt` recorded 200 while the server was
+    freshly started.
+
+**On the one test that changed.** Round 1's
+`packages/db/src/evidence.test.ts` asserted
+`assert.match(message, /toolArguments/, 'the alert names the key')`. That
+locked in the leak. `892ac03` replaces it with a block that asserts the
+alert names the class, that the caller key is absent from `alerts.message`,
+that `detectSensitive` is silent on the message, and that `bob@example.com`
+appears nowhere in the alerts table. Three cases that used `note` as an
+innocent key now use `stepName`, because `note` is denied after the
+finding-3 widening and those tests were exercising the **value** detector.
+`EVIDENCE.md` § Deviations declares this. It is a correction of a wrong
+test, not a weakening.
+
+**On out-of-spec scope.** Same two declared deviations as round 1 (`fmt.when`
+clamp, seed `started_at` bound). The round-2 denylist widening, class
+vocabulary, org predicate, forced trace id, `vocabulary()` shape check and
+`GROUP BY protocol` are the round-1 findings, not silent extra product
+scope.
+
+### 2. The evidence proves it — ✅
+
+From the artefacts alone, before reading the diff: an operator can post
+protocol observations through the existing ingest endpoint and see, on
+`/protocols`, which protocols ran, what was blocked, which required
+approvals are missing, and how much money was acted on; a workload page
+now tells that story across four grains. Before, `/protocols` was a 404
+and the workload page had no protocol panel.
+
+`captures.tsv` still records the before probe at `646fe6f` (`dirty=0`),
+which `git log main..HEAD` shows is the spec commit, one before the first
+`feat`. After is the same `probe.mjs` (I re-ran it; it is byte-identical to
+`after.txt`, including the four pre-existing canaries). Screenshots are
+still 1440×900, same four routes, same org. Round-2's `after-findings.txt`
+is a separate script on purpose — `probe.mjs` was not rewritten, so its
+before/after stay comparable — and its before-state is round 1's `REVIEW.md`,
+which recorded the exact inputs.
+
+"What this does not prove" is unchanged and still unflattering: no protocol
+was spoken; the denylist only catches names it knows; `operation` / `actor`
+/ `target` remain free strings; one browser, one viewport, SQLite; value
+de-duplication is a judgement.
+
+Minor, not a withhold: the last `after` line in `captures.tsv` is `dirty=6`
+at `892ac03`. The tree is committable; a clean capture would be tidier.
+
+### 3. The structure holds — ✅
+
+No layer regression in `892ac03`. `redactMetadata` / classes live in
+`@ark/core`; `redactionAlert` lives in `@ark/db`; `vocabulary()` lives in
+`@ark/protocols`; the SDK handle change is in `@ark/sdk`. The Protocols
+page still calls `protocolSummary` / `recentEvidence` and writes no SQL.
+`@ark/protocols/package.json` still depends on `@ark/core` alone.
+
+### 4. It fails safely — ✅
+
+Round 1 withheld this on two channels. Both are closed. I did not stop at
+`findings.mjs`.
+
+**Finding 1, re-measured.** Posting
+`metadata: { "victim.bob@example.com_token": "x", toolArguments: "account=999", stepName: "ping ada@example.com" }`
+and then serialising every table in the scratch database: the leaky key,
+`ada@example.com`, and `account=999` appear in **no** persisted column.
+`alerts.message` for `al_redact_pe_leak` names the classes ("a field named
+as a payload or a credential", "an email address") and
+`detectSensitive(message)` is `[]`. `protocol_evidence.metadata` for that
+row is `null`. The key **does** come back in `evidenceRedacted` on the
+in-process result; the HTTP handler strips `alertRecords` and returns that
+list to the sender only (`route.ts:43-50`). `deliverAlerts`
+(`packages/db/src/alerts.ts:49-57`) would POST `a.message`, which no longer
+contains the key.
+
+`redactMetadata` (`packages/core/src/ingest/evidence.ts:250-278`) returns
+`classes` from `{payload_name, non_scalar}` plus `detectSensitive` labels.
+Every current detector label has an English entry in
+`REDACTION_CLASS_LABELS` (`packages/db/src/ingest.ts:304-313`). The
+`?? c` fallback at `:332` is unused for the vocabulary as it stands; it
+would persist a snake_case label this repo owns, not the caller's string.
+
+**Finding 2, re-measured.** Both joins now read
+`LEFT JOIN workloads w ON w.id = p.workload_id AND w.org_id = p.org_id`
+(`packages/db/src/queries.ts:463` and `:543`). Org_other posting evidence
+that names org_demo's `wl_secret` gets `workloadName: null` from
+`recentEvidence` and from `traceStory`; org_demo still resolves
+`Project Redacted - M&A due diligence` on its own rows; org_demo cannot
+read org_other's trace (`traceStory` filters `traces WHERE org_id=?`).
+
+**`approvalMissingAlert` (`packages/db/src/ingest.ts:361-378`).** It
+interpolates `operation`, `actor` and `target` into `alerts.message`. Those
+are first-class columns on `protocol_evidence`, capped at 200 characters,
+and the spec made them free strings. Putting
+`operation: "payment_mandate victim.eve@example.com"` on a completed
+required-approval row copies that email into the alert **and** into
+`protocol_evidence.operation` — the same channel the evidence row already
+opened, matching `unapproved_action` and the comment at
+`ingest.ts:327-329`. It is not a remaining redaction-path leak. Live
+`ark.db` has zero alert or evidence-metadata rows matching `%@%` or
+`%4111%`.
+
+**Denylist widening, over-match check.** All 16 names from round 1 now
+fall. Every metadata key the six adapters actually emit — including
+`componentsRejected`, which the pin-test at
+`packages/core/src/ingest/evidence.test.ts:88-103` does not list — survives
+`redactMetadata`. A set of keys a reasonable caller would send
+(`contentType`, `tokenCount`, `promptName`, `requestId`, `statusCode`,
+`isError`, `region`, `timeoutMs`, `accountId`, `userId`, `sessionId`,
+`correlationId`, `httpStatus`, …) also all survive. The suffix/`args`
+rules **do** drop `errorMessage`, `errorText`, `context`, `metadata`,
+`maxArgs`, `nArgs`: fail-closed, and the `context`/`metadata` case is
+commented at `evidence.ts:180-183`. That is the risk the change introduced,
+and it did not silently strip the adapters.
+
+**Attribution, A2UI, query count.** Redaction alerts are per observation
+(`ingest.ts:207`, id `al_redact_${e.id}`); a clean first row in a dirty
+batch raises nothing and the dirty row names `wl_dirty`.
+`vocabulary()` (`packages/protocols/src/types.ts:165-172`) enforces
+`/^[A-Za-z][A-Za-z0-9_]{0,31}$/`. `protocolSummary` issues 5 queries, one
+of them `GROUP BY protocol` (`queries.ts:323-328, 338-360`).
+
+The point is awarded because the two channels that cost it are closed, the
+widening did not break the adapters, and the remaining surfaces (free-string
+columns, the pre-existing alerts join) are the ones round 1 already named
+as out of this spec or as documented limits.
+
+### 5. The next person can read it — ✅
+
+`892ac03` is a readable fix. The new comments on `redactionAlert` and on
+the workload join state *why* the caller's key and the unscoped join were
+unsafe, not what the next line does. The class vocabulary is a table this
+file owns. Tests cover the leak (`evidence.test.ts:131-149`), the join
+(`:320-342`), per-row attribution (`:151-163`), the forced trace id
+(`packages/sdk/src/index.test.ts:145-171`), and `vocabulary()` rejects
+(`packages/protocols/src/redaction.test.ts:129-133`). No debug output, no
+commented-out code.
+
+---
+
+## Round 2 — non-blocking notes
+
+1. **`packages/db/src/queries.ts:242` — `recentAlerts` still joins
+   `workloads` without `AND w.org_id = a.org_id`.** Round 1 parked this as
+   pre-existing. It is still the live one: this feature writes
+   caller-supplied `e.workloadId` onto `alerts.workload_id`
+   (`ingest.ts:339`, `:376`), and `/dashboard` plus `/budgets` render
+   `recentAlerts`. Independent probe: org_other posting a redacted row
+   that named `wl_secret` got `workloadName: "Project Redacted - M&A due
+   diligence"` back from `recentAlerts`. Adding the org predicate (the
+   same one now on `:463` and `:543`) would close it. Not blocking: the
+   join predates this grain, round 1 told the builder it belongs in its
+   own spec, and `unapproved_action` / `stale_pricing` already fed it.
+
+2. **`packages/core/src/ingest/evidence.ts:254-270` — `detectSensitive` runs
+   on metadata values, not on metadata keys.** A key that is itself an
+   email and does *not* match the denylist is stored. Probe:
+   `{ "victim.bob@example.com": "x" }` survived into
+   `protocol_evidence.metadata`. The `_token` suffix is what made the
+   round-1 example a *denied* key; without a denied word, the email is
+   just another 64-character name. Same class of limit as `operation` /
+   `actor` / `target`, which `EVIDENCE.md` already names. Applying the
+   existing detectors to the key and dropping on a hit would close it.
+
+3. **`packages/core/src/ingest/evidence.ts:166-192` — the widened denylist
+   is fail-closed on a few honest names.** `errorMessage` (suffix
+   `message`), `context` (suffix `text`) and `metadata` (suffix `data`)
+   are dropped. Adapters do not emit them; `contentType` / `tokenCount` /
+   `promptName` still survive, which is what the comment promised. A
+   caller who loses `errorMessage` learns so from `evidenceRedacted`.
+   Not a withhold: dropping a prose-shaped key is the direction this
+   control is supposed to fail.
