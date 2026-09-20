@@ -1,5 +1,7 @@
 # Architecture
 
+The user-facing map — what talks to what, four grains on one trace, heuristic → measured — is [How ARK works](08-how-ark-works.md). This page is how the code is layered.
+
 ## The shape
 
 ![Three surfaces, one engine, one wire between them](diagrams/system-map.svg)

@@ -1,5 +1,34 @@
 import Link from 'next/link';
 
+const LOOP = [
+  {
+    n: '1',
+    title: 'Assess',
+    body: 'Thirty questions about one repeating job. Verdict, architecture, model, controls, eval plan, cost, roadmap — every figure labelled.',
+  },
+  {
+    n: '2',
+    title: 'Measure',
+    body: 'From the report, send one synthetic sample into Control. It does not sit in production traffic. Cost stays heuristic until thirty real traces land.',
+  },
+  {
+    n: '3',
+    title: 'Control',
+    body: 'Production traces and protocol evidence. Spend is per outcome. Drift is the estimate versus the bill. A missing approval is an alert, not a paragraph.',
+  },
+] as const;
+
+const REPORT = [
+  'Verdict — including not-ai, with the reason written down',
+  'The numbers — cost per successful outcome, labelled',
+  'Architecture — the pattern, and the rejected ones',
+  'Model — cheapest adequate, with priced alternatives',
+  'Security controls — each with how Control verifies it',
+  'Evaluation plan — golden-set size and a launch threshold',
+  'Roadmap — every phase has a kill criterion',
+  'What this report does not know — named, not buried',
+] as const;
+
 export default function Landing() {
   return (
     <div className="space-y-12">
@@ -9,15 +38,10 @@ export default function Landing() {
           Should your team build this, and what happens when it runs?
         </h1>
         <p className="mt-5 text-base leading-relaxed text-ink-300">
-          Describe one repeating job — not a strategy, a job. In about fifteen minutes you get a verdict, an
-          architecture with the rejected alternatives written down, a model recommendation with priced
-          alternatives, the security controls the data class actually requires, an evaluation plan with a
-          launch threshold, a build and run cost, and a phased roadmap where every phase has a kill
-          criterion.
-        </p>
-        <p className="mt-4 text-base leading-relaxed text-ink-400">
-          It is built to be able to say no. Roughly a quarter of the workloads people bring here should be a
-          query and a scheduled job, and the report will say so instead of proposing an agent.
+          Describe one repeating job — not a strategy, a job. In about fifteen minutes you get a document
+          a planning meeting can argue with. It is built to be able to say no. Roughly a quarter of the
+          workloads people bring here should be a query and a scheduled job, and the report will say so
+          instead of proposing an agent.
         </p>
         <div className="mt-7 flex flex-wrap items-center gap-4">
           <Link
@@ -30,6 +54,40 @@ export default function Landing() {
             How the scoring works &rarr;
           </Link>
         </div>
+      </section>
+
+      <section aria-labelledby="the-loop">
+        <h2 id="the-loop" className="text-sm font-semibold text-ink-100">
+          Assess → Measure → Control
+        </h2>
+        <p className="mt-2 max-w-3xl text-sm text-ink-400">
+          The estimator does not get more confident. It gets more informed, and it tells you which one just
+          happened. MY AI for teams is the estimator. ARK Control is the measurement. They are the only two
+          products that talk to each other.
+        </p>
+        <ol className="mt-5 grid gap-4 md:grid-cols-3">
+          {LOOP.map((step) => (
+            <li key={step.n} className="rounded-xl border border-ink-800 bg-ink-850 p-5">
+              <p className="font-mono text-2xs uppercase tracking-widest text-ink-500">Step {step.n}</p>
+              <h3 className="mt-1 text-sm font-medium text-ink-100">{step.title}</h3>
+              <p className="mt-2 text-xs leading-relaxed text-ink-400">{step.body}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section>
+        <h2 className="text-sm font-semibold text-ink-100">What you walk out with</h2>
+        <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+          {REPORT.map((item) => (
+            <li
+              key={item}
+              className="rounded-lg border border-ink-800 bg-ink-850 px-4 py-3 text-xs leading-relaxed text-ink-300"
+            >
+              {item}
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section className="grid gap-4 md:grid-cols-3">
@@ -49,23 +107,6 @@ export default function Landing() {
           <span className="font-mono text-good">measured</span>. A guess and a measurement never look the
           same on screen.
         </Card>
-      </section>
-
-      <section className="rounded-xl border border-ink-800 bg-ink-850 p-6">
-        <h2 className="text-base font-semibold text-ink-100">Where the labels come from</h2>
-        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-ink-400">
-          On its own, this tool reasons from published model prices and a rubric — honest, but{' '}
-          <span className="font-mono text-warn">heuristic</span> on the two numbers that move the cost most:
-          turns per outcome and failure rate. Point it at a running{' '}
-          <span className="text-ink-200">ARK Control</span> instance and those become{' '}
-          <span className="font-mono text-good">measured</span>, drawn from your own traces. That is the
-          whole design: the estimator does not get more confident, it gets more informed, and it tells you
-          which one just happened.
-        </p>
-        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-ink-400">
-          Control also closes the loop the other way. Once the workload ships, it compares what this report
-          predicted against what the thing actually costs, and shows you the drift.
-        </p>
       </section>
     </div>
   );

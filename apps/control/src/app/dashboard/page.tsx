@@ -178,21 +178,29 @@ export default async function Dashboard() {
 
 function Empty() {
   return (
-    <Panel title="No telemetry yet">
+    <Panel
+      title="No telemetry yet"
+      right={
+        <Link href="/start" className="rounded-md bg-signal px-3 py-1.5 text-xs font-medium text-ink-950">
+          Connect a workload
+        </Link>
+      }
+    >
       <p className="text-sm leading-relaxed text-ink-300">
-        This organisation has no traces yet. The first-party path is MY AI for teams:{' '}
-        <code className="font-mono text-signal">POST /api/measure</code> on port 3001, which runs one
-        synthetic Runtime sample and posts it here. Point that app at this Control with{' '}
-        <code className="font-mono text-signal">ARK_CONTROL_URL</code> and{' '}
-        <code className="font-mono text-signal">ARK_CONTROL_TOKEN</code> (the bearer for this org —
-        set in the environment, never pasted into this page).
+        This organisation has no traces yet. The fastest path is to wrap the client you already have —{' '}
+        <Link href="/start" className="text-signal underline underline-offset-2">Connect</Link>
+        {' '}shows the five-minute snippet using{' '}
+        <code className="font-mono text-signal">instrumentFetch</code> and{' '}
+        <code className="font-mono text-signal">run()</code>.
       </p>
       <p className="mt-3 text-sm leading-relaxed text-ink-400">
-        You can also <code className="font-mono text-signal">POST /api/v1/events</code> yourself, or
-        load a bulk demo with <code className="font-mono text-signal">npm run ingest:live</code>.
-        Until a pattern clears 30 traces, MY AI for teams keeps labelling cost figures{' '}
-        <span className="font-mono text-warn">heuristic</span>. That is the correct behaviour, not a
-        bug.
+        The first-party path is still MY AI for teams{' '}
+        <code className="font-mono text-signal">POST /api/measure</code> on port 3001, pointed at this
+        Control with <code className="font-mono text-signal">ARK_CONTROL_URL</code> and{' '}
+        <code className="font-mono text-signal">ARK_CONTROL_TOKEN</code> (set in the environment, never
+        pasted into this page). Until a pattern clears 30 traces, MY AI for teams keeps labelling cost
+        figures <span className="font-mono text-warn">heuristic</span>. That is the correct behaviour, not
+        a bug.
       </p>
     </Panel>
   );

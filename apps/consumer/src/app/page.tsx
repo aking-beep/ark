@@ -26,7 +26,7 @@ const steps = [
   {
     icon: FileDown,
     title: "3. Get setup files",
-    body: "Copy-paste instructions and matched tools for ChatGPT, Claude, Gemini, Cursor, and agents.",
+    body: "Copy-paste CLAUDE.md, Cursor rules, and AGENTS.md — plus matched tools for ChatGPT, Claude, Gemini, Cursor, and agents.",
   },
 ];
 
@@ -68,7 +68,9 @@ export default function HomePage() {
           </h1>
           <p className="max-w-2xl text-lg text-muted-foreground">
             Five lively minutes. No résumé, no corporate form. MY AI watches how you ask, check, and decide — then gives
-            you a setup you can paste into ChatGPT, Claude, Gemini, Cursor, or an agent.
+            you a setup you can paste into ChatGPT, Claude, Gemini, Cursor, or an agent —{' '}
+            <span className="text-foreground">CLAUDE.md</span>, Cursor rules, and{' '}
+            <span className="text-foreground">AGENTS.md</span> included.
           </p>
           <p className="max-w-2xl text-sm text-muted-foreground">
             Brand new to AI or using it every day? It works for both — switch between <strong>Simple</strong> and{" "}

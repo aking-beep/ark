@@ -18,6 +18,17 @@ ARK Control is the thing that manufactures ground truth. It ingests traces from 
 
 That is the whole product thesis in one sentence: **the estimator does not get more confident over time, it gets more informed, and it tells you which one just happened.**
 
+## How it fits together
+
+Three products, one loop, two things that are not products.
+
+- **MY AI** (`:3000`) is a personal quiz. Paste-ready `CLAUDE.md`, Cursor rules, `AGENTS.md`. It does not talk to the other two, and they do not link to it.
+- **MY AI for teams** (`:3001`) is the estimator. Thirty questions, a verdict that can be `not-ai`, every figure labelled.
+- **ARK Control** (`:3002`) is the measurement. Wrap the client you already have (`instrumentFetch` + `run()`), or send one sample from the report (`POST /api/measure`). Spend is per outcome. `/start` is the connect path.
+- **`@ark/runtime`** and **`@ark/protocols`** are libraries. Not apps, not six new dashboards.
+
+The only runtime wire is teams → Control (`GET /api/v1/calibration`). If Control does not answer, the report still completes and every figure reads `heuristic`. The map, with a unit of work across four grains, is [`docs/08-how-ark-works.md`](docs/08-how-ark-works.md).
+
 ## Protocols are adapters, not products
 
 A production agent calls a CRM over MCP, delegates to a peer over A2A, asks a human over AG-UI, renders a confirmation over A2UI, completes a checkout over UCP and authorises the money over AP2. Control used to see one thing from all of that: a row of model calls and a cost.
@@ -129,8 +140,9 @@ npm run ingest:live    # POST live traces for the Northwind org (not SQL-inserte
 6. [`docs/05-hosting.md`](docs/05-hosting.md) — Docker and production env
 7. [`docs/06-aifit-consumer.md`](docs/06-aifit-consumer.md) — MY AI consumer (merged from aifit-engine)
 8. [`docs/07-protocol-evidence.md`](docs/07-protocol-evidence.md) — the six protocols, the fourth grain, and the three redaction layers
-9. [`docs/adr/`](docs/adr/) — the decisions that would otherwise be re-litigated every quarter (including [ADR-0006](docs/adr/0006-runtime-is-not-a-surface.md): Runtime is a library, not a surface, and [ADR-0007](docs/adr/0007-protocols-are-adapters-not-surfaces.md): protocols are adapters, not surfaces)
-10. [`docs/prd/`](docs/prd/) — one per surface: who it is for, what it refuses to do
+9. [`docs/08-how-ark-works.md`](docs/08-how-ark-works.md) — the map: what talks to what, and what a request looks like from quiz to drift
+10. [`docs/adr/`](docs/adr/) — the decisions that would otherwise be re-litigated every quarter (including [ADR-0006](docs/adr/0006-runtime-is-not-a-surface.md): Runtime is a library, not a surface, and [ADR-0007](docs/adr/0007-protocols-are-adapters-not-surfaces.md): protocols are adapters, not surfaces)
+11. [`docs/prd/`](docs/prd/) — one per surface: who it is for, what it refuses to do
 
 If you would rather see the five arguments than read them, [`docs/diagrams/`](docs/diagrams/) is an index of the same material: the system map above, the trace-versus-event comparison, the verdict ladder drawn from the source, the provenance ladder worked end to end, and the calibration loop.
 

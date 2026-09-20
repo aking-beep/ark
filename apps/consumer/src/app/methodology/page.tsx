@@ -58,6 +58,10 @@ export default function MethodologyPage() {
             Scores are not scientifically validated. This is not a personality test, clinical tool, or hiring screen.
             Do not use it that way.
           </p>
+          <p className="mt-2 text-muted-foreground">
+            MY AI is a personal fit quiz. It is a separate product from MY AI for teams (a workload assessment) and
+            from ARK Control (production measurement). This page does not send you there.
+          </p>
         </div>
       </section>
 
