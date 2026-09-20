@@ -582,3 +582,34 @@ commented-out code.
    caller who loses `errorMessage` learns so from `evidenceRedacted`.
    Not a withhold: dropping a prose-shaped key is the direction this
    control is supposed to fail.
+
+## Round 3 — 5/5
+
+Independent rescore of `6894c75` / `effbd7c`, not a rubber stamp of round 2.
+The change is one predicate on a pre-existing function, declared in
+`EVIDENCE.md` § Deviations.
+
+| # | Criterion | Point | Finding |
+|---|---|---|---|
+| 1 | Spec satisfied | ✅ | Out-of-spec `recentAlerts` join is declared; it only narrows a read this feature made reachable. All ten criteria still hold. |
+| 2 | Evidence proves it | ✅ | `after-findings.txt` now records both sides of the alert join; a fresh `findings.mjs` run matches it. `probe.mjs` is still byte-identical to `after.txt`, canaries included. |
+| 3 | Structure holds | ✅ | One SQL predicate in `@ark/db`. No new dependency, no layer inversion. |
+| 4 | Fails safely | ✅ | Note 1 is closed on the query and on the pages. Notes 2 and 3 are unchanged and remain non-blocking. |
+| 5 | Readable | ✅ | Comment on `recentAlerts` says why the predicate is load-bearing now; `evidence.test.ts:345` covers both sides of the boundary. |
+
+**Blocking:** none.
+**Non-blocking:** round-2 notes 2 and 3 still stand (`detectSensitive` is not applied to metadata keys; the denylist is fail-closed on `errorMessage` / `context` / `metadata`).
+
+**Note 1, re-measured.** Scratch DB, same reproduction as round 2: org_other posts evidence naming org_demo's `wl_secret` with a payload key so a `sensitive_data` alert is raised. `recentAlerts('org_other')` returns `workloadName: null`. `recentAlerts('org_demo')` still resolves `Project Redacted - M&A due diligence`.
+
+Live Control, against `/workspace/ark.db` the server is reading: planted two `org_northwind` alerts, one naming `wl_support_triage` and one naming `wl_northwind_claims`, then fetched the pages.
+
+- Northwind `/budgets` (200): both alert messages render; `Freight claims intake` appears in the Workload column; `Support ticket triage and refund handling` does not. (Northwind `/dashboard` is the empty state — no traces — so it does not render the alert list; that is pre-existing, not this change.)
+- Demo `/dashboard`: `approval_missing · … · Support ticket triage and refund handling` and the same for `unapproved_action` / `loop_runaway`.
+- Demo `/budgets` alert log: the Workload column next to those kinds is `Support ticket triage and refund handling`; `budget_breach` still names `Look up invoice totals for account queries`.
+
+Planted rows were deleted after the fetch.
+
+**Regressions.** `npm run typecheck` exit 0. `npm run test` 285/285 (the new join case is the +1). Four canaries in `before.txt` / `after.txt` unchanged.
+
+The point holds. Notes 2 and 3 did not become blocking because an unrelated join was scoped.
