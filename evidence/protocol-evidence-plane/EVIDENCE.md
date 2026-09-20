@@ -94,6 +94,12 @@ Repo checks, run at the tip of the branch:
 | `npm run build` | exit 0, `/protocols` in the route manifest |
 | `npm ci && npm run setup` | exit 0 from a clean lockfile install |
 
+The rest of the platform, started by `npm run dev` and recorded in
+`after-platform.txt`: MY AI (consumer, 3000) 200, MY AI for teams (business,
+3001) 200, ARK Control (3002) 200, MY AI API (python, 8472) 200, and the python
+suite 23 passed. `apps/` still holds three apps; `@ark/runtime` is still a
+package.
+
 Capture timestamps and commit SHAs are in `captures.tsv`, written by
 `scripts/factory-prove.sh`.
 
