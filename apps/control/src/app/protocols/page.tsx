@@ -43,7 +43,7 @@ export default async function Protocols() {
         <Stat
           label="Protocol events"
           value={fmt.int(summary.total)}
-          hint={`${byProtocol.size} of six protocols active. Each observation is one thing an agent did over a protocol.`}
+          hint={`${byProtocol.size === ORDER.length ? 'All six' : `${byProtocol.size} of six`} protocols active. Each observation is one thing an agent did over a protocol.`}
         />
         <Stat
           label="Blocked or denied"
@@ -62,9 +62,10 @@ export default async function Protocols() {
           value={fmt.usd(summary.valueUsd, 2)}
           tone="signal"
           hint={
-            summary.nonUsdEvents > 0
-              ? `USD only. ${fmt.int(summary.nonUsdEvents)} observations were in another currency and are excluded rather than converted.`
-              : 'Money a commerce or payment operation moved or authorised.'
+            'Counted once per unit of work: a checkout, its mandate and its receipt are three observations of one amount.' +
+            (summary.nonUsdEvents > 0
+              ? ` USD only — ${fmt.int(summary.nonUsdEvents)} ${summary.nonUsdEvents === 1 ? 'observation was' : 'observations were'} in another currency and ${summary.nonUsdEvents === 1 ? 'is' : 'are'} excluded rather than converted at a rate nobody chose.`
+              : '')
           }
         />
       </Grid>
@@ -144,7 +145,7 @@ function ProtocolCard({ protocol, rollup }: { protocol: keyof typeof PROTOCOL_LA
           value={fmt.int(rollup.missingApprovals)}
           tone={rollup.missingApprovals > 0 ? 'danger' : undefined}
         />
-        <Cell term="Value acted on" value={rollup.valueUsd > 0 ? fmt.usd(rollup.valueUsd, 2) : '—'} />
+        <Cell term="Value seen here" value={rollup.valueUsd > 0 ? fmt.usd(rollup.valueUsd, 2) : '—'} />
         <Cell term="Pending" value={fmt.int(rollup.pending)} />
       </dl>
 
@@ -217,7 +218,8 @@ function EvidenceTr({ e }: { e: EvidenceRow }) {
         {e.valueUsd != null ? (
           fmt.usd(e.valueUsd, 2)
         ) : e.currency ? (
-          <span className="text-ink-500" title="Not in USD, and not converted.">
+          <span className="text-ink-500" title="Observed in this currency and left in it. Converting at ingest would turn an observation into an estimate.">
+            {typeof e.metadata.amount === 'number' ? `${fmt.int(e.metadata.amount)} ` : ''}
             {e.currency}
           </span>
         ) : (

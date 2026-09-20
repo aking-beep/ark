@@ -265,9 +265,21 @@ describe('the rollups the Protocols page reads', () => {
 
     assert.ok(mcp && mcp.events > 0);
     assert.ok(ap2 && ap2.events >= 3);
-    assert.equal(summary.valueUsd, 475 + 175 + 475, 'USD amounts, and only USD amounts');
     assert.ok(summary.missingApprovals >= 1);
     assert.equal(summary.total, summary.byProtocol.reduce((a, p) => a + p.events, 0));
+  });
+
+  test('value acted on is counted once per unit of work, not once per protocol', async () => {
+    // tr_story carries a $175 UCP checkout and a $475 AP2 mandate — two
+    // protocols witnessing one trace. pe_unapproved is $475 on no trace.
+    const summary = await protocolSummary('org_demo');
+    assert.equal(summary.valueUsd, 475 + 475, 'the $175 and $475 on one trace count once, as the larger');
+    assert.equal(summary.byProtocol.find((p) => p.protocol === 'ucp')!.valueUsd, 175);
+    assert.equal(summary.byProtocol.find((p) => p.protocol === 'ap2')!.valueUsd, 475 + 475);
+    assert.ok(
+      summary.valueUsd <= summary.byProtocol.reduce((a, p) => a + p.valueUsd, 0),
+      'the headline never exceeds the per-protocol figures it de-duplicates',
+    );
   });
 
   test('missing approvals are counted from the evidence, not from unacknowledged alerts', async () => {

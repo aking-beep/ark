@@ -294,6 +294,26 @@ export interface ProtocolSummary {
 }
 
 /**
+ * Money acted on, counted once per unit of work.
+ *
+ * A single $89.50 refund shows up as a UCP checkout completion, an AP2
+ * payment mandate and an AP2 payment receipt — three true observations of one
+ * amount. Summing `value_usd` would put $268.50 on the dashboard and call it
+ * money, which is exactly the kind of number this product exists to refuse.
+ * So the amount for a trace is the largest any single operation in it acted
+ * on, and those are summed. An observation with no trace is its own unit.
+ *
+ * The trade is explicit: a trace that genuinely made two separate purchases
+ * reports the larger. Under-reporting a rare case beats over-reporting every
+ * case by the number of protocols that witnessed it.
+ */
+const VALUE_ACTED_ON = `
+  SELECT COALESCE(SUM(v), 0) total FROM (
+    SELECT MAX(value_usd) v FROM protocol_evidence
+    WHERE org_id=? AND ts>=? AND value_usd IS NOT NULL {AND}
+    GROUP BY COALESCE(trace_id, id))`;
+
+/**
  * The Protocols page, in one pass.
  *
  * `missingApprovals` repeats the `approval_missing` condition rather than
@@ -315,12 +335,25 @@ export async function protocolSummary(orgId: string, days = 30): Promise<Protoco
                  SUM(CASE WHEN required_approval=1 THEN 1 ELSE 0 END) approvals_required,
                  SUM(CASE WHEN required_approval=1 AND approved_by IS NULL
                            AND outcome IN ('ok','approved') THEN 1 ELSE 0 END) missing,
-                 COALESCE(SUM(value_usd),0) value_usd,
                  SUM(CASE WHEN currency IS NOT NULL AND currency<>'USD' THEN 1 ELSE 0 END) non_usd,
                  MAX(ts) last_seen
           FROM protocol_evidence WHERE org_id=? AND ts>=? GROUP BY protocol`,
     args: [orgId, from],
   });
+
+  const valueTotal = await c.execute({
+    sql: VALUE_ACTED_ON.replace('{AND}', ''),
+    args: [orgId, from],
+  });
+  const valueByProtocol = new Map<string, number>();
+  for (const r of rows.rows) {
+    const protocol = s(r.protocol);
+    const v = await c.execute({
+      sql: VALUE_ACTED_ON.replace('{AND}', 'AND protocol=?'),
+      args: [orgId, from, protocol],
+    });
+    valueByProtocol.set(protocol, n(v.rows[0]?.total));
+  }
 
   // Median rather than mean: protocol latency is long-tailed (one cold MCP
   // server, one human taking a coffee break) and a mean reports the tail as
@@ -356,7 +389,7 @@ export async function protocolSummary(orgId: string, days = 30): Promise<Protoco
       pending: n(r.pending),
       approvalsRequired: n(r.approvals_required),
       missingApprovals: n(r.missing),
-      valueUsd: n(r.value_usd),
+      valueUsd: valueByProtocol.get(protocol) ?? 0,
       nonUsdEvents: n(r.non_usd),
       medianLatencyMs: median(byProtocolLatency.get(protocol) ?? []),
       protocolVersion: versionByProtocol.get(protocol) ?? null,
@@ -370,7 +403,9 @@ export async function protocolSummary(orgId: string, days = 30): Promise<Protoco
     blockedOrDenied: sum((p) => p.blocked),
     approvalsRequired: sum((p) => p.approvalsRequired),
     missingApprovals: sum((p) => p.missingApprovals),
-    valueUsd: sum((p) => p.valueUsd),
+    // Not the sum of the per-protocol figures: those each de-duplicate within
+    // one protocol, and the same money is usually seen by two.
+    valueUsd: n(valueTotal.rows[0]?.total),
     nonUsdEvents: sum((p) => p.nonUsdEvents),
     byProtocol: byProtocol.sort((a, b) => b.events - a.events),
   };
@@ -402,6 +437,8 @@ export interface EvidenceRow {
   traceId: string | null;
   workloadId: string | null;
   workloadName: string | null;
+  /** Low-cardinality scalars only, already redacted. Never a payload. */
+  metadata: Record<string, string | number | boolean>;
 }
 
 export async function recentEvidence(orgId: string, limit = 40, days = 30): Promise<EvidenceRow[]> {
@@ -435,7 +472,18 @@ function toEvidenceRow(x: Record<string, unknown>): EvidenceRow {
     traceId: x.trace_id ? s(x.trace_id) : null,
     workloadId: x.workload_id ? s(x.workload_id) : null,
     workloadName: x.wname ? s(x.wname) : null,
+    metadata: parseMetadata(x.metadata),
   };
+}
+
+function parseMetadata(raw: unknown): Record<string, string | number | boolean> {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(String(raw));
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
 }
 
 export interface TraceStory {

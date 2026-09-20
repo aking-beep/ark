@@ -245,18 +245,23 @@ async function seedProtocolEvidence(client: ReturnType<typeof createClient>, rnd
     await import('@ark/protocols');
 
   const wl = SUPPORT_TRIAGE.id;
+  // `started_at` is jittered across its day, so the most recent day's traces
+  // sit in the future. Observing one would date the evidence ahead of the
+  // clock, so take only traces that have actually happened.
   const traces = await client.execute({
     sql: `SELECT id, started_at, outcome FROM traces
-          WHERE org_id=? AND workload_id=? AND started_at>=?
+          WHERE org_id=? AND workload_id=? AND started_at BETWEEN ? AND ?
           ORDER BY started_at DESC LIMIT 120`,
-    args: [ORG, wl, now - 14 * 864e5],
+    args: [ORG, wl, now - 14 * 864e5, now],
   });
   if (traces.rows.length === 0) return;
 
   const rows: unknown[] = [];
   let seq = 0;
+  // The offsets below can still push the last observation on a trace that
+  // started moments ago past the clock. Evidence is never newer than its run.
   const on = (traceId: string, ts: number, o: object) =>
-    rows.push({ ...o, id: `pe_${++seq}`, traceId, workloadId: wl, ts });
+    rows.push({ ...o, id: `pe_${++seq}`, traceId, workloadId: wl, ts: Math.min(ts, now) });
 
   for (const t of traces.rows) {
     const traceId = String(t.id);
