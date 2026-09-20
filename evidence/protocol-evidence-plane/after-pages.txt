@@ -1,0 +1,22 @@
+
+demo org — seeded (dana@riverbend.example)
+  200  /dashboard
+  200  /workloads
+  200  /workloads/wl_support_triage
+  200  /optimize
+  200  /budgets
+  200  /calibration
+  200  /protocols
+
+northwind — no protocol evidence
+  200  /dashboard
+  200  /workloads
+  404  /workloads/wl_support_triage   (expected — other org)
+  200  /optimize
+  200  /budgets
+  200  /calibration
+  200  /protocols
+
+  → after-protocols-empty.png
+
+uncaught page errors: demo=0 northwind=0
