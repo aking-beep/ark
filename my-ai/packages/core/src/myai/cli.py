@@ -44,7 +44,7 @@ def score(session_file: str):
     console.print(f"[bold]{workstyle.get('label')}[/bold]")
     if workstyle.get("narrative"):
         console.print(workstyle["narrative"])
-    console.print(f"MY AI score {maturity.get('score')} ({maturity.get('band')})")
+    console.print(f"AI Fit score {maturity.get('score')} ({maturity.get('band')})")
 
     for row in result.get("model_routing") or []:
         model = row.get("model") or {}

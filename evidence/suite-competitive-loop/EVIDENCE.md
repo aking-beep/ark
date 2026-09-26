@@ -6,7 +6,7 @@ A TypeScript caller can wrap the OpenAI or Anthropic client they already have,
 run one unit of work, and see a trace in Control without reading the data model.
 An empty Control org’s Spend page now points at Connect (`/start`) instead of an
 operator note. The three products look like finished, **separate** products that
-share a thesis — MY AI names the files you walk away with; MY AI for teams shows
+share a thesis — AI Fit names the files you walk away with; AI Fit Teams shows
 Assess → Measure → Control; Control has a five-minute wrap snippet — and
 `docs/08-how-ark-works.md` is the one-page map of what talks to what and what
 never talks.
@@ -69,14 +69,14 @@ The probe lines that moved, before → after:
 | consumer names `CLAUDE.md` | ABSENT | yes |
 | consumer has For teams | no | no |
 | teams shows Assess loop | ABSENT | yes |
-| teams has Open MY AI | no | no |
+| teams has Open AI Fit | no | no |
 | GET `:3002/start` | 404 | 200 |
 | `/start` names `instrumentFetch` | ABSENT | yes |
 | `/start` prints a bearer secret | no | no |
 | `docs/08-how-ark-works.md` | ABSENT | yes |
 
 Unchanged on purpose: consumer still has no “For teams”; teams still has no
-“Open MY AI”; `/start` still never interpolates a bearer.
+“Open AI Fit”; `/start` still never interpolates a bearer.
 
 ## What this does not prove
 
@@ -105,6 +105,10 @@ Unchanged on purpose: consumer still has no “For teams”; teams still has no
   grid; a 1440px three-column row clipped the wrap snippet so it was not
   copy-pasteable.
 - No new third-party npm dependency.
+- Owner correction (2026-09-26): user-facing names are **AI Fit**, **AI Fit
+  Teams**, and **Control**. Engine paths stay `my-ai/` / package `myai`. The
+  spec’s original “Find MY AI” / “MY AI for teams” strings were updated in the
+  same spec to match. Historical evidence directories are unchanged.
 
 ## Definition of done
 

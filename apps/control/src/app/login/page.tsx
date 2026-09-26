@@ -55,7 +55,7 @@ export default async function LoginPage({
         follow a redirect between those two. Local demo:{' '}
         <span className="font-mono">dana@riverbend.example</span> / <span className="font-mono">riverbend-demo</span>
         {' '}(Demo Co) or <span className="font-mono">sam@northwind.example</span> / <span className="font-mono">northwind-demo</span>
-        {' '}(Northwind — empty until MY AI for teams <span className="font-mono">POST /api/measure</span>
+        {' '}(Northwind — empty until AI Fit Teams <span className="font-mono">POST /api/measure</span>
         {' '}with <span className="font-mono">ARK_CONTROL_URL</span> / <span className="font-mono">ARK_CONTROL_TOKEN</span>,
         {' '}or <span className="font-mono">npm run ingest:live</span>).
       </p>

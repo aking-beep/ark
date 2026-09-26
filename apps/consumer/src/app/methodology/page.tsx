@@ -9,7 +9,7 @@ export default function MethodologyPage() {
       <p className="text-sm font-medium uppercase tracking-wide text-primary">In plain language</p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight">How it works</h1>
       <p className="mt-4 text-muted-foreground">
-        MY AI watches what you ask for — a source, a comparison, a quick answer, or a hands-off helper — then matches
+        AI Fit watches what you ask for — a source, a comparison, a quick answer, or a hands-off helper — then matches
         that to a dated list of products and models. A chat model may label extra notes. It never picks the winner.
       </p>
 
@@ -36,14 +36,14 @@ export default function MethodologyPage() {
         <div>
           <h2 className="text-lg font-semibold">3. You can see why</h2>
           <p className="mt-2 text-muted-foreground">
-            Results quote the choices that drove each dimension. MY AI is similarity, not a scientific probability. You
+            Results quote the choices that drove each dimension. AI Fit is similarity, not a scientific probability. You
             can save or delete the session from your results page.
           </p>
         </div>
         <div>
           <h2 className="text-lg font-semibold">4. Version</h2>
           <p className="mt-2 text-muted-foreground">
-            MY AI 0.4. Usually four scenes (about five minutes), continuing only when a core habit still is not clear.
+            AI Fit 0.4. Usually four scenes (about five minutes), continuing only when a core habit still is not clear.
             Scoring stays on the server. The catalog last-reviewed date is derived from each row&apos;s{" "}
             <code>last_evaluated_at</code> and shown on the{" "}
             <Link href="/registry" className="underline underline-offset-4">
@@ -59,7 +59,7 @@ export default function MethodologyPage() {
             Do not use it that way.
           </p>
           <p className="mt-2 text-muted-foreground">
-            MY AI is a personal fit quiz. It is a separate product from MY AI for teams (a workload assessment) and
+            AI Fit is a personal fit quiz. It is a separate product from AI Fit Teams (a workload assessment) and
             from ARK Control (production measurement). This page does not send you there.
           </p>
         </div>
@@ -67,7 +67,7 @@ export default function MethodologyPage() {
 
       <div className="mt-10">
         <Link href="/assessment" className={cn(buttonVariants(), "min-h-11 inline-flex")}>
-          Find MY AI
+          Find AI Fit
         </Link>
       </div>
     </div>

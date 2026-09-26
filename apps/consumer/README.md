@@ -1,6 +1,6 @@
-# MY AI (consumer)
+# AI Fit (consumer)
 
-The public **MY AI** product — adaptive AI style quiz and setup files. Merged from [aifit-engine](https://github.com/aking-beep/aifit-engine) into the ARK monorepo.
+The public **AI Fit** product — adaptive AI style quiz and setup files. Merged from [aifit-engine](https://github.com/aking-beep/aifit-engine) into the ARK monorepo. It is a separate product from AI Fit Teams and from Control.
 
 - **UI:** this app (`@ark/consumer`, port **3000**)
 - **Engine + API:** [`my-ai/`](../../my-ai/) (Python, port **8472** in dev)
@@ -10,5 +10,3 @@ The public **MY AI** product — adaptive AI style quiz and setup files. Merged 
 npm run dev:my-ai-api  # terminal 1
 npm run dev:consumer   # terminal 2
 ```
-
-See [`docs/06-aifit-consumer.md`](../../docs/06-aifit-consumer.md) and [`my-ai/README.md`](../../my-ai/README.md).

@@ -8,11 +8,11 @@ The user-facing map — what talks to what, four grains on one trace, heuristic 
 
 ## The one boundary that is load-bearing
 
-`apps/consumer` and `apps/business` do not list `@ark/db` as a dependency. Consumer **MY AI** (`apps/consumer` + `my-ai/`) uses a separate Python engine and FastAPI; it does not import `@ark/core`. Business and Control share the TypeScript engine in `@ark/core`.
+`apps/consumer` and `apps/business` do not list `@ark/db` as a dependency. Consumer **AI Fit** (`apps/consumer` + `my-ai/`) uses a separate Python engine and FastAPI; it does not import `@ark/core`. Business and Control share the TypeScript engine in `@ark/core`.
 
 Control HTML is session-scoped to one org. Ingest and calibration take the org from a bearer token. An unauthenticated `?org=` query param is not a tenancy control.
 
-The consequence is that MY AI for teams can only reach Control through one documented HTTP call:
+The consequence is that AI Fit Teams can only reach Control through one documented HTTP call:
 
 ```ts
 const calibration = await fetchCalibration({ days: 30 });
@@ -21,13 +21,13 @@ const assessment = assess(workload, { depth: 'business', calibration });
 
 `fetchCalibration` returns `CalibrationSet | null`. It returns `null` on: no `ARK_CONTROL_URL` set, a 2.5s timeout, any non-200, or a response that fails schema validation. It never throws and it never partially applies.
 
-This matters because the failure mode it prevents is the dangerous one. If MY AI for teams could reach the database directly, a partial read or a stale connection would silently produce numbers that *look* measured. Across an HTTP boundary with a strict schema and a null return, the only two states are "measured, with a sample size" and "heuristic, and the page says so."
+This matters because the failure mode it prevents is the dangerous one. If AI Fit Teams could reach the database directly, a partial read or a stale connection would silently produce numbers that *look* measured. Across an HTTP boundary with a strict schema and a null return, the only two states are "measured, with a sample size" and "heuristic, and the page says so."
 
 ## Internal execution layer
 
 `@ark/runtime` is a library in `packages/runtime`, not a fourth product and not `apps/runtime`. A caller passes one completion schema through policy, a deterministic router, a provider adapter (`@ark/providers`: Ollama, Bedrock, OpenAI-compatible), `@ark/evals`, and `@ark/sdk` ingest. It POSTs the same `/api/v1/events` body any other instrumented workload uses — one event per adapter attempt, fallback retries on turn 0. `privacy=local-only` excludes cloud adapters before the first `fetch`, including on fallback. A policy refusal is not ingested (it is not a model call). Ingest failure is swallowed. Ollama `complete()` reads `GET /api/tags` and will not POST a tag that is not installed unless `ARK_OLLAMA_PULL` is set. See [ADR-0006](adr/0006-runtime-is-not-a-surface.md).
 
-The first-party caller in this repo is **MY AI for teams** `POST /api/measure`. It runs one synthetic sample (workload id and task shapes, never the description) through `execute` on the operator's configured model (`ARK_OLLAMA_MODEL` when set — not the estimator's catalog id) and lets Runtime ingest it. It is opt-in from a report, not a gateway sitting in production traffic.
+The first-party caller in this repo is **AI Fit Teams** `POST /api/measure`. It runs one synthetic sample (workload id and task shapes, never the description) through `execute` on the operator's configured model (`ARK_OLLAMA_MODEL` when set — not the estimator's catalog id) and lets Runtime ingest it. It is opt-in from a report, not a gateway sitting in production traffic.
 
 ## Protocol observation layer
 
@@ -44,12 +44,12 @@ Protocol evidence is a **fourth grain**, in `protocol_evidence`, correlated to m
 
 ## Data flow, end to end
 
-1. **Runtime emits.** A workload in production — including `@ark/runtime` via MY AI for teams `POST /api/measure` — POSTs to `/api/v1/events` — one row per model call, tagged with a trace id, a turn index, model, provider, token counts, latency, and an outcome when the trace closes.
+1. **Runtime emits.** A workload in production — including `@ark/runtime` via AI Fit Teams `POST /api/measure` — POSTs to `/api/v1/events` — one row per model call, tagged with a trace id, a turn index, model, provider, token counts, latency, and an outcome when the trace closes.
 2. **Control prices and rolls up.** Each event is priced against the model catalog. Unpriceable events (unknown model, off-allowlist provider) are accepted, flagged, and counted — never dropped, because the traffic happened whether or not the catalog knows about it.
 3. **Control detects.** Turn ceiling breached → `loop_runaway`. Trace cost ceiling breached → `circuit_break`. Provider outside the allowlist → `off_allowlist`. Prompt sample matching a sensitive-data detector → `sensitive_data`. Model price past its `asOf` window → `stale_pricing`. A protocol operation that required a human signature, completed, and has none → `approval_missing`.
 4. **Control computes priors.** Per architecture pattern, over a rolling window: turns per outcome, context growth per turn, failure rate, retries per failure, cache hit rate, cost per outcome, p95 turns, sample size.
-5. **MY AI for teams consumes.** `GET /api/v1/calibration?days=30` returns those priors with `basis: "measured"`. Patterns below the 30-trace floor are returned but marked, and `resolveCallShape` declines to use them.
-6. **Control closes the loop.** `/workloads/[id]` compares what MY AI for teams predicted against what the workload actually costs and renders the drift as a percentage. This is the page that keeps the rubric honest, and it is the reason the estimate has a name and a date attached to it.
+5. **AI Fit Teams consumes.** `GET /api/v1/calibration?days=30` returns those priors with `basis: "measured"`. Patterns below the 30-trace floor are returned but marked, and `resolveCallShape` declines to use them.
+6. **Control closes the loop.** `/workloads/[id]` compares what AI Fit Teams predicted against what the workload actually costs and renders the drift as a percentage. This is the page that keeps the rubric honest, and it is the reason the estimate has a name and a date attached to it.
 
 ## The turn index
 

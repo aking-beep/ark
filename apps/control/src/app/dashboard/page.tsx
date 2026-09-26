@@ -194,11 +194,11 @@ function Empty() {
         <code className="font-mono text-signal">run()</code>.
       </p>
       <p className="mt-3 text-sm leading-relaxed text-ink-400">
-        The first-party path is still MY AI for teams{' '}
+        The first-party path is still AI Fit Teams{' '}
         <code className="font-mono text-signal">POST /api/measure</code> on port 3001, pointed at this
         Control with <code className="font-mono text-signal">ARK_CONTROL_URL</code> and{' '}
         <code className="font-mono text-signal">ARK_CONTROL_TOKEN</code> (set in the environment, never
-        pasted into this page). Until a pattern clears 30 traces, MY AI for teams keeps labelling cost
+        pasted into this page). Until a pattern clears 30 traces, AI Fit Teams keeps labelling cost
         figures <span className="font-mono text-warn">heuristic</span>. That is the correct behaviour, not
         a bug.
       </p>

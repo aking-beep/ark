@@ -13,7 +13,7 @@ const HOP_BY_HOP = new Set([
 
 export const MY_AI_PROXY_TIMEOUT_MS = 20_000;
 
-/** Origin of the Python MY AI API. Empty on Vercel, where the platform rewrite hits the API service. */
+/** Origin of the Python AI Fit API. Empty on Vercel, where the platform rewrite hits the API service. */
 export function myAiApiOrigin(): string | null {
   const fromEnv = process.env.API_ORIGIN?.trim();
   if (fromEnv) return fromEnv.replace(/\/$/, "");
@@ -28,7 +28,7 @@ export async function proxyMyAiRequest(
 ): Promise<Response> {
   const origin = myAiApiOrigin();
   if (!origin) {
-    return Response.json({ error: "MY AI API is not configured (set API_ORIGIN)." }, { status: 502 });
+    return Response.json({ error: "AI Fit API is not configured (set API_ORIGIN)." }, { status: 502 });
   }
 
   const path = pathAndQuery.startsWith("/") ? pathAndQuery : `/${pathAndQuery}`;
@@ -64,7 +64,7 @@ export async function proxyMyAiRequest(
     const timedOut =
       err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
     return Response.json(
-      { error: timedOut ? "MY AI API timed out" : "MY AI API is unreachable" },
+      { error: timedOut ? "AI Fit API timed out" : "AI Fit API is unreachable" },
       { status: timedOut ? 504 : 502 },
     );
   }

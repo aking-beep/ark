@@ -14,8 +14,8 @@ export default async function Start() {
         <p className="mt-3 text-sm leading-relaxed text-ink-400">
           ARK Control observes. It does not sit in the request path and it does not store prompts.
           Wrap the client you already have, run one unit of work, and the Spend page will have something
-          to say. The map of how MY AI, MY AI for teams and Control fit together is{' '}
-          <code className="font-mono text-ink-200">docs/08-how-ark-works.md</code>.
+          to say. Control is its own product. The map of the three products — AI Fit, AI Fit Teams, and
+          Control — is <code className="font-mono text-ink-200">docs/08-how-ark-works.md</code>.
         </p>
       </header>
 
@@ -26,14 +26,14 @@ export default async function Start() {
             <code className="font-mono text-signal">instrumentFetch</code> records each OpenAI{' '}
             <code className="font-mono">/chat/completions</code> or Anthropic{' '}
             <code className="font-mono">/v1/messages</code> call as a turn on that unit. The prompt never
-            leaves the process. This is Control&apos;s path. It does not open MY AI or MY AI for teams.
+            leaves the process. This is Control&apos;s path. It does not open AI Fit or AI Fit Teams.
           </p>
           <pre className="overflow-x-auto rounded-lg bg-ink-900 p-4 font-mono text-2xs leading-relaxed text-ink-200">{SDK_SNIPPET}</pre>
         </div>
       </Step>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Step n="2" title="Or send one sample from MY AI for teams">
+        <Step n="2" title="Or send one sample from AI Fit Teams">
           <p>
             A report on port 3001 can <code className="font-mono text-signal">POST /api/measure</code> — one
             synthetic Runtime call, never the workload description. Point that app at this Control with{' '}
@@ -74,7 +74,7 @@ export default async function Start() {
           </li>
           <li>
             <Link href="/workloads" className="text-signal underline underline-offset-2">Workloads</Link>
-            {' '}— what MY AI for teams predicted versus what ran.
+            {' '}— what AI Fit Teams predicted versus what ran.
           </li>
         </ul>
       </Panel>

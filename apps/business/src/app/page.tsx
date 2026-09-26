@@ -33,7 +33,7 @@ export default function Landing() {
   return (
     <div className="space-y-12">
       <section className="max-w-3xl">
-        <p className="font-mono text-2xs uppercase tracking-widest text-signal">MY AI for teams</p>
+        <p className="font-mono text-2xs uppercase tracking-widest text-signal">AI Fit Teams</p>
         <h1 className="mt-3 text-4xl font-semibold leading-tight text-ink-100">
           Should your team build this, and what happens when it runs?
         </h1>
@@ -62,8 +62,8 @@ export default function Landing() {
         </h2>
         <p className="mt-2 max-w-3xl text-sm text-ink-400">
           The estimator does not get more confident. It gets more informed, and it tells you which one just
-          happened. MY AI for teams is the estimator. ARK Control is the measurement. They are the only two
-          products that talk to each other.
+          happened. AI Fit Teams is this product. Control is a separate product — the measurement. AI Fit,
+          the personal quiz, is a third product and is not linked from here.
         </p>
         <ol className="mt-5 grid gap-4 md:grid-cols-3">
           {LOOP.map((step) => (

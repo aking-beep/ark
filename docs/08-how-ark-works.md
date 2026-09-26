@@ -4,10 +4,10 @@ This is the map. The thesis is [why](00-thesis.md). The architecture is [how it 
 
 ## Three products, not one suite
 
-**MY AI**, **MY AI for teams**, and **ARK Control** are three products. They share a thesis — a guess and a measurement never look the same on screen — and they do not share a homepage, a login, or a funnel.
+**AI Fit**, **AI Fit Teams**, and **ARK Control** are three products. They share a thesis — a guess and a measurement never look the same on screen — and they do not share a homepage, a login, or a funnel.
 
-- **MY AI** (`:3000`) is a personal fit quiz. Five minutes. You walk away with `CLAUDE.md`, Cursor rules, and `AGENTS.md`. It talks only to its own Python API.
-- **MY AI for teams** (`:3001`) is a workload estimator. Thirty questions about one repeating job. It can say `not-ai`. It talks only to Control.
+- **AI Fit** (`:3000`) is a personal fit quiz. Five minutes. You walk away with `CLAUDE.md`, Cursor rules, and `AGENTS.md`. It talks only to its own Python API.
+- **AI Fit Teams** (`:3001`) is a workload estimator. Thirty questions about one repeating job. It can say `not-ai`. It talks only to Control.
 - **ARK Control** (`:3002`) is production measurement. Traces, protocol evidence, spend per outcome, drift. It does not sit in the request path.
 
 A person who finishes the quiz is not invited to assess a workload. A team that finishes an assessment is not invited to take the quiz. Control does not deep-link either of them as a next step. That is a product decision, not an omission. See [`specs/three-product-runtime.md`](../specs/three-product-runtime.md).
@@ -19,7 +19,7 @@ The rest of this page is how they flow together **when they do talk** — which 
 ```
                     personal fit                         the loop
                ┌──────────────────┐          ┌──────────────────────────┐
-               │  MY AI  :3000    │          │ MY AI for teams  :3001   │
+               │  AI Fit  :3000   │          │ AI Fit Teams  :3001   │
                │  quiz + exports  │          │ estimator (heuristic)    │
                └────────┬─────────┘          └────────────┬─────────────┘
                         │ Python /v1                      │ GET /api/v1/calibration
@@ -37,13 +37,13 @@ The rest of this page is how they flow together **when they do talk** — which 
 
 | Name | Port | Job | Talks to |
 |---|---|---|---|
-| **MY AI** | 3000 | Five minutes. A personal AI style and paste-ready `CLAUDE.md`, Cursor rules, `AGENTS.md`. | Only the Python MY AI API on 8472. |
-| **MY AI for teams** | 3001 | Thirty questions about one workload. Verdict, architecture, cost, controls. | Control, over HTTP, and only Control. |
+| **AI Fit** | 3000 | Five minutes. A personal AI style and paste-ready `CLAUDE.md`, Cursor rules, `AGENTS.md`. | Only the Python AI Fit API on 8472. |
+| **AI Fit Teams** | 3001 | Thirty questions about one workload. Verdict, architecture, cost, controls. | Control, over HTTP, and only Control. |
 | **ARK Control** | 3002 | What production actually cost, did, and was allowed to do. | Ingest from anyone with a bearer. Calibration out to teams. |
 | **`@ark/runtime`** | — | Policy → router → provider → eval → ingest. | Imported. Not an app. |
 | **`@ark/protocols`** | — | MCP, A2A, AG-UI, A2UI, UCP, AP2 → one evidence grain. | Imported. Executes nothing. |
 
-MY AI and MY AI for teams **do not link to each other.** The consumer quiz is not a funnel that softens a team workload assessment.
+AI Fit and AI Fit Teams **do not link to each other.** The consumer quiz is not a funnel that softens a team workload assessment.
 
 ## The only runtime wire: teams ↔ Control
 
@@ -114,7 +114,7 @@ The estimator does not get more confident. It gets more informed, and every figu
 
 ## What is forbidden
 
-- **A consumer → teams funnel.** No “For teams” on MY AI. No “Open MY AI” on teams. The quiz must not soften a workload verdict.
+- **A consumer → teams funnel.** No “For teams” on AI Fit. No “Open AI Fit” on teams. The quiz must not soften a workload verdict.
 - **Payloads in the database.** No prompt bodies, tool arguments, message contents, A2UI data models, UCP checkout payloads, AP2 signatures. Adapters build from named fields; the schema admits scalars; redaction runs in the SDK and again at ingest.
 - **Sitting in the request path.** Control observes. A Control outage inside `run()` does not fail the user’s model call.
 - **Guessing ROI.** Blank minutes and hourly rate stay blank. Payback is **unknowable**, not $0.
@@ -124,7 +124,7 @@ The estimator does not get more confident. It gets more informed, and every figu
 
 | If you are… | Open |
 |---|---|
-| A person picking an AI setup | http://localhost:3000 — MY AI |
-| A team deciding whether to build | http://localhost:3001 — MY AI for teams |
+| A person picking an AI setup | http://localhost:3000 — AI Fit |
+| A team deciding whether to build | http://localhost:3001 — AI Fit Teams |
 | An operator connecting production | http://localhost:3002/start — Control Connect |
 | An engineer changing the engine | [`01-architecture.md`](01-architecture.md), [`03-data-model.md`](03-data-model.md), [`07-protocol-evidence.md`](07-protocol-evidence.md) |

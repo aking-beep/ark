@@ -1,7 +1,7 @@
 import { Panel, Table, Td, Badge, BasisTag } from '@ark/ui';
 import { CALL_SHAPE, PATTERN_LABEL, type Pattern } from '@ark/core';
 
-export const metadata = { title: 'Methodology — MY AI for teams' };
+export const metadata = { title: 'Methodology — AI Fit Teams' };
 
 /**
  * The methodology page exists so the report can be argued with.

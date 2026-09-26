@@ -1,12 +1,12 @@
 # ARK
 
-Three products, one engine, one commitment: **a guess and a measurement never look the same on screen.**
+Three separate products — **AI Fit**, **AI Fit Teams**, and **Control** — one commitment: **a guess and a measurement never look the same on screen.** They do not share a homepage, a login, or a funnel.
 
 | Surface | Port | What it is |
 |---|---|---|
-| **MY AI** (consumer) | 3000 | Five-minute quiz: your AI style, matched tools, paste-ready setup files. |
-| **MY AI for teams** (business) | 3001 | Thirty questions about one workload. Verdict, architecture, model, controls, eval plan, cost, roadmap. |
-| **ARK Control** | 3002 | The evidence and control plane for production AI: telemetry ingest, cost governance, and protocol evidence from MCP, A2A, AG-UI, A2UI, UCP and AP2. Measures what MY AI for teams estimated. |
+| **AI Fit** (consumer) | 3000 | Five-minute quiz: your AI style, matched tools, paste-ready setup files. |
+| **AI Fit Teams** (business) | 3001 | Thirty questions about one workload. Verdict, architecture, model, controls, eval plan, cost, roadmap. |
+| **ARK Control** | 3002 | The evidence and control plane for production AI: telemetry ingest, cost governance, and protocol evidence from MCP, A2A, AG-UI, A2UI, UCP and AP2. Measures what AI Fit Teams estimated. |
 
 ![Three surfaces, one engine, one wire between them](docs/diagrams/system-map.svg)
 
@@ -14,7 +14,7 @@ Three products, one engine, one commitment: **a guess and a measurement never lo
 
 Most tools in this category are estimators: they take a description of a workload and emit a confident cost figure derived from published token prices and an assumed call shape. The figure is wrong for a specific and predictable reason — the two variables that dominate real spend are *turns per outcome* and *failure rate*, and neither can be known before the system runs. An agent that averages seven turns in a demo and nineteen in production produces a bill at nearly three times the forecast, and no amount of care with the price-per-token column will catch it.
 
-ARK Control is the thing that manufactures ground truth. It ingests traces from running workloads, computes observed call shapes per architecture pattern, and serves them at `GET /api/v1/calibration`. MY AI for teams calls that endpoint. When it answers, cost figures are labelled `measured` and carry a sample size. When it does not answer — which is the default, because most people will run MY AI for teams before they run Control — the assessment still completes and every figure is labelled `heuristic`.
+ARK Control is the thing that manufactures ground truth. It ingests traces from running workloads, computes observed call shapes per architecture pattern, and serves them at `GET /api/v1/calibration`. AI Fit Teams calls that endpoint. When it answers, cost figures are labelled `measured` and carry a sample size. When it does not answer — which is the default, because most people will run AI Fit Teams before they run Control — the assessment still completes and every figure is labelled `heuristic`.
 
 That is the whole product thesis in one sentence: **the estimator does not get more confident over time, it gets more informed, and it tells you which one just happened.**
 
@@ -22,8 +22,8 @@ That is the whole product thesis in one sentence: **the estimator does not get m
 
 Three products — not one suite with three tabs. Two libraries that are not products.
 
-- **MY AI** (`:3000`) is a personal quiz. Paste-ready `CLAUDE.md`, Cursor rules, `AGENTS.md`. It does not talk to the other two, and they do not link to it.
-- **MY AI for teams** (`:3001`) is the estimator. Thirty questions, a verdict that can be `not-ai`, every figure labelled.
+- **AI Fit** (`:3000`) is a personal quiz. Paste-ready `CLAUDE.md`, Cursor rules, `AGENTS.md`. It does not talk to the other two, and they do not link to it.
+- **AI Fit Teams** (`:3001`) is the estimator. Thirty questions, a verdict that can be `not-ai`, every figure labelled.
 - **ARK Control** (`:3002`) is the measurement. Wrap the client you already have (`instrumentFetch` + `run()`), or send one sample from the report (`POST /api/measure`). Spend is per outcome. `/start` is the connect path.
 - **`@ark/runtime`** and **`@ark/protocols`** are libraries. Not apps, not six new dashboards.
 
@@ -60,20 +60,20 @@ A prior is promoted only above that floor. Below it, the number stays `heuristic
 
 ```bash
 npm install
-pip install -e 'my-ai/[dev]'   # consumer MY AI API (Python)
+pip install -e 'my-ai/[dev]'   # consumer AI Fit API (Python)
 npm run setup                # build ARK packages, push schema, seed Control
-npm run dev                  # MY AI API + consumer + business + control
+npm run dev                  # AI Fit API + consumer + business + control
 ```
 
 Then:
 
-- http://localhost:3000 — MY AI (consumer)
-- http://localhost:3001 — MY AI for teams
+- http://localhost:3000 — AI Fit (consumer)
+- http://localhost:3001 — AI Fit Teams
 - http://localhost:3002 — ARK Control (sign in; see demo accounts below)
 
-MY AI (consumer) uses Next 16 nested under `apps/consumer`. Business and Control stay on Next 15 / React 18. After a consumer install, restart those two apps so they are not left on a stale `.next` from a previous `next dev`. `npm run dev:ark` starts only those two.
+AI Fit (consumer) uses Next 16 nested under `apps/consumer`. Business and Control stay on Next 15 / React 18. After a consumer install, restart those two apps so they are not left on a stale `.next` from a previous `next dev`. `npm run dev:ark` starts only those two.
 
-Zero config. The database is a local SQLite file (`ark.db`); nothing else is required. To see MY AI for teams figures flip from `heuristic` to `measured`, set `ARK_CONTROL_URL=http://localhost:3002` and `ARK_CONTROL_TOKEN` to a Demo Co ingest token, then reload a business report.
+Zero config. The database is a local SQLite file (`ark.db`); nothing else is required. To see AI Fit Teams figures flip from `heuristic` to `measured`, set `ARK_CONTROL_URL=http://localhost:3002` and `ARK_CONTROL_TOKEN` to a Demo Co ingest token, then reload a business report.
 
 Control is org-scoped at the edge. After `npm run setup`:
 
@@ -84,7 +84,7 @@ Control is org-scoped at the edge. After `npm run setup`:
 
 `npm run ingest:live` posts traces for Northwind through the same ingest path as production. Until that runs, Northwind's calibration is `calibrated` from Demo Co's patterns — fleet priors, not a thin sample of its own.
 
-Host all four processes (MY AI API + three Next apps) with Docker: [`docs/05-hosting.md`](docs/05-hosting.md).
+Host all four processes (AI Fit API + three Next apps) with Docker: [`docs/05-hosting.md`](docs/05-hosting.md).
 
 ## Layout
 
@@ -98,33 +98,33 @@ packages/
   providers/  execution adapters — Ollama (local), Bedrock, OpenAI-compatible
   evals/      deterministic quality, latency, cost, reliability of one call
   runtime/    internal execution layer — policy → router → provider → eval → Control
-my-ai/        MY AI engine — Python scoring, FastAPI, registry, evals (consumer backend)
+my-ai/        AI Fit engine — Python scoring, FastAPI, registry, evals (consumer backend)
 apps/
-  consumer/   MY AI       — adaptive quiz UI; proxies /v1 to MY AI API
-  business/   MY AI for teams — 8 sections, @ark/core, POST /api/assess, POST /api/measure
+  consumer/   AI Fit       — adaptive quiz UI; proxies /v1 to AI Fit API
+  business/   AI Fit Teams — 8 sections, @ark/core, POST /api/assess, POST /api/measure
   control/    ARK Control — ingest, dashboards, budgets, calibration endpoint
 docs/         thesis, architecture, PRDs, methodology, data model, ADRs
 ```
 
-Runtime is not a fourth app. Callers import `@ark/runtime`. There is no `apps/runtime`. The in-repo first-party caller is MY AI for teams `POST /api/measure` (one synthetic sample into Control).
+Runtime is not a fourth app. Callers import `@ark/runtime`. There is no `apps/runtime`. The in-repo first-party caller is AI Fit Teams `POST /api/measure` (one synthetic sample into Control).
 
 `@ark/protocols` is not six apps either, for the same reason. It depends on `@ark/core` and nothing else, and `@ark/core` does not depend on it — the canonical evidence schema must not become a function of six external release cycles.
 
 ### The boundary that matters
 
-`apps/consumer` and `apps/business` **do not depend on `@ark/db`**. Consumer MY AI uses the Python engine under `my-ai/`; business uses `@ark/core`. The only coupling between **business** MY AI for teams and Control is one documented HTTP call that is allowed to fail. `fetchCalibration()` returns `null` on timeout, non-200, or schema mismatch, and the product degrades honestly rather than breaking or — worse — silently substituting a guess for a measurement.
+`apps/consumer` and `apps/business` **do not depend on `@ark/db`**. Consumer AI Fit uses the Python engine under `my-ai/`; business uses `@ark/core`. The only coupling between **business** AI Fit Teams and Control is one documented HTTP call that is allowed to fail. `fetchCalibration()` returns `null` on timeout, non-200, or schema mismatch, and the product degrades honestly rather than breaking or — worse — silently substituting a guess for a measurement.
 
-Consumer MY AI keeps quiz progress in the browser (`localStorage`) and scores via the MY AI API. Business MY AI for teams encodes intake into the result link and recomputes server-side on every view.
+Consumer AI Fit keeps quiz progress in the browser (`localStorage`) and scores via the AI Fit API. Business AI Fit Teams encodes intake into the result link and recomputes server-side on every view.
 
 ## Commands
 
 ```bash
-npm run dev            # MY AI API + consumer + business + control
+npm run dev            # AI Fit API + consumer + business + control
 npm run dev:ark        # business (:3001) and Control (:3002) only
 npm run build          # packages, then all three apps
 npm run test           # @ark/core, protocols, db, SDK, providers, evals, runtime
 npm run smoke:runtime  # Runtime dry-run (+ live providers when env is set)
-npm run test:my-ai     # MY AI Python engine (pytest)
+npm run test:my-ai     # AI Fit Python engine (pytest)
 npm run typecheck      # every workspace
 npm run db:seed        # regenerate demo telemetry
 npm run ingest:live    # POST live traces for the Northwind org (not SQL-inserted)
@@ -138,7 +138,7 @@ npm run ingest:live    # POST live traces for the Northwind org (not SQL-inserte
 4. [`docs/03-data-model.md`](docs/03-data-model.md) — traces, events, and why the distinction matters
 5. [`docs/04-roadmap.md`](docs/04-roadmap.md) — phases with exit criteria *and* kill criteria
 6. [`docs/05-hosting.md`](docs/05-hosting.md) — Docker and production env
-7. [`docs/06-aifit-consumer.md`](docs/06-aifit-consumer.md) — MY AI consumer (merged from aifit-engine)
+7. [`docs/06-aifit-consumer.md`](docs/06-aifit-consumer.md) — AI Fit consumer (merged from aifit-engine)
 8. [`docs/07-protocol-evidence.md`](docs/07-protocol-evidence.md) — the six protocols, the fourth grain, and the three redaction layers
 9. [`docs/08-how-ark-works.md`](docs/08-how-ark-works.md) — the map: what talks to what, and what a request looks like from quiz to drift
 10. [`docs/adr/`](docs/adr/) — the decisions that would otherwise be re-litigated every quarter (including [ADR-0006](docs/adr/0006-runtime-is-not-a-surface.md): Runtime is a library, not a surface, and [ADR-0007](docs/adr/0007-protocols-are-adapters-not-surfaces.md): protocols are adapters, not surfaces)

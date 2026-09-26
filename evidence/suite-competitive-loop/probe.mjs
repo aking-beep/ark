@@ -145,7 +145,7 @@ line('consumer has For teams', /for teams/i.test(consumer.body) ? 'LEAK' : 'no')
 
 line('GET :3001/ status', String(teams.status || ABSENT));
 line('teams shows Assess loop', teams.body.includes('Assess → Measure → Control') ? 'yes' : ABSENT);
-line('teams has Open MY AI', /open my ai|not at work\?/i.test(teams.body) ? 'LEAK' : 'no');
+line('teams has Open AI Fit', /open ai fit|open my ai|not at work\?/i.test(teams.body) ? 'LEAK' : 'no');
 
 line('GET :3002/start status', start.status === 0 ? ABSENT : String(start.status));
 line('/start names instrumentFetch', start.body.includes('instrumentFetch') ? 'yes' : ABSENT);

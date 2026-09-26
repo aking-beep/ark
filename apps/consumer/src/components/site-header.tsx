@@ -22,7 +22,7 @@ export function SiteHeader() {
     <header className="border-b border-border/80 bg-background/80 pt-[env(safe-area-inset-top)] backdrop-blur">
       <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-3">
         <Link href="/" className="font-semibold tracking-tight">
-          MY AI
+          AI Fit
           <span className="text-primary">.</span>
         </Link>
         <div className="flex items-center gap-2">
