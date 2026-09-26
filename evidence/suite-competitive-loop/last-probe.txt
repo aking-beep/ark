@@ -1,7 +1,7 @@
 @ark/sdk resolves                                yes
 sdk exports instrumentFetch                      yes
 sdk exports run                                  yes
-wrap: two turns one trace                        yes (tr_mu9y4fgk_bfbp3j88 turns 0,1)
+wrap: two turns one trace                        yes (tr_muict2z4_58ehzx5u turns 0,1)
 wrap: no prompt body in ingest                   yes
 wrap: Control URL is not a model call            yes
 wrap: outside run() is a no-op                   yes
@@ -10,7 +10,7 @@ consumer names CLAUDE.md                         yes
 consumer has For teams                           no
 GET :3001/ status                                200
 teams shows Assess loop                          yes
-teams has Open MY AI                             no
+teams has Open AI Fit                            no
 GET :3002/start status                           200
 /start names instrumentFetch                     yes
 /start prints a bearer secret                    no

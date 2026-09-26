@@ -62,7 +62,7 @@ The probe lines that moved, before → after:
 |---|---|---|
 | sdk exports `instrumentFetch` | ABSENT | yes |
 | sdk exports `run` | ABSENT | yes |
-| wrap: two turns one trace | ABSENT | yes (`tr_mu9y4fgk_bfbp3j88` turns 0,1) |
+| wrap: two turns one trace | ABSENT | yes (`tr_muict2z4_58ehzx5u` turns 0,1) |
 | wrap: no prompt body in ingest | ABSENT | yes |
 | wrap: Control URL is not a model call | ABSENT | yes |
 | wrap: outside `run()` is a no-op | ABSENT | yes |

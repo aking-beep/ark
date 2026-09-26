@@ -98,6 +98,6 @@ describe("AI Fit and AI Fit Teams stay separate products", () => {
     assert.match(pyproject, /name = "myai"/);
     const proxy = read("apps/consumer/src/lib/my-ai-proxy.ts");
     assert.match(proxy, /AI Fit API is not configured/);
-    assert.doesNotMatch(proxy, /Fit API/);
+    assert.doesNotMatch(proxy, /(?<!AI )Fit API/);
   });
 });
