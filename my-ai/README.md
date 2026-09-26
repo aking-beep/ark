@@ -1,6 +1,6 @@
-# MY AI
+# AI Fit
 
-MY AI is a 5-minute adaptive quiz that answers:
+AI Fit is a 5-minute adaptive quiz that answers:
 
 **How do you like to use AI — and which setup actually fits you?**
 
@@ -20,11 +20,11 @@ This is a **free individual quiz**. It is not a $10/month “which AI should I u
 
 This tree lives in the [ARK](https://github.com/aking-beep/ark) monorepo (`my-ai/` + `apps/consumer`). Upstream history: [github.com/aking-beep/aifit-engine](https://github.com/aking-beep/aifit-engine).
 
-The public name is MY AI. The upstream repo stays `aifit-engine` so it is not confused with the unrelated business-matching site at aifitengine.com. Point a custom domain at the Vercel project and set `NEXT_PUBLIC_SITE_URL` to that origin for share cards.
+The public name is AI Fit. The upstream repo stays `aifit-engine` so it is not confused with the unrelated business-matching site at aifitengine.com. Point a custom domain at the Vercel project and set `NEXT_PUBLIC_SITE_URL` to that origin for share cards.
 
 ## What it measures
 
-MY AI scores **what you ask, how you steer, and how much evidence you demand**. Two people with the same job, budget, and skill level can need different AI setups.
+AI Fit scores **what you ask, how you steer, and how much evidence you demand**. Two people with the same job, budget, and skill level can need different AI setups.
 
 The quiz usually stops after four scenes (about twelve interactions). It continues only when a core habit still is not clear, and never past eight.
 
@@ -36,7 +36,7 @@ An LLM may label optional free text. It never picks the winner. Ranking is dated
 - Your quiz and results stay in the browser (`localStorage`). Server storage is filesystem locally, or Upstash / Vercel KV when `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` (or `KV_REST_API_URL` + `KV_REST_API_TOKEN`) are set. Share links also embed a compressed copy of the result.
 - There are no accounts.
 - Keyword classification is first-class. The optional LLM classifier is off unless `MYAI_LLM_CLASSIFIER=1` and an endpoint is set.
-- MY AI scores are normalized similarity, not scientifically validated probabilities.
+- AI Fit scores are normalized similarity, not scientifically validated probabilities.
 - Not a personality test, clinical instrument, or hiring screen.
 
 ## Run locally

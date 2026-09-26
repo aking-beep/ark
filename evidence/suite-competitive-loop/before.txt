@@ -1,0 +1,17 @@
+@ark/sdk resolves                                yes
+sdk exports instrumentFetch                      ABSENT
+sdk exports run                                  ABSENT
+wrap: two turns one trace                        ABSENT
+wrap: no prompt body in ingest                   ABSENT
+wrap: Control URL is not a model call            ABSENT
+wrap: outside run() is a no-op                   ABSENT
+GET :3000/ status                                200
+consumer names CLAUDE.md                         ABSENT
+consumer has For teams                           no
+GET :3001/ status                                200
+teams shows Assess loop                          ABSENT
+teams has Open MY AI                             no
+GET :3002/start status                           404
+/start names instrumentFetch                     ABSENT
+/start prints a bearer secret                    no
+docs/08-how-ark-works.md                         ABSENT

@@ -197,7 +197,7 @@ export default function AssessmentPage() {
     return (
       <div className="mx-auto max-w-3xl space-y-6 px-4 py-12">
         <p className="text-sm font-medium uppercase tracking-[0.18em] text-primary">About five minutes</p>
-        <h1 className="text-3xl font-semibold tracking-tight">Find MY AI</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Find AI Fit</h1>
         <p className="text-muted-foreground">
           Four short scenes, about twelve questions — usually five minutes. You leave with a profile, suggested tools,
           and files you can paste into the apps you already use.

@@ -45,11 +45,11 @@ def profile_markdown(result: dict) -> str:
     maturity = workstyle.get("maturity") or {}
     persona = result.get("persona") or {}
     lines = [
-        f"# {workstyle.get('label') or persona.get('label') or 'MY AI Profile'}",
+        f"# {workstyle.get('label') or persona.get('label') or 'AI Fit Profile'}",
         "",
         workstyle.get("narrative") or workstyle.get("summary") or persona.get("purpose") or "",
         "",
-        f"MY AI score: {maturity.get('score', '—')} ({maturity.get('band', 'unknown')})",
+        f"AI Fit score: {maturity.get('score', '—')} ({maturity.get('band', 'unknown')})",
         "",
         "## Why this style",
     ]
@@ -107,10 +107,10 @@ def export_persona(persona: dict, target: str, result: dict | None = None) -> tu
     if target == "agents":
         return "AGENTS.md", persona_to_markdown(persona, "Agent Working Configuration")
     if target == "cursor":
-        body = persona_to_markdown(persona, "MY AI Cursor Rule")
+        body = persona_to_markdown(persona, "AI Fit Cursor Rule")
         return (
             ".cursor/rules/my-ai.mdc",
-            "---\ndescription: Personalized MY AI working rules\nalwaysApply: true\n---\n\n" + body,
+            "---\ndescription: Personalized AI Fit working rules\nalwaysApply: true\n---\n\n" + body,
         )
     return "persona.md", persona_to_markdown(persona)
 

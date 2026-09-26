@@ -9,6 +9,9 @@ import {
   detectSensitive,
   redactEvidence,
 } from '@ark/core';
+import { activeTrace, hrefOf, isControlIngestUrl, observeLlmCall } from './instrument.js';
+
+export { observeLlmCall, isControlIngestUrl } from './instrument.js';
 
 export interface ArkClientOptions {
   /** Origin of ARK Control, e.g. http://localhost:3002 */
@@ -62,6 +65,67 @@ export class ArkIngest {
   /** Open a trace. Turn 0 is the first event you record on it. */
   trace(workloadId: string, traceId = id('tr')): TraceHandle {
     return new TraceHandle(this, workloadId, traceId, this.opts.scanLocally !== false);
+  }
+
+  /**
+   * Run one unit of work. Everything `instrumentFetch` sees inside `fn` lands
+   * on one trace, with a monotonic turn index, and the trace closes when `fn`
+   * returns. Ingest is best-effort: a Control outage must not fail the work.
+   *
+   * `fn` receives the handle so protocol evidence and actions can join the
+   * same trace as the model calls.
+   */
+  async run<T>(
+    workloadId: string,
+    fn: (trace: TraceHandle) => Promise<T> | T,
+    opts?: { traceId?: string },
+  ): Promise<T> {
+    const trace = this.trace(workloadId, opts?.traceId);
+    return activeTrace.run(trace, async () => {
+      try {
+        const result = await fn(trace);
+        await trace.close('success').catch(() => undefined);
+        return result;
+      } catch (err) {
+        await trace.close('failure').catch(() => undefined);
+        throw err;
+      }
+    });
+  }
+
+  /**
+   * A `fetch` that records OpenAI `/chat/completions` and Anthropic
+   * `/v1/messages` as model events on the `run()` that is in progress.
+   *
+   * Pass it as `fetch` to the client you already have. It never stores the
+   * prompt. It never records Control's own ingest URL as a model call. Outside
+   * `run()` it is a pass-through.
+   */
+  instrumentFetch(baseFetch?: typeof fetch): typeof fetch {
+    const inner = baseFetch ?? this.fetchFn;
+    return async (input: Parameters<typeof fetch>[0], init?: RequestInit): Promise<Response> => {
+      const url = hrefOf(input);
+      if (isControlIngestUrl(url)) return inner(input, init);
+      const started = Date.now();
+      const res = await inner(input, init);
+      const handle = activeTrace.getStore();
+      if (!handle) return res;
+      try {
+        const requestBody = typeof init?.body === 'string' ? init.body : undefined;
+        const responseBody = await res.clone().text();
+        const draft = observeLlmCall({
+          url,
+          requestBody,
+          responseBody,
+          latencyMs: Date.now() - started,
+          status: res.status,
+        });
+        if (draft) handle.event(draft);
+      } catch {
+        // Fail open. The user already has their response.
+      }
+      return res;
+    };
   }
 
   async ingest(body: unknown): Promise<IngestResponse> {

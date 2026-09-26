@@ -80,7 +80,7 @@ def score_session(
             "stores_employer": False,
             "retention": "In-memory session until delete or process restart. Share snapshots contain scores only.",
         },
-        "disclaimer": "MY AI scores are normalized similarity scores, not scientifically validated probabilities.",
+        "disclaimer": "AI Fit scores are normalized similarity scores, not scientifically validated probabilities.",
     }
     payload["share_card"] = share_card_text(payload)
     return payload
