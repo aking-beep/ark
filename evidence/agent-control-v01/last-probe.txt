@@ -1,0 +1,24 @@
+@ark/core resolves                                   ABSENT
+AgentManifest export                                 ABSENT
+discoverRepository export                            ABSENT
+materializeAgentManifests export                     ABSENT
+runAssurance export                                  ABSENT
+evaluatePolicy export                                ABSENT
+parseGithubRepoUrl export                            ABSENT
+minimal manifest parses                              ABSENT
+giant purpose rejected                               ABSENT
+GitHub URL parser                                    ABSENT
+@ark/db resolves                                     ABSENT
+listAgents export                                    ABSENT
+DDL mentions agents table                            ABSENT
+RuntimeRequest.agentId optional                      ABSENT
+GET :3002/discover (anon)                            ABSENT
+GET :3002/agents (anon)                              ABSENT
+GET :3002/assurance (anon)                           ABSENT
+GET /discover authed                                 ABSENT
+GET /agents authed                                   ABSENT
+GET /assurance authed                                ABSENT
+/discover names GitHub                               ABSENT
+/agents names Agent                                  ABSENT
+nav has Discover                                     ABSENT
+docs/09-agent-control-v01.md                         ABSENT
