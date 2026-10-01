@@ -2,45 +2,45 @@
 
 ## What changed
 
-One sentence, in user terms. Not "refactored the upload handler" but "files over
-10 MB now fail with a message instead of hanging." TODO
+An authenticated Control org can discover agents in a GitHub repository (bounded, no code execution), register an Agent Manifest, and run deterministic ARK Assurance against it. Registered agents optionally join runtime traces via `agentId`. Spend, traces, protocol evidence, budgets and calibration are unchanged.
 
 ## How it was measured
 
-The exact command, route, viewport, or procedure — such that a reviewer could
-repeat it and get the same thing. State the conditions that would change the
-result: data set, machine, warm or cold cache. TODO
+Same command twice:
+
+```bash
+node evidence/agent-control-v01/probe.mjs
+```
+
+Conditions: compiled `@ark/core` / `@ark/db` / `@ark/runtime`, seeded SQLite (`npm run setup`), Control `next dev` on `:3002`. Authed probe uses Northwind (`sam@northwind.example`). Screenshots: `node evidence/agent-control-v01/shots.mjs` at 1440×900, Demo Co login, routes `/discover` `/agents` `/assurance` `/dashboard`.
 
 ## Before / after
 
-| | Before | After |
+| | Before (`before.txt`, commit `ac7476f`) | After (`after.txt`, commit `a2a0000`) |
 |---|---|---|
-| Artefact | `before.png` | `after.png` |
-| Measurement | TODO | TODO |
+| `@ark/core` AgentManifest / discovery / assurance / policy | ABSENT | yes |
+| Giant purpose rejected | ABSENT | yes |
+| GitHub URL parser | ABSENT | yes |
+| `listAgents` + `agents` DDL | ABSENT | yes |
+| `RuntimeRequest.agentId` optional | ABSENT | yes |
+| `GET /discover` `/agents` `/assurance` (anon) | ABSENT (would 404) | 307 (login) |
+| Same routes authed | ABSENT | 200 |
+| Nav Discover + docs/09 | ABSENT | yes |
 
-Capture timestamps and commit SHAs are in `captures.tsv`, written by
-`scripts/factory-prove.sh`.
+Screenshots: `after-discover.png`, `after-agents.png`, `after-assurance.png`, `after-dashboard.png`.
+
+Capture timestamps and commit SHAs are in `captures.tsv`.
 
 ## What this does not prove
 
-The honest limit. One browser only. Happy path only. Mocked provider. Seeded
-data, not production shapes. Load untested.
-
-This line is what earns trust in everything above it — an evidence document that
-claims to prove everything is a document to distrust. TODO
+Live GitHub fetch was unit-tested with an injected `fetch`, not against github.com in this run (`ARK_GITHUB_TOKEN` unset). Screenshots are empty-inventory pages (Demo Co has no registered agents yet). Policy evaluation is unit-tested only — it is not on the request path. Load, SSO, and private-repo rate limits were not exercised.
 
 ## Deviations
 
-Anything done differently from the spec, and why. Any dependency added that the
-spec did not authorize, and what it replaced. Any test changed, and why the old
-one was wrong. If none: say "none".
+None of substance. `RiskLevel` on the Agent Manifest is exported as `AgentRiskLevel` so it does not collide with the existing assessment `RiskLevel` (`low | moderate | high | severe`). Field name on the manifest remains `riskLevel`.
 
 ## Definition of done
 
-Items from `factory/DEFINITION_OF_DONE.md` that need a written answer here.
-"Not applicable" is legitimate **with a reason**; "not applicable" because nobody
-measured is the failure the list exists to prevent.
-
-- **Cost / latency impact:** TODO
-- **Observability for new failure modes:** TODO
-- **Docs or ADR updated:** TODO
+- **Cost / latency impact:** Discovery is a bounded GitHub fetch (40 files, 64 KB each, 512 KB total, 8 s timeout). Assurance is in-process Zod + checks. Ingest of `agent_id` is one extra nullable column. No change to cost-per-outcome queries.
+- **Observability for new failure modes:** Discover form surfaces GitHub errors (404/401/timeout) without logging the token. Assurance findings persist on `assurance_runs`. Unknown fields stay `unknown`, not pass.
+- **Docs or ADR updated:** `docs/09-agent-control-v01.md`; extensions to `docs/01-architecture.md`, `docs/03-data-model.md`, `docs/04-roadmap.md`, `docs/08-how-ark-works.md`, `README.md`, `.env.example`.
