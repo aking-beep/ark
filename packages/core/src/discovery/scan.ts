@@ -304,7 +304,7 @@ function scanMcpConfig(file: RepoFile, mcpMap: Map<string, DiscoveredMcp>, evide
     mcpMap.set(name, {
       name,
       transport,
-      source: cfg.command ?? cfg.url,
+      source: safeMcpSource(cfg.command ?? cfg.url),
       evidencePaths: [file.path],
     });
     evidence.push({ path: file.path, kind: 'mcp', detail: `server ${name}` });
@@ -441,6 +441,13 @@ function scanEvalPolicy(file: RepoFile, infra: DiscoveredInfra[], evidence: Disc
     infra.push({ kind: 'policy', name: base, evidencePaths: [file.path] });
     evidence.push({ path: file.path, kind: 'policy', detail: base });
   }
+}
+
+function safeMcpSource(value?: string): string | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (LOOKS_SECRET.test(trimmed) || /token=|api[_-]?key|password/i.test(trimmed)) return undefined;
+  return trimmed.slice(0, 500);
 }
 
 function scanIntegrations(

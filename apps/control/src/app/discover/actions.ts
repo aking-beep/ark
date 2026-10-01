@@ -59,7 +59,8 @@ export async function registerCandidate(formData: FormData) {
   const { orgId } = await requireOrg();
   const runId = String(formData.get('runId') ?? '');
   const candidateId = String(formData.get('candidateId') ?? '');
-  const owner = String(formData.get('owner') ?? '').trim() || undefined;
+  const ownerRaw = String(formData.get('owner') ?? '').trim().slice(0, 200);
+  const owner = ownerRaw || undefined;
   const envParsed = AgentEnvironment.safeParse(String(formData.get('environment') ?? 'unknown'));
   const environment = envParsed.success ? envParsed.data : 'unknown';
 

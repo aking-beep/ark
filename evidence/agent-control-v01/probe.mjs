@@ -71,6 +71,58 @@ if (typeof core?.parseGithubRepoUrl === 'function') {
 }
 line('GitHub URL parser', urlParse);
 
+let discoveryRan = ABSENT;
+let materializeUnknown = ABSENT;
+if (typeof core?.discoverRepository === 'function' && typeof core?.materializeAgentManifests === 'function') {
+  const result = core.discoverRepository({
+    repository: 'https://github.com/acme/support-bot',
+    branch: 'main',
+    files: [
+      {
+        path: 'package.json',
+        content: JSON.stringify({
+          dependencies: { openai: '4', '@langchain/langgraph': '0.2', '@modelcontextprotocol/sdk': '1' },
+        }),
+      },
+      {
+        path: 'src/agent.ts',
+        content: "import { createReactAgent } from '@langchain/langgraph/prebuilt';\nconst model = 'gpt-4o';\ncreateReactAgent();\n",
+      },
+      {
+        path: '.mcp.json',
+        content: JSON.stringify({ mcpServers: { github: { command: 'npx' } } }),
+      },
+    ],
+  });
+  const hasEvidence = result.evidence.length > 0 && result.mcpServers.some((s) => s.name === 'github');
+  discoveryRan = hasEvidence ? `yes (confidence ${result.confidence})` : 'no evidence';
+  const [row] = core.materializeAgentManifests(result);
+  materializeUnknown =
+    row && row.fields.owner === 'unknown' && row.manifest.owner === undefined ? 'yes' : 'invented owner';
+}
+line('discoverRepository on fixture', discoveryRan);
+line('materialize leaves owner unknown', materializeUnknown);
+
+let assuranceFail = ABSENT;
+if (typeof core?.runAssurance === 'function') {
+  const report = core.runAssurance({
+    id: 'refund-agent',
+    name: 'Refunds',
+    environment: 'production',
+    riskLevel: 'high',
+  });
+  assuranceFail = report.overallStatus === 'fail' ? 'yes' : report.overallStatus;
+}
+line('assurance fails production missing owner', assuranceFail);
+
+let bounds = ABSENT;
+if (typeof core?.selectDiscoveryFiles === 'function' && core?.GITHUB_FETCH_LIMITS) {
+  const paths = Array.from({ length: 80 }, (_, i) => `src/agent-${i}.ts`);
+  const { selected } = core.selectDiscoveryFiles(paths);
+  bounds = selected.length === core.GITHUB_FETCH_LIMITS.maxFiles ? 'yes' : `capped at ${selected.length}`;
+}
+line('file cap 40', bounds);
+
 const db = await tryImport('@ark/db');
 line('@ark/db resolves', db ? 'yes' : ABSENT);
 line('listAgents export', typeof db?.listAgents === 'function' ? 'yes' : ABSENT);
@@ -99,7 +151,7 @@ async function authed(path) {
     const login = await fetch('http://localhost:3002/api/session', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ email: 'sam@northwind.example', password: 'northwind-demo' }),
+      body: JSON.stringify({ email: 'dana@riverbend.example', password: 'riverbend-demo' }),
       redirect: 'manual',
     });
     const cookie = login.headers.get('set-cookie') ?? '';
@@ -118,9 +170,12 @@ async function authed(path) {
 const dAuth = await authed('/discover');
 const aAuth = await authed('/agents');
 const sAuth = await authed('/assurance');
+const detailAuth = await authed('/agents/support-agent');
 line('GET /discover authed', dAuth.status === 0 ? ABSENT : String(dAuth.status));
 line('GET /agents authed', aAuth.status === 0 ? ABSENT : String(aAuth.status));
 line('GET /assurance authed', sAuth.status === 0 ? ABSENT : String(sAuth.status));
+line('GET /agents/support-agent authed', detailAuth.status === 0 ? ABSENT : String(detailAuth.status));
+line('/agents/support-agent names Support', /Support triage/i.test(detailAuth.body) && detailAuth.status === 200 ? 'yes' : ABSENT);
 line('/discover names GitHub', dAuth.body.includes('github.com') || dAuth.body.includes('GitHub') ? 'yes' : ABSENT);
 line('/agents names Agent', /agent/i.test(aAuth.body) && aAuth.status === 200 ? 'yes' : ABSENT);
 line('nav has Discover', aAuth.body.includes('Discover') || dAuth.body.includes('Discover') ? 'yes' : ABSENT);

@@ -6,6 +6,7 @@ export const GITHUB_FETCH_LIMITS = {
   maxTotalBytes: 512_000,
   maxTreeEntries: 400,
   timeoutMs: 8_000,
+  overallMs: 20_000,
 } as const;
 
 export const GithubRepoRef = z.object({
@@ -107,6 +108,7 @@ export async function fetchGithubSnapshot(opts: {
   limits?: typeof GITHUB_FETCH_LIMITS;
 }): Promise<GithubSnapshot> {
   const limits = opts.limits ?? GITHUB_FETCH_LIMITS;
+  const deadline = Date.now() + limits.overallMs;
   const fetchFn = opts.fetchFn ?? fetch;
   const { owner, repo } = opts.ref;
   const headers: Record<string, string> = {
@@ -117,6 +119,7 @@ export async function fetchGithubSnapshot(opts: {
   if (opts.token) headers.authorization = `Bearer ${opts.token}`;
 
   const get = async (url: string) => {
+    if (Date.now() > deadline) throw new Error('GitHub fetch exceeded the overall time budget.');
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), limits.timeoutMs);
     try {
@@ -157,6 +160,10 @@ export async function fetchGithubSnapshot(opts: {
   const files: GithubFileBlob[] = [];
   let total = 0;
   for (const filePath of selected) {
+    if (Date.now() > deadline) {
+      warnings.push(`Stopped fetching at the ${limits.overallMs} ms overall budget.`);
+      break;
+    }
     if (files.length >= limits.maxFiles) break;
     const contentRes = await get(
       `https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(filePath).replaceAll('%2F', '/')}?ref=${encodeURIComponent(branch)}`,

@@ -1,5 +1,5 @@
 import type { Client } from '@libsql/client';
-import type { AgentManifest, AssuranceReport, DiscoveryResult } from '@ark/core';
+import { AgentManifest, type AgentManifest as Manifest, type AssuranceReport, type DiscoveryResult } from '@ark/core';
 import { raw } from './queries.js';
 
 const n = (v: unknown) => Number(v ?? 0);
@@ -21,11 +21,19 @@ export interface StoredAgent {
   environment: string;
   status: string;
   riskLevel: string;
-  manifest: AgentManifest;
+  manifest: Manifest;
   sourceRepository: string | null;
   sourceCommit: string | null;
   createdAt: number;
   updatedAt: number;
+}
+
+function parseManifest(raw: unknown): Manifest {
+  const parsed = AgentManifest.safeParse(typeof raw === 'string' ? JSON.parse(raw) : raw);
+  if (!parsed.success) {
+    throw new Error('Stored agent manifest failed schema validation.');
+  }
+  return parsed.data;
 }
 
 function rowToAgent(x: Record<string, unknown>): StoredAgent {
@@ -37,7 +45,7 @@ function rowToAgent(x: Record<string, unknown>): StoredAgent {
     environment: s(x.environment),
     status: s(x.status),
     riskLevel: s(x.risk_level),
-    manifest: JSON.parse(s(x.manifest)) as AgentManifest,
+    manifest: parseManifest(x.manifest),
     sourceRepository: x.source_repository == null ? null : s(x.source_repository),
     sourceCommit: x.source_commit == null ? null : s(x.source_commit),
     createdAt: n(x.created_at),
@@ -50,7 +58,15 @@ export async function listAgents(orgId: string, client?: Client): Promise<Stored
     sql: `SELECT * FROM agents WHERE org_id=? ORDER BY name`,
     args: [orgId],
   });
-  return r.rows.map((x) => rowToAgent(x as Record<string, unknown>));
+  const out: StoredAgent[] = [];
+  for (const x of r.rows) {
+    try {
+      out.push(rowToAgent(x as Record<string, unknown>));
+    } catch {
+      // Corrupt JSON is not an agent. Skip rather than 500 the list.
+    }
+  }
+  return out;
 }
 
 export async function getAgent(orgId: string, agentId: string, client?: Client): Promise<StoredAgent | null> {
@@ -59,12 +75,17 @@ export async function getAgent(orgId: string, agentId: string, client?: Client):
     args: [orgId, agentId],
   });
   const row = r.rows[0];
-  return row ? rowToAgent(row as Record<string, unknown>) : null;
+  if (!row) return null;
+  try {
+    return rowToAgent(row as Record<string, unknown>);
+  } catch {
+    return null;
+  }
 }
 
 export async function upsertAgent(
   orgId: string,
-  manifest: AgentManifest,
+  manifest: Manifest,
   extra: { owner?: string; environment?: string; status?: string } = {},
   client?: Client,
 ): Promise<StoredAgent> {
@@ -72,11 +93,11 @@ export async function upsertAgent(
   const owner = extra.owner ?? manifest.owner ?? null;
   const environment = extra.environment ?? manifest.environment ?? 'unknown';
   const status = extra.status ?? (manifest.status === 'discovered' ? 'registered' : manifest.status);
-  const stored: AgentManifest = {
+  const stored: Manifest = {
     ...manifest,
     owner: owner ?? undefined,
-    environment: environment as AgentManifest['environment'],
-    status: status as AgentManifest['status'],
+    environment: environment as Manifest['environment'],
+    status: status as Manifest['status'],
   };
   await db(client).execute({
     sql: `INSERT INTO agents (
@@ -375,10 +396,26 @@ export async function latestAssuranceByAgent(
   orgId: string,
   client?: Client,
 ): Promise<Map<string, StoredAssuranceRun>> {
-  const runs = await listAssuranceRuns(orgId, client);
+  const r = await db(client).execute({
+    sql: `SELECT r.* FROM assurance_runs r
+          JOIN (
+            SELECT agent_id, MAX(created_at) created_at
+            FROM assurance_runs WHERE org_id=?
+            GROUP BY agent_id
+          ) latest ON latest.agent_id=r.agent_id AND latest.created_at=r.created_at
+          WHERE r.org_id=?`,
+    args: [orgId, orgId],
+  });
   const map = new Map<string, StoredAssuranceRun>();
-  for (const r of runs) {
-    if (!map.has(r.agentId)) map.set(r.agentId, r);
+  for (const x of r.rows) {
+    map.set(s(x.agent_id), {
+      id: s(x.id),
+      orgId: s(x.org_id),
+      agentId: s(x.agent_id),
+      createdAt: n(x.created_at),
+      status: s(x.status),
+      report: JSON.parse(s(x.report)) as AssuranceReport,
+    });
   }
   return map;
 }

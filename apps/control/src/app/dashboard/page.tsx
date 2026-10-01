@@ -15,7 +15,14 @@ export default async function Dashboard() {
     agentInfrastructureSummary(orgId),
   ]);
 
-  if (spend.traces === 0 && agents.registered === 0) return <Empty />;
+  if (spend.traces === 0 && agents.registered === 0) {
+    return (
+      <div className="space-y-6">
+        <Empty />
+        <AgentInfra agents={agents} />
+      </div>
+    );
+  }
 
   const qualityBy = new Map(quality.map((q) => [q.workloadId, q]));
   const critical = alerts.filter((a) => a.severity === 'critical').length;
