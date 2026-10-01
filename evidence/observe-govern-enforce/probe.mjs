@@ -148,6 +148,7 @@ if (typeof runtime?.execute === 'function' && typeof core?.enforceAgentPolicies 
     latencyClass: 'standard',
     capabilities: ['text'],
     configured: () => true,
+    defaultModel: () => 'gpt-5-nano',
     complete: async () => {
       called++;
       return {

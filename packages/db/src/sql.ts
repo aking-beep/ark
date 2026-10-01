@@ -40,7 +40,6 @@ export const DDL: string[] = [
   name TEXT NOT NULL, system TEXT NOT NULL, blast_radius TEXT NOT NULL, value_usd REAL,
   approved_by TEXT, required_approval INTEGER NOT NULL DEFAULT 0, credential_id TEXT, agent_id TEXT)`,
 `CREATE INDEX IF NOT EXISTS actions_trace_idx ON actions(trace_id)`,
-`CREATE INDEX IF NOT EXISTS actions_agent_idx ON actions(org_id, agent_id)`,
 
 // Fourth grain, beside events, actions and traces. No column here can hold a
 // tool argument, a message body, a rendered data model or a signed mandate.
@@ -59,7 +58,6 @@ export const DDL: string[] = [
 `CREATE INDEX IF NOT EXISTS protocol_evidence_protocol_idx ON protocol_evidence(protocol, ts)`,
 `CREATE INDEX IF NOT EXISTS protocol_evidence_trace_idx ON protocol_evidence(trace_id)`,
 `CREATE INDEX IF NOT EXISTS protocol_evidence_workload_idx ON protocol_evidence(workload_id, ts)`,
-`CREATE INDEX IF NOT EXISTS protocol_evidence_agent_idx ON protocol_evidence(org_id, agent_id)`,
 
 `CREATE TABLE IF NOT EXISTS budgets (
   id TEXT PRIMARY KEY, org_id TEXT NOT NULL, scope TEXT NOT NULL, scope_id TEXT,
