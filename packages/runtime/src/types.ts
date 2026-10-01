@@ -41,6 +41,8 @@ export const RuntimeRequest = z.object({
   constraints: RuntimeConstraints.default({}),
   /** Extra adapters to try after the primary. 0 means no fallback. Capped at 3. */
   maxFallbacks: z.number().int().min(0).max(3).default(1),
+  /** Registered Agent Manifest id. Optional — omit and ingest stays workload-only. */
+  agentId: z.string().min(1).max(128).optional(),
   application: z.string().max(128).optional(),
   expected: z
     .object({

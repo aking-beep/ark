@@ -51,6 +51,15 @@ Each of these is a published refusal in [`00-thesis.md`](00-thesis.md). Lifting 
 
 **Kill for the whole phase:** if lifting a refusal means guessing, the refusal stands. A fabricated number survives being repeated in a board deck, which is exactly what makes it expensive.
 
+## Phase 5 — Agent control plane
+
+v0.1 is in-repo: Agent Manifest, bounded repository discovery, materialize, ARK Assurance, `agents` / `discovery_runs` / `assurance_runs`, Control `/discover` `/agents` `/assurance`, optional runtime `agentId`, policy schema without request-path enforcement. See [ARK Control v0.1](09-agent-control-v01.md).
+
+Next milestone: **Observe → Govern → Enforce** — richer runtime join (actions and protocol evidence carrying `agentId` directly), policy evaluation visible on the agent, then enforcement that is tested before it sits anywhere near a request.
+
+**Exit:** an org can name the agents in a repository, say which ones are production, and show the last assurance run next to observed spend.
+**Kill:** if discovery claims agents without evidence paths, or assurance reports pass without running the check, stop shipping UI and fix the contracts.
+
 ## What is deliberately not on this roadmap
 
 An agent framework. A model gateway. A general-purpose observability platform. Sitting in the request path. Each is somebody else's product and each would dilute the one claim this system makes: that a guess and a measurement never look the same on screen.

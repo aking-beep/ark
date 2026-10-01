@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { spendSummary, wasteBreakdown, recentAlerts, qualityByWorkload } from '@ark/db';
+import { spendSummary, wasteBreakdown, recentAlerts, qualityByWorkload, agentInfrastructureSummary } from '@ark/db';
 import { Panel, Grid, Stat, Badge, Table, Td, Sparkline, Callout, Meter, fmt } from '@ark/ui';
 import { requireOrg, WINDOW_DAYS } from '@/lib/org';
 
@@ -7,20 +7,32 @@ export const dynamic = 'force-dynamic';
 
 export default async function Dashboard() {
   const { orgId } = await requireOrg();
-  const [spend, waste, alerts, quality] = await Promise.all([
+  const [spend, waste, alerts, quality, agents] = await Promise.all([
     spendSummary(orgId, WINDOW_DAYS),
     wasteBreakdown(orgId, WINDOW_DAYS),
     recentAlerts(orgId, 8),
     qualityByWorkload(orgId, WINDOW_DAYS),
+    agentInfrastructureSummary(orgId),
   ]);
 
-  if (spend.traces === 0) return <Empty />;
+  if (spend.traces === 0 && agents.registered === 0) {
+    return (
+      <div className="space-y-6">
+        <Empty />
+        <AgentInfra agents={agents} />
+      </div>
+    );
+  }
 
   const qualityBy = new Map(quality.map((q) => [q.workloadId, q]));
   const critical = alerts.filter((a) => a.severity === 'critical').length;
 
   return (
     <div className="space-y-6">
+      {spend.traces === 0 && <Empty />}
+
+      {spend.traces > 0 && (
+      <>
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold text-ink-100">Spend</h1>
@@ -172,6 +184,10 @@ export default async function Dashboard() {
           </Panel>
         </div>
       </div>
+      </>
+      )}
+
+      <AgentInfra agents={agents} />
     </div>
   );
 }
@@ -202,6 +218,56 @@ function Empty() {
         figures <span className="font-mono text-warn">heuristic</span>. That is the correct behaviour, not
         a bug.
       </p>
+    </Panel>
+  );
+}
+
+function AgentInfra({
+  agents,
+}: {
+  agents: Awaited<ReturnType<typeof agentInfrastructureSummary>>;
+}) {
+  return (
+    <Panel
+      title="Agent infrastructure"
+      subtitle="Governance grain. Cost per outcome above is unchanged."
+      right={
+        <Link href="/agents" className="hover:text-ink-200">
+          Agents →
+        </Link>
+      }
+    >
+      <Grid cols={4}>
+        <Stat label="Registered agents" value={fmt.int(agents.registered)} />
+        <Stat label="Production" value={fmt.int(agents.production)} />
+        <Stat
+          label="Failing assurance"
+          value={fmt.int(agents.failingAssurance)}
+          tone={agents.failingAssurance ? 'danger' : 'good'}
+        />
+        <Stat label="Observed in runtime" value={fmt.int(agents.observedInRuntime)} />
+      </Grid>
+      {agents.recentCriticalFindings.length > 0 && (
+        <ul className="mt-4 space-y-2">
+          {agents.recentCriticalFindings.map((f) => (
+            <li key={`${f.agentId}-${f.createdAt}`} className="text-sm text-ink-300">
+              <Link href={`/agents/${f.agentId}`} className="text-ink-100 hover:text-signal">
+                {f.agentName}
+              </Link>
+              <span className="text-ink-500"> — {f.message}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {agents.registered === 0 && (
+        <p className="mt-4 text-sm text-ink-500">
+          No agents registered.{' '}
+          <Link href="/discover" className="text-signal underline underline-offset-2">
+            Discover a repository
+          </Link>
+          .
+        </p>
+      )}
     </Panel>
   );
 }

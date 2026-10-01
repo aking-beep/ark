@@ -38,4 +38,26 @@ describe('ingest contract', () => {
     assert.ok(labels.includes('us_ssn'));
     assert.ok(!labels.some((l) => l.includes('ada')));
   });
+
+  test('agentId is optional and bounded', () => {
+    const without = IngestBody.safeParse({
+      events: [{ id: 'e1', traceId: 't1', workloadId: 'w1', provider: 'anthropic', modelId: 'claude-haiku-4.5' }],
+    });
+    assert.equal(without.success, true);
+    const withId = IngestBody.safeParse({
+      events: [{
+        id: 'e1', traceId: 't1', workloadId: 'w1', provider: 'anthropic', modelId: 'claude-haiku-4.5',
+        agentId: 'support-agent',
+      }],
+    });
+    assert.equal(withId.success, true);
+    if (withId.success) assert.equal(withId.data.events[0]!.agentId, 'support-agent');
+    const tooLong = IngestBody.safeParse({
+      events: [{
+        id: 'e1', traceId: 't1', workloadId: 'w1', provider: 'anthropic', modelId: 'x',
+        agentId: 'a'.repeat(200),
+      }],
+    });
+    assert.equal(tooLong.success, false);
+  });
 });

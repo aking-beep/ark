@@ -1,0 +1,30 @@
+@ark/core resolves                                   yes
+AgentManifest export                                 yes
+discoverRepository export                            yes
+materializeAgentManifests export                     yes
+runAssurance export                                  yes
+evaluatePolicy export                                yes
+parseGithubRepoUrl export                            yes
+minimal manifest parses                              yes
+giant purpose rejected                               yes
+GitHub URL parser                                    yes
+discoverRepository on fixture                        yes (confidence 0.8)
+materialize leaves owner unknown                     yes
+assurance fails production missing owner             yes
+file cap 40                                          yes
+@ark/db resolves                                     yes
+listAgents export                                    yes
+DDL mentions agents table                            yes
+RuntimeRequest.agentId optional                      yes
+GET :3002/discover (anon)                            307
+GET :3002/agents (anon)                              307
+GET :3002/assurance (anon)                           307
+GET /discover authed                                 200
+GET /agents authed                                   200
+GET /assurance authed                                200
+GET /agents/support-agent authed                     200
+/agents/support-agent names Support                  yes
+/discover names GitHub                               yes
+/agents names Agent                                  yes
+nav has Discover                                     yes
+docs/09-agent-control-v01.md                         yes

@@ -41,6 +41,8 @@ export const EventInput = z.object({
 
   userId: z.string().max(128).optional(),
   application: z.string().max(128).optional(),
+  /** Registered Agent Manifest id. Optional — omit and the event still ingests. */
+  agentId: z.string().min(1).max(128).optional(),
 });
 export type EventInput = z.infer<typeof EventInput>;
 

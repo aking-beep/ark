@@ -39,11 +39,13 @@ The rest of this page is how they flow together **when they do talk** — which 
 |---|---|---|---|
 | **AI Fit** | 3000 | Five minutes. A personal AI style and paste-ready `CLAUDE.md`, Cursor rules, `AGENTS.md`. | Only the Python AI Fit API on 8472. |
 | **AI Fit Teams** | 3001 | Thirty questions about one workload. Verdict, architecture, cost, controls. | Control, over HTTP, and only Control. |
-| **ARK Control** | 3002 | What production actually cost, did, and was allowed to do. | Ingest from anyone with a bearer. Calibration out to teams. |
+| **ARK Control** | 3002 | Discover, register and assure agents; measure what production cost, did, and was allowed to do. | Ingest from anyone with a bearer. Calibration out to teams. GitHub API for Discover (server-side). |
 | **`@ark/runtime`** | — | Policy → router → provider → eval → ingest. | Imported. Not an app. |
 | **`@ark/protocols`** | — | MCP, A2A, AG-UI, A2UI, UCP, AP2 → one evidence grain. | Imported. Executes nothing. |
 
 AI Fit and AI Fit Teams **do not link to each other.** The consumer quiz is not a funnel that softens a team workload assessment.
+
+Control v0.1 adds **Discover → Register → Assure** on the same surface (`/discover`, `/agents`, `/assurance`). ARK Assurance is not a fourth product. See [ARK Control v0.1](09-agent-control-v01.md).
 
 ## The only runtime wire: teams ↔ Control
 

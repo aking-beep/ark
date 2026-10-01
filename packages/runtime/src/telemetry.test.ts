@@ -211,4 +211,37 @@ describe('telemetry', () => {
     assert.equal(out.ok, false);
     assert.match(out.error ?? '', /timed out/i);
   });
+
+  test('agentId is copied onto events when present and omitted when absent', async () => {
+    const posted: unknown[] = [];
+    const adapter = fakeAdapter({ id: 'ollama', residency: 'local' });
+    const completion = await adapter.complete({ messages: request.messages });
+    await emitTelemetry({
+      ingest: capturingIngest(posted),
+      request,
+      completion,
+      adapter,
+      attempts: [okAttempt],
+      outcome: 'success',
+    });
+    const without = posted[0] as { events: { agentId?: string }[] };
+    assert.equal(without.events[0]!.agentId, undefined);
+
+    const posted2: unknown[] = [];
+    const withAgent = RuntimeRequest.parse({
+      messages: [{ role: 'user', content: 'hi' }],
+      workloadId: 'wl_runtime',
+      agentId: 'support-agent',
+    });
+    await emitTelemetry({
+      ingest: capturingIngest(posted2),
+      request: withAgent,
+      completion,
+      adapter,
+      attempts: [okAttempt],
+      outcome: 'success',
+    });
+    const withId = posted2[0] as { events: { agentId?: string }[] };
+    assert.equal(withId.events[0]!.agentId, 'support-agent');
+  });
 });

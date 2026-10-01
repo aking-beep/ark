@@ -29,10 +29,11 @@ export const DDL: string[] = [
   cached_input_tokens INTEGER NOT NULL DEFAULT 0, cost_usd REAL NOT NULL DEFAULT 0,
   latency_ms INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'ok', error_kind TEXT,
   sensitive_matches TEXT, off_allowlist INTEGER NOT NULL DEFAULT 0,
-  user_id TEXT, application TEXT)`,
+  user_id TEXT, application TEXT, agent_id TEXT)`,
 `CREATE INDEX IF NOT EXISTS events_trace_idx ON events(trace_id)`,
 `CREATE INDEX IF NOT EXISTS events_ts_idx ON events(org_id, ts)`,
 `CREATE INDEX IF NOT EXISTS events_model_idx ON events(model_id)`,
+`CREATE INDEX IF NOT EXISTS events_agent_idx ON events(org_id, agent_id)`,
 
 `CREATE TABLE IF NOT EXISTS actions (
   id TEXT PRIMARY KEY, org_id TEXT NOT NULL, trace_id TEXT NOT NULL, ts INTEGER NOT NULL,
@@ -95,4 +96,30 @@ export const DDL: string[] = [
 `CREATE TABLE IF NOT EXISTS alert_deliveries (
   id TEXT PRIMARY KEY, org_id TEXT NOT NULL, destination_id TEXT NOT NULL, alert_kind TEXT NOT NULL,
   ts INTEGER NOT NULL, ok INTEGER NOT NULL, status INTEGER, error TEXT)`,
+
+`CREATE TABLE IF NOT EXISTS agents (
+  id TEXT NOT NULL, org_id TEXT NOT NULL, name TEXT NOT NULL, owner TEXT,
+  environment TEXT NOT NULL DEFAULT 'unknown', status TEXT NOT NULL DEFAULT 'discovered',
+  risk_level TEXT NOT NULL DEFAULT 'unknown', manifest TEXT NOT NULL,
+  source_repository TEXT, source_commit TEXT,
+  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+  PRIMARY KEY (org_id, id))`,
+`CREATE INDEX IF NOT EXISTS agents_org_idx ON agents(org_id, updated_at)`,
+
+`CREATE TABLE IF NOT EXISTS discovery_runs (
+  id TEXT PRIMARY KEY, org_id TEXT NOT NULL, repository TEXT NOT NULL, branch TEXT NOT NULL,
+  commit_sha TEXT, started_at INTEGER NOT NULL, completed_at INTEGER, status TEXT NOT NULL DEFAULT 'running',
+  result TEXT)`,
+`CREATE INDEX IF NOT EXISTS discovery_runs_org_idx ON discovery_runs(org_id, started_at)`,
+
+`CREATE TABLE IF NOT EXISTS assurance_runs (
+  id TEXT PRIMARY KEY, org_id TEXT NOT NULL, agent_id TEXT NOT NULL,
+  created_at INTEGER NOT NULL, status TEXT NOT NULL, report TEXT NOT NULL)`,
+`CREATE INDEX IF NOT EXISTS assurance_runs_agent_idx ON assurance_runs(org_id, agent_id, created_at)`,
+];
+
+/** Additive statements for databases created before this column existed. */
+export const MIGRATIONS: string[] = [
+  `ALTER TABLE events ADD COLUMN agent_id TEXT`,
+  `CREATE INDEX IF NOT EXISTS events_agent_idx ON events(org_id, agent_id)`,
 ];

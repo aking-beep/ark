@@ -46,6 +46,7 @@ type EventDraft = {
   sensitiveMatches?: string[];
   userId?: string;
   application?: string;
+  agentId?: string;
 };
 
 function id(prefix: string): string {
@@ -78,9 +79,10 @@ export class ArkIngest {
   async run<T>(
     workloadId: string,
     fn: (trace: TraceHandle) => Promise<T> | T,
-    opts?: { traceId?: string },
+    opts?: { traceId?: string; agentId?: string },
   ): Promise<T> {
     const trace = this.trace(workloadId, opts?.traceId);
+    if (opts?.agentId) trace.bindAgent(opts.agentId);
     return activeTrace.run(trace, async () => {
       try {
         const result = await fn(trace);
@@ -180,6 +182,7 @@ export class TraceHandle {
   private quality: QualitySampleInput[] = [];
   private evidenceRows: EvidenceInput[] = [];
   private closed: TraceClose | null = null;
+  private agentId: string | undefined;
 
   constructor(
     private readonly client: ArkIngest,
@@ -187,6 +190,12 @@ export class TraceHandle {
     readonly traceId: string,
     private readonly scanLocally: boolean,
   ) {}
+
+  /** Attach a registered agent identity to subsequent events on this trace. */
+  bindAgent(agentId: string): this {
+    this.agentId = agentId;
+    return this;
+  }
 
   /**
    * Record one model call. If `turn` is omitted, the next index is assigned.
@@ -209,6 +218,7 @@ export class TraceHandle {
       traceId: this.traceId,
       workloadId: this.workloadId,
       turn,
+      agentId: draft.agentId ?? this.agentId,
     });
     this.events.push(parsed);
     return this;
