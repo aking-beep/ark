@@ -14,7 +14,7 @@ The loop this plane is for:
 Discover → Register → Assure → Observe → Govern → Enforce
 ```
 
-v0.1 ships the first three. Observe is already present as telemetry, traces, actions and protocol evidence; this milestone joins that grain to a registered **Agent**. Govern is a policy schema and evaluator. Enforce is not in the request path yet.
+v0.1 shipped Discover → Register → Assure. Observe joins telemetry to a registered **Agent**. Govern is `AgentPolicy` + `evaluatePolicy`. Enforce sits on Runtime `execute()` when a manifest is attached — Control does not proxy provider HTTP.
 
 ## Grains
 
@@ -28,7 +28,7 @@ v0.1 ships the first three. Observe is already present as telemetry, traces, act
 | **Action** | One side effect | A model call |
 | **Protocol evidence** | One normalised observation (MCP, A2A, AG-UI, A2UI, UCP, AP2) | A payload |
 
-Events may carry an optional `agentId`. Omitting it is valid. Traces, actions and protocol evidence join to an agent through that id and the shared `traceId`.
+Events, actions and protocol evidence may each carry an optional `agentId`. Omitting it is valid. Agent observations count by that column, with a fallback join through `events.agent_id` + `traceId` for older rows.
 
 ## Discover
 
