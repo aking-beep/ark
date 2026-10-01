@@ -1,0 +1,14 @@
+@ark/core resolves                                       yes
+enforceAgentPolicies export                              yes
+DEFAULT_AGENT_POLICIES export                            yes
+enforce denies production PII without governance         yes (denied)
+enforce allows production PII with governance            yes (allowed)
+DDL actions.agent_id                                     yes
+DDL protocol_evidence.agent_id                           yes
+truncated tree fail-closed (0 files)                     yes
+live GitHub fetch octocat/Hello-World                    empty
+execute blocks production PII agent (no complete)        yes (PolicyError, complete=0)
+GET :3002/discover (anon)                                307
+GET /discover authed                                     200
+GET /agents authed                                       200
+nav has Calibration                                      yes

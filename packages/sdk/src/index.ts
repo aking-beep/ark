@@ -2,8 +2,8 @@ import {
   IngestBody,
   EventInput,
   EvidenceInput,
+  ActionInput,
   type TraceClose,
-  type ActionInput,
   type QualitySampleInput,
   type EvidenceObservation,
   detectSensitive,
@@ -225,12 +225,15 @@ export class TraceHandle {
   }
 
   action(draft: Omit<ActionInput, 'id' | 'traceId'> & { id?: string }): this {
-    this.actions.push({
-      ...draft,
-      id: draft.id ?? id('ac'),
-      traceId: this.traceId,
-      workloadId: draft.workloadId ?? this.workloadId,
-    });
+    this.actions.push(
+      ActionInput.parse({
+        ...draft,
+        id: draft.id ?? id('ac'),
+        traceId: this.traceId,
+        workloadId: draft.workloadId ?? this.workloadId,
+        agentId: draft.agentId ?? this.agentId,
+      }),
+    );
     return this;
   }
 
@@ -254,6 +257,7 @@ export class TraceHandle {
       id: observation.id ?? id('pe'),
       traceId: this.traceId,
       workloadId: observation.workloadId ?? this.workloadId,
+      agentId: observation.agentId ?? this.agentId,
     });
     this.evidenceRows.push(this.scanLocally ? redactEvidence(parsed).evidence : parsed);
     return this;

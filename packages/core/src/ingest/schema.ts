@@ -70,6 +70,8 @@ export const ActionInput = z.object({
   approvedBy: z.string().max(128).nullable().optional(),
   requiredApproval: z.boolean().default(false),
   credentialId: z.string().max(128).optional(),
+  /** Registered Agent Manifest id. Optional — omit and the action still ingests. */
+  agentId: z.string().min(1).max(128).optional(),
 });
 export type ActionInput = z.infer<typeof ActionInput>;
 

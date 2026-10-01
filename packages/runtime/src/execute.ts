@@ -1,4 +1,4 @@
-import { byId, costOfCall, estimate } from '@ark/core';
+import { byId, costOfCall, estimate, enforceAgentPolicies, type AgentPolicy } from '@ark/core';
 import { evaluate } from '@ark/evals';
 import { adaptersFromEnv, type ProviderAdapter } from '@ark/providers';
 import type { ArkIngest } from '@ark/sdk';
@@ -12,6 +12,13 @@ import { PolicyError, RuntimeRequest, type RuntimeResult } from './types.js';
 export interface ExecuteDeps {
   adapters: ProviderAdapter[];
   ingest?: ArkIngest;
+  /**
+   * Registered Agent Manifest. When present, `enforceAgentPolicies` runs
+   * **before** any adapter `complete()`. Omit for backward-compatible execute.
+   */
+  agent?: unknown;
+  /** Defaults to DEFAULT_AGENT_POLICIES when `agent` is set. */
+  policies?: AgentPolicy[];
 }
 
 export function createRuntime(opts: {
@@ -35,6 +42,30 @@ export async function execute(raw: unknown, deps: ExecuteDeps): Promise<RuntimeR
     request,
     maxFallbacks: request.maxFallbacks,
   });
+
+  if (deps.agent) {
+    const attachedId =
+      typeof deps.agent === 'object' && deps.agent && 'id' in deps.agent
+        ? String((deps.agent as { id: unknown }).id)
+        : '';
+    if (request.agentId && attachedId && request.agentId !== attachedId) {
+      await emitTelemetry({ ingest: deps.ingest, request, attempts: [], outcome: 'failure', refused: true });
+      throw new PolicyError(
+        `agentId ${request.agentId} does not match attached agent ${attachedId}`,
+        routing,
+      );
+    }
+    const verdict = enforceAgentPolicies(deps.agent, deps.policies);
+    if (!verdict.allowed) {
+      const why = verdict.evaluations
+        .filter((e) => e.status === 'fail')
+        .flatMap((e) => e.failures)
+        .slice(0, 8)
+        .join('; ');
+      await emitTelemetry({ ingest: deps.ingest, request, attempts: [], outcome: 'failure', refused: true });
+      throw new PolicyError(`agent policy denied: ${why || 'failed'}`, routing);
+    }
+  }
 
   const adaptersById = byIdMap(deps.adapters);
   const chain = [routing.selected, ...routing.fallbacks]

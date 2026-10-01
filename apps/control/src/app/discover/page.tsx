@@ -73,8 +73,10 @@ export default async function DiscoverPage({
           {fmt.int(GITHUB_FETCH_LIMITS.maxFileBytes)} bytes each,{' '}
           {fmt.int(GITHUB_FETCH_LIMITS.maxTotalBytes)} bytes total,{' '}
           {fmt.int(GITHUB_FETCH_LIMITS.maxTreeEntries)} tree entries,{' '}
-          {fmt.int(GITHUB_FETCH_LIMITS.timeoutMs)} ms timeout. Source is not executed. Secret
-          values are not stored — only environment variable names.
+          {fmt.int(GITHUB_FETCH_LIMITS.maxTreeBytes)} byte tree payload,{' '}
+          {fmt.int(GITHUB_FETCH_LIMITS.timeoutMs)} ms timeout. Truncated or oversized trees fail
+          closed (no files fetched). Source is not executed. Secret values are not stored — only
+          environment variable names.
         </p>
       </Panel>
 
