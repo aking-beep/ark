@@ -82,10 +82,13 @@ export const events = sqliteTable('events', {
 
   userId: text('user_id'),
   application: text('application'),
+  /** Registered Agent Manifest id. Optional — events without it still ingest. */
+  agentId: text('agent_id'),
 }, (t) => ({
   byTrace: index('events_trace_idx').on(t.traceId),
   byTs: index('events_ts_idx').on(t.orgId, t.ts),
   byModel: index('events_model_idx').on(t.modelId),
+  byAgent: index('events_agent_idx').on(t.orgId, t.agentId),
 }));
 
 /** Actions an agent actually took, and whether they were approved. */
@@ -254,6 +257,58 @@ export const alertDestinations = sqliteTable('alert_destinations', {
   url: text('url').notNull(),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 });
+
+/**
+ * A registered Agent Manifest. Separate grain from events/traces: an agent is
+ * an identity, not a unit of work and not a model call.
+ */
+export const agents = sqliteTable('agents', {
+  id: text('id').notNull(),
+  orgId: text('org_id').notNull(),
+  name: text('name').notNull(),
+  owner: text('owner'),
+  environment: text('environment').notNull().default('unknown'),
+  status: text('status').notNull().default('discovered'),
+  riskLevel: text('risk_level').notNull().default('unknown'),
+  /** Full @ark/core AgentManifest as JSON. */
+  manifest: text('manifest', { mode: 'json' }).notNull(),
+  sourceRepository: text('source_repository'),
+  sourceCommit: text('source_commit'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+}, (t) => ({
+  pk: index('agents_pk').on(t.orgId, t.id),
+  byOrg: index('agents_org_idx').on(t.orgId, t.updatedAt),
+}));
+
+export const discoveryRuns = sqliteTable('discovery_runs', {
+  id: text('id').primaryKey(),
+  orgId: text('org_id').notNull(),
+  repository: text('repository').notNull(),
+  branch: text('branch').notNull(),
+  commitSha: text('commit_sha'),
+  startedAt: integer('started_at', { mode: 'timestamp' }).notNull(),
+  completedAt: integer('completed_at', { mode: 'timestamp' }),
+  status: text('status').notNull().default('running'),
+  result: text('result', { mode: 'json' }),
+}, (t) => ({
+  byOrg: index('discovery_runs_org_idx').on(t.orgId, t.startedAt),
+}));
+
+export const assuranceRuns = sqliteTable('assurance_runs', {
+  id: text('id').primaryKey(),
+  orgId: text('org_id').notNull(),
+  agentId: text('agent_id').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  status: text('status').notNull(),
+  report: text('report', { mode: 'json' }).notNull(),
+}, (t) => ({
+  byAgent: index('assurance_runs_agent_idx').on(t.orgId, t.agentId, t.createdAt),
+}));
+
+export type AgentRow = typeof agents.$inferSelect;
+export type DiscoveryRunRow = typeof discoveryRuns.$inferSelect;
+export type AssuranceRunRow = typeof assuranceRuns.$inferSelect;
 
 export const alertDeliveries = sqliteTable('alert_deliveries', {
   id: text('id').primaryKey(),

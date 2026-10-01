@@ -63,6 +63,18 @@ A control that logs the PII it found in order to warn you about PII is not a con
 
 Protocol evidence applies the same rule at three depths. The adapters in `@ark/protocols` build their output from named safe fields rather than by spreading the caller's input, so a tool-argument blob has no path into the output at all. `EvidenceInput.metadata` admits scalars only, so a nested payload is a parse error rather than a flattening. And `redactEvidence` runs in the SDK before the POST and again in `applyIngest` before the `INSERT`, dropping keys that name a payload or a credential and values that trip the same detectors. Ingest raises `sensitive_data` reporting how many fields it dropped and what *class* each fell into, from a vocabulary ARK owns; it stores neither the value nor the caller's key, because a key name can be the sensitive value. The names go back to the sender in the response, which is not stored. Full reasoning in [Protocol evidence § Redaction](07-protocol-evidence.md#redaction-three-layers-and-none-of-them-is-a-promise).
 
+## Agent control plane (v0.1)
+
+ARK Control is the control plane for agent infrastructure: **Discover → Register → Assure → Observe → Govern → Enforce**. v0.1 ships the first three, without replacing telemetry or economics.
+
+- **Discover** is a bounded GitHub snapshot (`packages/core/src/discovery`) plus Control `/discover`. Source is untrusted. Secrets are not stored. Every finding has an evidence path.
+- **Register** writes an Agent Manifest (`packages/core/src/agents/manifest.ts`) to `agents`. Unknown owner, policy, permission and data fields stay unknown.
+- **Assure** (`packages/core/src/assurance`) is deterministic — not an LLM judge — and returns counts of pass/warn/fail/unknown, not a score.
+- **Observe** is the existing ingest path. `RuntimeRequest.agentId` is optional; events may carry `agent_id`.
+- **Govern** is `evaluatePolicy` against a manifest. It is not request-path enforcement.
+
+ARK Assurance is a capability of Control, not a fourth app. Runtime remains a library. Protocols remain adapters. See [ARK Control v0.1](09-agent-control-v01.md).
+
 ## Why SQLite first
 
 The entire system runs on a local file with no services, no containers, and no cloud account. `npm run setup && npm run dev` produces a working three-app system with seeded telemetry in under a minute.

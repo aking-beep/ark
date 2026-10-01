@@ -5,7 +5,7 @@ import { getSession } from '@/lib/org';
 
 export const metadata: Metadata = {
   title: 'ARK Control',
-  description: 'What your AI actually costs, what it bought, and what it was allowed to do.',
+  description: 'Control plane for discovering, assuring and operating AI agents — and measuring what they cost.',
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

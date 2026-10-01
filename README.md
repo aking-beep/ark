@@ -6,7 +6,7 @@ Three separate products — **AI Fit**, **AI Fit Teams**, and **Control** — on
 |---|---|---|
 | **AI Fit** (consumer) | 3000 | Five-minute quiz: your AI style, matched tools, paste-ready setup files. |
 | **AI Fit Teams** (business) | 3001 | Thirty questions about one workload. Verdict, architecture, model, controls, eval plan, cost, roadmap. |
-| **ARK Control** | 3002 | The evidence and control plane for production AI: telemetry ingest, cost governance, and protocol evidence from MCP, A2A, AG-UI, A2UI, UCP and AP2. Measures what AI Fit Teams estimated. |
+| **ARK Control** | 3002 | The evidence and control plane: discover and register agents, run ARK Assurance, ingest traces, govern spend, observe protocol evidence from MCP, A2A, AG-UI, A2UI, UCP and AP2. Measures what AI Fit Teams estimated. |
 
 ![Three surfaces, one engine, one wire between them](docs/diagrams/system-map.svg)
 
@@ -24,7 +24,7 @@ Three products — not one suite with three tabs. Two libraries that are not pro
 
 - **AI Fit** (`:3000`) is a personal quiz. Paste-ready `CLAUDE.md`, Cursor rules, `AGENTS.md`. It does not talk to the other two, and they do not link to it.
 - **AI Fit Teams** (`:3001`) is the estimator. Thirty questions, a verdict that can be `not-ai`, every figure labelled.
-- **ARK Control** (`:3002`) is the measurement. Wrap the client you already have (`instrumentFetch` + `run()`), or send one sample from the report (`POST /api/measure`). Spend is per outcome. `/start` is the connect path.
+- **ARK Control** (`:3002`) is the measurement and the control plane. Discover a repository, register an Agent Manifest, run ARK Assurance. Wrap the client you already have (`instrumentFetch` + `run()`), or send one sample from the report (`POST /api/measure`). Spend is per outcome. `/start` is the connect path. v0.1 is [Discover → Register → Assure](docs/09-agent-control-v01.md).
 - **`@ark/runtime`** and **`@ark/protocols`** are libraries. Not apps, not six new dashboards.
 
 The only runtime wire is teams → Control (`GET /api/v1/calibration`). If Control does not answer, the report still completes and every figure reads `heuristic`. The map, with a unit of work across four grains, is [`docs/08-how-ark-works.md`](docs/08-how-ark-works.md).
@@ -102,7 +102,7 @@ my-ai/        AI Fit engine — Python scoring, FastAPI, registry, evals (consum
 apps/
   consumer/   AI Fit       — adaptive quiz UI; proxies /v1 to AI Fit API
   business/   AI Fit Teams — 8 sections, @ark/core, POST /api/assess, POST /api/measure
-  control/    ARK Control — ingest, dashboards, budgets, calibration endpoint
+  control/    ARK Control — discover, agents, assurance, ingest, dashboards, budgets, calibration
 docs/         thesis, architecture, PRDs, methodology, data model, ADRs
 ```
 
@@ -141,8 +141,9 @@ npm run ingest:live    # POST live traces for the Northwind org (not SQL-inserte
 7. [`docs/06-aifit-consumer.md`](docs/06-aifit-consumer.md) — AI Fit consumer (merged from aifit-engine)
 8. [`docs/07-protocol-evidence.md`](docs/07-protocol-evidence.md) — the six protocols, the fourth grain, and the three redaction layers
 9. [`docs/08-how-ark-works.md`](docs/08-how-ark-works.md) — the map: what talks to what, and what a request looks like from quiz to drift
-10. [`docs/adr/`](docs/adr/) — the decisions that would otherwise be re-litigated every quarter (including [ADR-0006](docs/adr/0006-runtime-is-not-a-surface.md): Runtime is a library, not a surface, and [ADR-0007](docs/adr/0007-protocols-are-adapters-not-surfaces.md): protocols are adapters, not surfaces)
-11. [`docs/prd/`](docs/prd/) — one per surface: who it is for, what it refuses to do
+10. [`docs/09-agent-control-v01.md`](docs/09-agent-control-v01.md) — Discover → Register → Assure: Agent Manifest, discovery, assurance, policy foundation
+11. [`docs/adr/`](docs/adr/) — the decisions that would otherwise be re-litigated every quarter (including [ADR-0006](docs/adr/0006-runtime-is-not-a-surface.md): Runtime is a library, not a surface, and [ADR-0007](docs/adr/0007-protocols-are-adapters-not-surfaces.md): protocols are adapters, not surfaces)
+12. [`docs/prd/`](docs/prd/) — one per surface: who it is for, what it refuses to do
 
 If you would rather see the five arguments than read them, [`docs/diagrams/`](docs/diagrams/) is an index of the same material: the system map above, the trace-versus-event comparison, the verdict ladder drawn from the source, the provenance ladder worked end to end, and the calibration loop.
 

@@ -72,6 +72,28 @@ describe('ArkIngest', () => {
     assert.ok(ev.sensitiveMatches?.includes('email'));
   });
 
+  test('bindAgent copies agentId onto events; omitting it stays compatible', async () => {
+    const posted: unknown[] = [];
+    const client = new ArkIngest({
+      baseUrl: 'http://control.test',
+      fetch: (async (_url, init) => {
+        posted.push(JSON.parse(String(init?.body)));
+        return new Response(JSON.stringify({
+          accepted: 1, tracesClosed: 0, priced: 1, unpriced: 0, alerts: 0, circuitBreaks: [],
+        }), { status: 202 });
+      }) as typeof fetch,
+    });
+    const plain = client.trace('wl_x', 'tr_plain');
+    plain.event({ provider: 'anthropic', modelId: 'claude-haiku-4.5' });
+    await plain.flush();
+    assert.equal((posted[0] as { events: { agentId?: string }[] }).events[0]!.agentId, undefined);
+
+    const tagged = client.trace('wl_x', 'tr_tagged').bindAgent('support-agent');
+    tagged.event({ provider: 'anthropic', modelId: 'claude-haiku-4.5' });
+    await tagged.flush();
+    assert.equal((posted[1] as { events: { agentId?: string }[] }).events[0]!.agentId, 'support-agent');
+  });
+
   test('correlates protocol evidence to the same trace and workload', async () => {
     const posted: unknown[] = [];
     const client = new ArkIngest({

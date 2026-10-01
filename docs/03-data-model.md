@@ -1,6 +1,6 @@
 # Data model
 
-Ten tables. The shape of this schema is an argument about what an AI workload actually is, so it is worth reading before the SQL.
+The shape of this schema is an argument about what an AI workload actually is, so it is worth reading before the SQL. Agent identity is a later grain — see [ARK Control v0.1](09-agent-control-v01.md) — and is stored beside traces, not inside them.
 
 ## The distinction the whole system rests on
 
@@ -21,9 +21,12 @@ Cost per outcome — the headline number in every MY AI for teams report — is 
 | `orgs` | One per tenant | Scoping. Everything else carries `orgId`. |
 | `workloads` | One per assessed workload | The join between a MY AI for teams estimate and the running system it described. |
 | `traces` | One per unit of business work | The denominator of every cost figure. |
-| `events` | One per model call | The raw priced fact. |
+| `events` | One per model call | The raw priced fact. Optional `agent_id` joins a call to a registered Agent. |
 | `actions` | One per side effect | What the model *did*, as distinct from what it said. |
 | `protocolEvidence` | One per normalised protocol observation | What the agent did over MCP, A2A, AG-UI, A2UI, UCP or AP2. |
+| `agents` | One registered Agent Manifest per org | Identity. Not a trace and not an event. |
+| `discoveryRuns` | One bounded repository scan | Evidence for Discover, with warnings and paths. |
+| `assuranceRuns` | One deterministic check of one manifest | Counts of pass/warn/fail/unknown. Not a score. |
 | `budgets` | One per scope + period | The ceiling, and what happens at it. |
 | `alerts` | One per detection | Ten kinds, listed below. |
 | `qualitySamples` | One per judged output | The only source of an accuracy number that is not a guess. |
@@ -60,6 +63,20 @@ Three notes:
 **`cachedInputTokens` is separate from `inputTokens`** because cached reads bill at roughly 10% of the input rate across the major providers. Folding them together overstates cost by a margin that grows exactly as the system gets better at caching, which would mean the reward for optimising is a worse-looking bill.
 
 **Unpriceable events are stored, flagged, and counted — never dropped.** An event naming a model the catalog has never heard of still happened, still cost money, and is a signal in its own right: either someone changed models without telling anyone, or the catalog is stale. Dropping it would make the bill look smaller and the system look cleaner. Both would be lies.
+
+**`agent_id` is optional.** A registered Agent Manifest can be joined to runtime events. Events without it still ingest; the economics grain does not depend on discovery having run.
+
+### `agents`
+
+One registered Agent Manifest per `(org_id, id)`. Carries name, owner, environment, status, risk, source repository/commit, and the full bounded manifest JSON. This is identity, not work: folding it into `events` or `traces` would make cost-per-outcome and “how many agents do we have” the same query, which they are not.
+
+### `discoveryRuns`
+
+One bounded scan of a repository snapshot. `result` is a `DiscoveryResult` JSON — candidates, models, tools, MCP servers, evidence paths, warnings, confidence. Org-scoped. The snapshot itself is not retained.
+
+### `assuranceRuns`
+
+One `runAssurance` result for one agent. `status` is `pass | warn | fail | unknown`. The report JSON holds checks, findings, evidence and **counts**, not a numeric score.
 
 ### `actions`
 

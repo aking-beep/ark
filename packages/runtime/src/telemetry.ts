@@ -74,6 +74,7 @@ export async function emitTelemetry(input: TelemetryInput): Promise<TelemetryOut
           status: 'ok',
           application,
           turn: 0,
+          ...(input.request.agentId ? { agentId: input.request.agentId } : {}),
           ...(costUsd !== undefined ? { costUsd } : {}),
         });
         continue;
@@ -86,6 +87,7 @@ export async function emitTelemetry(input: TelemetryInput): Promise<TelemetryOut
           status: 'ok',
           application,
           turn: 0,
+          ...(input.request.agentId ? { agentId: input.request.agentId } : {}),
         });
         continue;
       }
@@ -98,6 +100,7 @@ export async function emitTelemetry(input: TelemetryInput): Promise<TelemetryOut
         errorKind,
         application,
         turn: 0,
+        ...(input.request.agentId ? { agentId: input.request.agentId } : {}),
       });
     }
 
