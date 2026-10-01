@@ -11,7 +11,6 @@ const line = (k, v) => out.push(`${k.padEnd(56)} ${v}`);
 const ABSENT = 'ABSENT';
 const DIR = 'evidence/observe-govern-enforce';
 mkdirSync(DIR, { recursive: true });
-const require = createRequire(import.meta.url);
 
 async function tryImport(spec) {
   try {
@@ -34,7 +33,7 @@ async function get(url) {
 async function loginCookie() {
   const email = process.env.ARK_DEMO_EMAIL || 'dana@riverbend.example';
   const password = process.env.ARK_DEMO_PASSWORD || 'riverbend-demo';
-  const res = await fetch('http://127.0.0.1:3002/api/session', {
+  const res = await fetch('http://localhost:3002/api/session', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ email, password }),
@@ -187,7 +186,7 @@ if (typeof runtime?.execute === 'function' && typeof core?.enforceAgentPolicies 
 }
 line('execute blocks production PII agent (no complete)', executeBlocked);
 
-const anonDiscover = await get('http://127.0.0.1:3002/discover');
+const anonDiscover = await get('http://localhost:3002/discover');
 line('GET :3002/discover (anon)', anonDiscover.status === 0 ? ABSENT : String(anonDiscover.status));
 
 let authedDiscover = ABSENT;
@@ -196,10 +195,10 @@ let navCalibration = ABSENT;
 try {
   const cookie = await loginCookie();
   if (cookie) {
-    const d = await fetch('http://127.0.0.1:3002/discover', { headers: { cookie }, redirect: 'manual' });
+    const d = await fetch('http://localhost:3002/discover', { headers: { cookie }, redirect: 'manual' });
     authedDiscover = String(d.status);
     const body = await d.text();
-    const a = await fetch('http://127.0.0.1:3002/agents', { headers: { cookie }, redirect: 'manual' });
+    const a = await fetch('http://localhost:3002/agents', { headers: { cookie }, redirect: 'manual' });
     authedAgents = String(a.status);
     navCalibration = /Calibration/.test(body) ? 'yes' : ABSENT;
   }
