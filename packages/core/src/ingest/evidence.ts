@@ -101,6 +101,8 @@ export const EvidenceInput = z.object({
   evidenceRef: z.string().max(200).optional(),
 
   metadata: EvidenceMetadata.default({}),
+  /** Registered Agent Manifest id. Optional — omit and the observation still ingests. */
+  agentId: z.string().min(1).max(128).optional(),
 });
 export type EvidenceInput = z.infer<typeof EvidenceInput>;
 

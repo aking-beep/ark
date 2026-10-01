@@ -94,6 +94,26 @@ describe('ArkIngest', () => {
     assert.equal((posted[1] as { events: { agentId?: string }[] }).events[0]!.agentId, 'support-agent');
   });
 
+  test('bindAgent copies agentId onto actions and protocol evidence', async () => {
+    const posted: unknown[] = [];
+    const client = new ArkIngest({
+      baseUrl: 'http://control.test',
+      fetch: (async (_url, init) => {
+        posted.push(JSON.parse(String(init?.body)));
+        return new Response(JSON.stringify({
+          accepted: 0, tracesClosed: 0, priced: 0, unpriced: 0, alerts: 0, circuitBreaks: [],
+        }), { status: 202 });
+      }) as typeof fetch,
+    });
+    const t = client.trace('wl_x', 'tr_act').bindAgent('support-agent');
+    t.action({ name: 'refund', system: 'stripe', blastRadius: 'costly', requiredApproval: false });
+    t.evidence({ protocol: 'mcp', kind: 'tool', operation: 'tools/call:search' });
+    await t.flush();
+    const body = posted[0] as { actions: { agentId?: string }[]; evidence: { agentId?: string }[] };
+    assert.equal(body.actions[0]!.agentId, 'support-agent');
+    assert.equal(body.evidence[0]!.agentId, 'support-agent');
+  });
+
   test('correlates protocol evidence to the same trace and workload', async () => {
     const posted: unknown[] = [];
     const client = new ArkIngest({

@@ -105,7 +105,12 @@ export const actions = sqliteTable('actions', {
   approvedBy: text('approved_by'),
   requiredApproval: integer('required_approval', { mode: 'boolean' }).notNull().default(false),
   credentialId: text('credential_id'),
-}, (t) => ({ byTrace: index('actions_trace_idx').on(t.traceId) }));
+  /** Registered Agent Manifest id. Optional. */
+  agentId: text('agent_id'),
+}, (t) => ({
+  byTrace: index('actions_trace_idx').on(t.traceId),
+  byAgent: index('actions_agent_idx').on(t.orgId, t.agentId),
+}));
 
 /**
  * One normalised observation from an agent protocol.
@@ -162,11 +167,14 @@ export const protocolEvidence = sqliteTable('protocol_evidence', {
 
   /** Low-cardinality scalars only. Enforced by @ark/core's EvidenceInput, not by SQLite. */
   metadata: text('metadata', { mode: 'json' }).$type<Record<string, string | number | boolean>>(),
+  /** Registered Agent Manifest id. Optional. */
+  agentId: text('agent_id'),
 }, (t) => ({
   byTs: index('protocol_evidence_ts_idx').on(t.orgId, t.ts),
   byProtocol: index('protocol_evidence_protocol_idx').on(t.protocol, t.ts),
   byTrace: index('protocol_evidence_trace_idx').on(t.traceId),
   byWorkload: index('protocol_evidence_workload_idx').on(t.workloadId, t.ts),
+  byAgent: index('protocol_evidence_agent_idx').on(t.orgId, t.agentId),
 }));
 
 /** Spend ceilings with an enforcement mode. A budget you cannot enforce is a wish. */

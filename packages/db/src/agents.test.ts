@@ -155,4 +155,65 @@ describe('agent persistence', () => {
     const stored = await client.execute({ sql: 'SELECT agent_id FROM events WHERE id=?', args: ['ev_no_agent'] });
     assert.equal(stored.rows[0]?.agent_id, null);
   });
+
+  test('actions and protocol evidence store optional agent_id and count by it', async () => {
+    const r = await applyIngest(IngestBody.parse({
+      orgId: 'org_a',
+      events: [{
+        id: 'ev_join',
+        traceId: 'tr_join',
+        workloadId: 'wl_a',
+        provider: 'anthropic',
+        modelId: 'claude-haiku-4.5',
+        agentId: 'support-agent',
+      }],
+      actions: [{
+        id: 'ac_join',
+        traceId: 'tr_join',
+        workloadId: 'wl_a',
+        name: 'refund',
+        system: 'stripe',
+        blastRadius: 'costly',
+        agentId: 'support-agent',
+      }],
+      evidence: [{
+        id: 'pe_join',
+        traceId: 'tr_join',
+        workloadId: 'wl_a',
+        protocol: 'mcp',
+        kind: 'tool',
+        operation: 'tools/call:search',
+        agentId: 'support-agent',
+      }],
+    }), {
+      client,
+      allowlist: ['anthropic'],
+      turnCeiling: 25,
+      traceCostCeiling: 10,
+    });
+    assert.equal(r.accepted, 1);
+    const action = await client.execute({ sql: 'SELECT agent_id FROM actions WHERE id=?', args: ['ac_join'] });
+    const ev = await client.execute({ sql: 'SELECT agent_id FROM protocol_evidence WHERE id=?', args: ['pe_join'] });
+    assert.equal(String(action.rows[0]?.agent_id), 'support-agent');
+    assert.equal(String(ev.rows[0]?.agent_id), 'support-agent');
+    const obs = await agentObservations('org_a', 'support-agent', 30, client);
+    assert.ok(obs.actions >= 1);
+    assert.ok(obs.protocolEvents >= 1);
+    const other = await agentObservations('org_b', 'support-agent', 30, client);
+    assert.equal(other.actions, 0);
+    assert.equal(other.protocolEvents, 0);
+  });
+
+  test('corrupt assurance JSON is skipped, not thrown', async () => {
+    await client.execute({
+      sql: `INSERT INTO assurance_runs (id, org_id, agent_id, created_at, status, report)
+            VALUES (?,?,?,?,?,?)`,
+      args: ['ar_bad', 'org_a', 'support-agent', Date.now() + 50_000, 'fail', '{not-json'],
+    });
+    const latest = await latestAssuranceForAgent('org_a', 'support-agent', client);
+    assert.ok(latest);
+    assert.notEqual(latest.id, 'ar_bad');
+    const listed = await listAssuranceRuns('org_a', client);
+    assert.ok(listed.every((r) => r.id !== 'ar_bad'));
+  });
 });

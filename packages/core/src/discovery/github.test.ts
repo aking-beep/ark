@@ -123,4 +123,47 @@ describe('fetchGithubSnapshot', () => {
     assert.equal(snap.files.length, 0);
     assert.ok(snap.warnings.some((w) => w.includes('larger than')));
   });
+
+  test('truncated trees fail closed and do not fetch blobs', async () => {
+    let contentCalls = 0;
+    const fetchFn = (async (input: Parameters<typeof fetch>[0]) => {
+      const url = String(input);
+      if (url.endsWith('/repos/acme/huge')) {
+        return new Response(JSON.stringify({ default_branch: 'main' }), { status: 200 });
+      }
+      if (url.includes('/git/trees/')) {
+        return new Response(
+          JSON.stringify({
+            sha: 'deadbeef',
+            truncated: true,
+            tree: [{ path: 'agent.ts', type: 'blob', size: 20 }],
+          }),
+          { status: 200 },
+        );
+      }
+      contentCalls++;
+      return new Response(JSON.stringify({ encoding: 'base64', content: '', size: 4 }), { status: 200 });
+    }) as typeof fetch;
+    const snap = await fetchGithubSnapshot({ ref: { owner: 'acme', repo: 'huge' }, fetchFn });
+    assert.equal(snap.files.length, 0);
+    assert.equal(contentCalls, 0);
+    assert.ok(snap.warnings.some((w) => /fail(ed)? closed/i.test(w)));
+  });
+
+  test('oversize tree JSON fails closed before parse', async () => {
+    const fetchFn = (async (input: Parameters<typeof fetch>[0]) => {
+      const url = String(input);
+      if (url.endsWith('/repos/acme/huge')) {
+        return new Response(JSON.stringify({ default_branch: 'main' }), { status: 200 });
+      }
+      if (url.includes('/git/trees/')) {
+        const body = 'x'.repeat(GITHUB_FETCH_LIMITS.maxTreeBytes + 10);
+        return new Response(body, { status: 200, headers: { 'content-length': String(body.length) } });
+      }
+      return new Response('no', { status: 404 });
+    }) as typeof fetch;
+    const snap = await fetchGithubSnapshot({ ref: { owner: 'acme', repo: 'huge' }, fetchFn });
+    assert.equal(snap.files.length, 0);
+    assert.ok(snap.warnings.some((w) => /failed closed/i.test(w)));
+  });
 });

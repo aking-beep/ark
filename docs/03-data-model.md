@@ -64,7 +64,7 @@ Three notes:
 
 **Unpriceable events are stored, flagged, and counted — never dropped.** An event naming a model the catalog has never heard of still happened, still cost money, and is a signal in its own right: either someone changed models without telling anyone, or the catalog is stale. Dropping it would make the bill look smaller and the system look cleaner. Both would be lies.
 
-**`agent_id` is optional.** A registered Agent Manifest can be joined to runtime events. Events without it still ingest; the economics grain does not depend on discovery having run.
+**`agent_id` is optional.** A registered Agent Manifest can be joined to runtime events, actions and protocol evidence. Rows without it still ingest; the economics grain does not depend on discovery having run.
 
 ### `agents`
 
@@ -82,13 +82,13 @@ One `runAssurance` result for one agent. `status` is `pass | warn | fail | unkno
 
 Actions are separated from events because an action is not a model call, it is a consequence. One event can produce several, and the risk attached to them has nothing to do with token count.
 
-Each row carries a `blastRadius` and a nullable `approvedBy`.
+Each row carries a `blastRadius`, a nullable `approvedBy`, and an optional `agent_id`.
 
 **`approvedBy` is nullable on purpose.** A schema that required it could not represent the thing worth detecting. An irreversible action with a null approver is SEC-05 firing — the system did something it could not undo and no human signed for it. Making the column `NOT NULL` would have made that state unrepresentable in the data and therefore invisible in the product, which is a very tidy way of not finding out.
 
 ### `protocolEvidence`
 
-One normalised observation from an agent protocol: an MCP tool call, an A2A delegation, an AG-UI approval, an A2UI render, a UCP checkout, an AP2 mandate. Per row: `protocol`, `protocolVersion`, `kind`, `operation`, `actor`, `target`, `outcome`, `latencyMs`, `valueUsd`, `currency`, `requiredApproval`, `approvedBy`, `risk`, `evidenceRef` and a scalar-only `metadata` JSON column. Indexed on `(org_id, ts)`, `(protocol, ts)`, `(trace_id)` and `(workload_id, ts)`.
+One normalised observation from an agent protocol: an MCP tool call, an A2A delegation, an AG-UI approval, an A2UI render, a UCP checkout, an AP2 mandate. Per row: `protocol`, `protocolVersion`, `kind`, `operation`, `actor`, `target`, `outcome`, `latencyMs`, `valueUsd`, `currency`, `requiredApproval`, `approvedBy`, `risk`, `evidenceRef`, optional `agent_id`, and a scalar-only `metadata` JSON column. Indexed on `(org_id, ts)`, `(protocol, ts)`, `(trace_id)`, `(workload_id, ts)` and `(org_id, agent_id)`.
 
 **It is a separate grain from `events`, and that is the point.** An event is one model call and is priced. An observation is one thing an agent did over a protocol and is governed. An MCP `tools/list` has no tokens and no cost; putting it in `events` would make `SUM(cost_usd)` meaningless and `COUNT(*)` a number nobody could name. They are correlated by `trace_id`, which is what lets `/workloads/[id]` read one unit of work across model cost, protocol chain, side effects and verdict at once.
 
