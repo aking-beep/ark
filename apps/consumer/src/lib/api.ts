@@ -55,10 +55,11 @@ export const api = {
     }>("/v1/signal", { method: "POST", body: JSON.stringify(session) }),
   share: (sessionId: string) =>
     request<{ share_id: string; path: string; durable?: boolean }>(`/v1/sessions/${sessionId}/share`, { method: "POST" }),
-  publishShare: (result: ScoreResult) =>
+  publishShare: (result: ScoreResult, sessionId?: string) =>
     request<{ share_id: string; path: string; durable?: boolean }>("/v1/share", {
       method: "POST",
-      body: JSON.stringify({ result }),
+      // session_id links the share to the session so deleting the session deletes the share.
+      body: JSON.stringify(sessionId ? { result, session_id: sessionId } : { result }),
     }),
   getShare: (shareId: string) => request<ScoreResult>(`/v1/share/${shareId}`),
   exportSession: (sessionId: string) =>

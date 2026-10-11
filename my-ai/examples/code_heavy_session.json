@@ -6,56 +6,168 @@
       "scenario_id": "weekend-build",
       "turn_id": "wb-1",
       "strength": 1.0,
-      "evidence": "Asked AI to scaffold the MVP as working code."
+      "evidence": "Scaffold working code for a tiny vertical slice I can run locally."
+    },
+    {
+      "event_type": "delegated_action",
+      "scenario_id": "weekend-build",
+      "turn_id": "wb-1",
+      "strength": 0.7,
+      "evidence": "Scaffold working code for a tiny vertical slice I can run locally."
     },
     {
       "event_type": "delegated_action",
       "scenario_id": "weekend-build",
       "turn_id": "wb-2",
-      "strength": 0.9,
-      "evidence": "Let the agent run the build steps without confirming each one."
+      "strength": 1.0,
+      "evidence": "You handle the remaining implementation; ping me only for product calls."
+    },
+    {
+      "event_type": "requested_automation",
+      "scenario_id": "weekend-build",
+      "turn_id": "wb-2",
+      "strength": 0.4,
+      "evidence": "You handle the remaining implementation; ping me only for product calls."
+    },
+    {
+      "event_type": "corrected_output",
+      "scenario_id": "weekend-build",
+      "turn_id": "wb-3",
+      "strength": 0.8,
+      "evidence": "No. Correct the core loop first, then add integrations."
     },
     {
       "event_type": "changed_constraint",
       "scenario_id": "weekend-build",
       "turn_id": "wb-3",
-      "strength": 1.0,
-      "evidence": "Cut scope after seeing the first implementation."
+      "strength": 0.8,
+      "evidence": "No. Correct the core loop first, then add integrations."
     },
     {
-      "event_type": "requested_code",
-      "scenario_id": "messy-data",
-      "turn_id": "md-1",
-      "strength": 0.9,
-      "evidence": "Wanted a script rather than a written explanation."
-    },
-    {
-      "event_type": "requested_integration",
+      "event_type": "requested_automation",
       "scenario_id": "workflow-automation",
       "turn_id": "wa-1",
       "strength": 1.0,
-      "evidence": "Asked for the workflow to connect to the existing stack."
+      "evidence": "Automate it. Orchestrate the steps instead of writing a better checklist."
+    },
+    {
+      "event_type": "delegated_action",
+      "scenario_id": "workflow-automation",
+      "turn_id": "wa-1",
+      "strength": 0.6,
+      "evidence": "Automate it. Orchestrate the steps instead of writing a better checklist."
+    },
+    {
+      "event_type": "chose_local_control",
+      "scenario_id": "workflow-automation",
+      "turn_id": "wa-2",
+      "strength": 1.0,
+      "evidence": "Self-host or local control. I want to own the workflow."
     },
     {
       "event_type": "requested_automation",
       "scenario_id": "workflow-automation",
       "turn_id": "wa-2",
-      "strength": 1.0,
-      "evidence": "Wanted the recurring work orchestrated, not documented."
+      "strength": 0.7,
+      "evidence": "Self-host or local control. I want to own the workflow."
     },
     {
-      "event_type": "corrected_output",
+      "event_type": "requested_integration",
       "scenario_id": "workflow-automation",
       "turn_id": "wa-3",
+      "strength": 1.0,
+      "evidence": "Connect those systems. A checklist is not an integration."
+    },
+    {
+      "event_type": "requested_automation",
+      "scenario_id": "workflow-automation",
+      "turn_id": "wa-3",
+      "strength": 0.8,
+      "evidence": "Connect those systems. A checklist is not an integration."
+    },
+    {
+      "event_type": "requested_recommendation",
+      "scenario_id": "messy-data",
+      "turn_id": "md-1",
       "strength": 0.9,
-      "evidence": "Fixed the generated automation instead of restarting."
+      "evidence": "Accept the inferred values and ask for the recommendation."
+    },
+    {
+      "event_type": "chose_fast_path",
+      "scenario_id": "messy-data",
+      "turn_id": "md-1",
+      "strength": 0.7,
+      "evidence": "Accept the inferred values and ask for the recommendation."
+    },
+    {
+      "event_type": "chose_fast_path",
+      "scenario_id": "messy-data",
+      "turn_id": "md-2",
+      "strength": 0.8,
+      "evidence": "Fill gaps with reasonable assumptions and keep moving."
+    },
+    {
+      "event_type": "requested_recommendation",
+      "scenario_id": "messy-data",
+      "turn_id": "md-2",
+      "strength": 0.5,
+      "evidence": "Fill gaps with reasonable assumptions and keep moving."
+    },
+    {
+      "event_type": "requested_integration",
+      "scenario_id": "messy-data",
+      "turn_id": "md-3",
+      "strength": 1.0,
+      "evidence": "Integrate the live source, but keep unsupported cells marked."
     },
     {
       "event_type": "requested_evidence",
+      "scenario_id": "messy-data",
+      "turn_id": "md-3",
+      "strength": 0.7,
+      "evidence": "Integrate the live source, but keep unsupported cells marked."
+    },
+    {
+      "event_type": "requested_code",
+      "scenario_id": "messy-data",
+      "turn_id": "md-3",
+      "strength": 0.6,
+      "evidence": "Integrate the live source, but keep unsupported cells marked."
+    },
+    {
+      "event_type": "requested_recommendation",
       "scenario_id": "launch-risk",
       "turn_id": "lr-1",
+      "strength": 1.0,
+      "evidence": "Just recommend go / wait / patch now so the conversation has a decision."
+    },
+    {
+      "event_type": "chose_fast_path",
+      "scenario_id": "launch-risk",
+      "turn_id": "lr-1",
+      "strength": 0.9,
+      "evidence": "Just recommend go / wait / patch now so the conversation has a decision."
+    },
+    {
+      "event_type": "delegated_action",
+      "scenario_id": "launch-risk",
+      "turn_id": "lr-2",
+      "strength": 0.9,
+      "evidence": "Have the AI write the go-live recommendation and own the call."
+    },
+    {
+      "event_type": "requested_recommendation",
+      "scenario_id": "launch-risk",
+      "turn_id": "lr-2",
       "strength": 0.8,
-      "evidence": "Asked for the failing test output before accepting the fix."
+      "evidence": "Have the AI write the go-live recommendation and own the call."
+    },
+    {
+      "event_type": "requested_integration",
+      "scenario_id": "launch-risk",
+      "turn_id": "lr-3",
+      "strength": 1.0,
+      "evidence": "Connect it to the existing tracker and chat stack rather than a one-off doc."
     }
   ]
 }

@@ -345,7 +345,7 @@ def test_stateless_score_endpoint_accepts_full_session():
 
     client = TestClient(app)
     body = {
-        "session_id": "stateless-1",
+        "session_id": "5b0c8f6e-1d2a-4c3b-9e8f-0a1b2c3d4e5f",
         "events": [{"event_type": "requested_evidence", "scenario_id": "launch-risk", "strength": 1.0}],
         "filters": {"local_only": False},
     }
@@ -400,7 +400,7 @@ def test_api_signal_endpoint():
     thin = client.post(
         "/v1/signal",
         json={
-            "session_id": "sig-1",
+            "session_id": "6c1d9a7f-2e3b-4d4c-8f90-1b2c3d4e5f60",
             "events": [{"event_type": "requested_evidence", "scenario_id": "launch-risk", "strength": 1.0}],
         },
     )
