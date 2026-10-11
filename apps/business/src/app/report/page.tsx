@@ -126,7 +126,9 @@ export default async function Report({
         </Callout>
       )}
 
-      {a.suitability.verdict !== 'not-ai' && <MeasureSample workload={workload} />}
+      {a.suitability.verdict !== 'not-ai' && (
+        <MeasureSample workload={workload} enabled={process.env.ARK_MEASURE_ENABLED?.trim() === '1'} />
+      )}
 
       {/* ---------------------------------------------------------------- */}
       <Panel

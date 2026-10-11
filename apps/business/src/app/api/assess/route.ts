@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { Workload, assess, fetchCalibration } from '@ark/core';
+import { MAX_BODY_BYTES, readJsonBody } from '@/lib/request-guard';
 
 export const dynamic = 'force-dynamic';
+
+/** Batch cap. Each workload is a full assessment; a CI backlog fits in a few calls. */
+const MAX_WORKLOADS = 20;
 
 /**
  * Programmatic assessment.
@@ -13,15 +17,20 @@ export const dynamic = 'force-dynamic';
  * therefore can still log, what that verdict rests on.
  */
 export async function POST(req: Request) {
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: 'Body must be JSON.' }, { status: 400 });
+  const read = await readJsonBody(req);
+  if (!read.ok) {
+    return NextResponse.json({ error: read.error }, { status: read.status });
   }
+  const body = read.value;
 
   const isBatch = Array.isArray(body);
-  const parsed = isBatch ? Workload.array().safeParse(body) : Workload.safeParse(body);
+  if (isBatch && body.length > MAX_WORKLOADS) {
+    return NextResponse.json(
+      { error: `At most ${MAX_WORKLOADS} workloads per request.` },
+      { status: 413 },
+    );
+  }
+  const parsed = isBatch ? Workload.array().max(MAX_WORKLOADS).safeParse(body) : Workload.safeParse(body);
 
   if (!parsed.success) {
     return NextResponse.json(
@@ -65,7 +74,7 @@ export async function POST(req: Request) {
 export async function GET() {
   return NextResponse.json({
     endpoint: 'POST /api/assess',
-    accepts: 'A Workload object, or an array of them.',
+    accepts: `A Workload object, or an array of at most ${MAX_WORKLOADS}. Body at most ${MAX_BODY_BYTES} bytes.`,
     returns: 'The full Assessment, including the provenance basis of every figure.',
     note:
       'Calibration is fetched from ARK_CONTROL_URL when set. When it is not, the assessment still runs and every cost figure is labelled heuristic rather than silently downgraded. POST /api/measure sends one Runtime sample to Control for the same Workload.',

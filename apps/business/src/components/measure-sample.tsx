@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { Workload } from '@ark/core';
-import { MEASURE_TIMEOUT_MS } from '@/lib/measure-timeout';
+import { MEASURE_CLIENT_TIMEOUT_MS } from '@/lib/measure-timeout';
 
 type State =
   | { kind: 'idle' }
@@ -10,7 +10,7 @@ type State =
   | { kind: 'ok'; modelId: string; latencyMs: number; ingestOk: boolean }
   | { kind: 'err'; message: string };
 
-export function MeasureSample({ workload }: { workload: Workload }) {
+export function MeasureSample({ workload, enabled = true }: { workload: Workload; enabled?: boolean }) {
   const [state, setState] = useState<State>({ kind: 'idle' });
 
   async function send() {
@@ -20,9 +20,9 @@ export function MeasureSample({ workload }: { workload: Workload }) {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(workload),
-        signal: AbortSignal.timeout(MEASURE_TIMEOUT_MS),
+        signal: AbortSignal.timeout(MEASURE_CLIENT_TIMEOUT_MS),
       });
-      const body = (await res.json()) as {
+      const body = (await res.json().catch(() => ({}))) as {
         ok?: boolean;
         message?: string;
         reason?: string;
@@ -49,11 +49,7 @@ export function MeasureSample({ workload }: { workload: Workload }) {
         (err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError'));
       setState({
         kind: 'err',
-        message: aborted
-          ? `measure timed out after ${MEASURE_TIMEOUT_MS}ms`
-          : err instanceof Error
-            ? err.message
-            : 'measure failed',
+        message: aborted ? `measure timed out after ${MEASURE_CLIENT_TIMEOUT_MS}ms` : 'measure failed (network error)',
       });
     }
   }
@@ -70,10 +66,16 @@ export function MeasureSample({ workload }: { workload: Workload }) {
         <span className="font-mono">ARK_CONTROL_TOKEN</span> are set. One sample does not
         clear the 30-trace calibration floor.
       </p>
+      {!enabled && (
+        <p className="mt-2 text-xs text-ink-400" data-testid="measure-disabled">
+          Measuring is off on this deployment. The operator enables it with{' '}
+          <span className="font-mono">ARK_MEASURE_ENABLED=1</span>.
+        </p>
+      )}
       <button
         type="button"
         onClick={send}
-        disabled={state.kind === 'pending'}
+        disabled={!enabled || state.kind === 'pending'}
         className="mt-3 rounded-lg bg-signal px-4 py-2 text-sm font-medium text-ink-950 transition hover:bg-signal-glow disabled:opacity-50"
       >
         {state.kind === 'pending' ? 'Measuring…' : 'Send measured sample'}
