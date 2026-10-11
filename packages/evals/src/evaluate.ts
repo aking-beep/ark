@@ -55,22 +55,30 @@ export function evaluate(input: EvalInput): EvalReport {
     estimate: estimate(input.latencyMs, 'measured', 'wall clock around provider complete()'),
   };
   const costEst = costEstimate(input.modelId, input.inputTokens, input.outputTokens);
+  const unpriced = costEst.basis === 'heuristic';
+  // Fail closed: a ceiling that cannot be checked is not a ceiling that was
+  // met. An unpriced model passes only when nobody set a ceiling.
   const cost: Check = {
     name: 'cost',
-    pass: input.maxCostUsd === undefined || costEst.basis === 'heuristic' || costEst.value <= input.maxCostUsd,
-    detail:
-      costEst.basis === 'heuristic'
+    pass: input.maxCostUsd === undefined || (!unpriced && costEst.value <= input.maxCostUsd),
+    detail: unpriced
+      ? input.maxCostUsd === undefined
         ? costEst.source
-        : input.maxCostUsd === undefined
-          ? `$${costEst.value} (no ceiling)`
-          : `$${costEst.value} vs ceiling $${input.maxCostUsd}`,
+        : `${costEst.source}; cannot verify ceiling $${input.maxCostUsd}`
+      : input.maxCostUsd === undefined
+        ? `$${costEst.value} (no ceiling)`
+        : `$${costEst.value} vs ceiling $${input.maxCostUsd}`,
     estimate: costEst,
   };
+  // A completion cut off at the token limit is a partial answer. It is not an
+  // error from the provider, but it is not a reliable result either.
+  const empty = input.text.trim().length === 0;
+  const reliable = input.finishReason === 'stop' && !empty;
   const reliability: Check = {
     name: 'reliability',
-    pass: input.finishReason !== 'error' && input.text.trim().length > 0,
-    detail: `finishReason=${input.finishReason}, empty=${input.text.trim().length === 0}`,
-    estimate: estimate(input.finishReason !== 'error', 'measured', 'provider finish reason and non-empty text'),
+    pass: reliable,
+    detail: `finishReason=${input.finishReason}, empty=${empty}${input.finishReason === 'length' ? ' (truncated at the token limit)' : ''}`,
+    estimate: estimate(reliable, 'measured', 'provider finish reason and non-empty text'),
   };
   return {
     quality,
