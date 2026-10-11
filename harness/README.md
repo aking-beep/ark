@@ -28,6 +28,10 @@ There is no `factory-prover` subagent. Proving happens inside the builder's
 station, against a running dev server, and splitting it into a second context
 buys nothing but a handoff.
 
+This repo dogfoods the adapters, so `.claude/` and `.cursor/rules/` hold installed
+copies. `npm run check:harness` (run in CI and by the factory gate) fails if they
+drift from `harness/`; change both, or change `harness/` and re-copy.
+
 ## Cursor
 
 ```bash

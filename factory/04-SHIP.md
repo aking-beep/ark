@@ -41,9 +41,11 @@ python3 scripts/factory-gate.py <slug>
 
 The gate is mechanical and has no opinions. It checks that the spec exists, that
 the evidence directory has a before artifact, an after artifact and a completed
-`EVIDENCE.md`, that `REVIEW.md` records a most-recent score of 5, that the
-declared project checks pass, and that the diff contains nothing matching the
-secret patterns. It exits non-zero and names what is missing.
+`EVIDENCE.md`, that `REVIEW.md` records a most-recent score of 5 in a round
+signed with a `Reviewer:` line, that the declared project checks pass, and that
+neither the diff (against `origin/<base>`, falling back to the local base) nor
+the spec and evidence files contain anything matching the secret patterns. A
+diff it cannot produce is a failure, not a pass. It exits non-zero and names what is missing.
 
 A structural gate — one that only checks whether files exist — is theatre. This
 one runs the repo's real commands, configured in `factory.config.json` at the

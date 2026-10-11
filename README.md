@@ -58,6 +58,8 @@ A prior is promoted only above that floor. Below it, the number stays `heuristic
 
 ## Quick start
 
+Requires Node ≥ 22.6 and Python ≥ 3.12.
+
 ```bash
 npm install
 pip install -e 'my-ai/[dev]'   # consumer AI Fit API (Python)
@@ -73,7 +75,7 @@ Then:
 
 AI Fit (consumer) uses Next 16 nested under `apps/consumer`. Business and Control stay on Next 15 / React 18. After a consumer install, restart those two apps so they are not left on a stale `.next` from a previous `next dev`. `npm run dev:ark` starts only those two.
 
-Zero config. The database is a local SQLite file (`ark.db`); nothing else is required. To see AI Fit Teams figures flip from `heuristic` to `measured`, set `ARK_CONTROL_URL=http://localhost:3002` and `ARK_CONTROL_TOKEN` to a Demo Co ingest token, then reload a business report.
+Zero config. The database is a local SQLite file (`ark.db` at the repo root); nothing else is required. When you do configure something, each Next app reads its own `apps/<app>/.env.local` — see [`.env.example`](.env.example). To see AI Fit Teams figures flip from `heuristic` to `measured`, set `ARK_CONTROL_URL=http://localhost:3002` and `ARK_CONTROL_TOKEN` to a Demo Co ingest token, then reload a business report.
 
 Control is org-scoped at the edge. After `npm run setup`:
 
@@ -84,7 +86,7 @@ Control is org-scoped at the edge. After `npm run setup`:
 
 `npm run ingest:live` posts traces for Northwind through the same ingest path as production. Until that runs, Northwind's calibration is `calibrated` from Demo Co's patterns — fleet priors, not a thin sample of its own.
 
-Host all four processes (AI Fit API + three Next apps) with Docker: [`docs/05-hosting.md`](docs/05-hosting.md).
+These demo credentials are for local development only. Host all four processes (AI Fit API + three Next apps) with Docker: [`docs/05-hosting.md`](docs/05-hosting.md) — a production deploy must set its own session secret, passwords and ingest tokens, and refuses to start on the defaults above.
 
 ## Layout
 
@@ -122,11 +124,13 @@ Consumer AI Fit keeps quiz progress in the browser (`localStorage`) and scores v
 npm run dev            # AI Fit API + consumer + business + control
 npm run dev:ark        # business (:3001) and Control (:3002) only
 npm run build          # packages, then all three apps
-npm run test           # @ark/core, protocols, db, SDK, providers, evals, runtime
+npm run test           # @ark/core, protocols, db, SDK, providers, evals, runtime, control, deploy
 npm run smoke:runtime  # Runtime dry-run (+ live providers when env is set)
 npm run test:my-ai     # AI Fit Python engine (pytest)
-npm run typecheck      # every workspace
-npm run db:seed        # regenerate demo telemetry
+npm run typecheck      # every workspace, plus scripts/
+npm run check:harness  # harness/ and .claude/ + .cursor/ copies are identical
+npm run db:bootstrap   # push schema; seed only if the database has no orgs
+npm run db:seed        # regenerate demo telemetry (replaces data; refused in production without ARK_ALLOW_SEED=1)
 npm run ingest:live    # POST live traces for the Northwind org (not SQL-inserted)
 ```
 

@@ -19,7 +19,8 @@ Given a slug:
 3. Read the diff: `git diff main...<slug>`.
 4. Score all five criteria. Award or withhold — never partial.
 5. Append a round block to `evidence/<slug>/REVIEW.md` in the rubric's format.
-   Append; never overwrite a previous round.
+   Append; never overwrite a previous round. Sign it with a `Reviewer:` line
+   naming this reviewer session; the gate refuses an unsigned latest round.
 
 Every withheld point names a file and a line and states what would earn it back.
 Blocking findings (everything that cost a point) and non-blocking notes go in
