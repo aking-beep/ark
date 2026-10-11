@@ -19,7 +19,8 @@ of you.
 Score all five criteria. Each point is awarded or withheld — never partial. For
 every withheld point, name the file and line and state what would earn it. Append
 a new round block to `REVIEW.md` using the format in the rubric; never overwrite a
-previous round.
+previous round. Sign the round with a `Reviewer:` line naming yourself (a person,
+or the agent and session); the gate refuses an unsigned latest round.
 
 Separate blocking findings (everything that cost a point) from non-blocking notes
 (everything else). Do not mark a preference as blocking.

@@ -2,6 +2,8 @@
   "checks": {
     "typecheck": "npm run typecheck",
     "test": "npm run test",
+    "test:my-ai": "npm run test:my-ai",
+    "harness-sync": "npm run check:harness",
     "build": "npm run build"
   }
 }

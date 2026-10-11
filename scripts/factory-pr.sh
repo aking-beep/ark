@@ -13,6 +13,11 @@ if [[ -z "$SLUG" ]]; then
   echo "usage: bash scripts/factory-pr.sh <slug>" >&2
   exit 2
 fi
+# Same rule as factory-new.sh: the slug becomes paths and the PR title.
+if [[ ! "$SLUG" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
+  echo "slug must be kebab-case: [a-z0-9] separated by single hyphens" >&2
+  exit 2
+fi
 
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"

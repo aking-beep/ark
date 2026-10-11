@@ -63,16 +63,32 @@ if [[ ! -f "specs/$SLUG.md" ]]; then
   echo "→ spec stub: specs/$SLUG.md"
 fi
 
-# Ports: one station, one port. Derived from the worktree count so four parallel
-# stations do not all try to bind 3000 and produce three confusing failures. The
-# count includes the main checkout, which is why the first station lands on 3001
-# — 3000 is left to whatever you have running in the root.
-N=$(git worktree list --porcelain | grep -c '^worktree ' || true)
-PORT=$(( 3000 + N - 1 ))
+# Ports: one station, one port, so parallel stations do not all try to bind the
+# same one and produce confusing failures. Take the first port from the base
+# that is neither claimed by another station's .factory-station nor currently
+# listening. Counting worktrees instead (the old rule) reissued a live station's
+# port as soon as an earlier station was torn down. The base defaults above the
+# ARK apps' own ports (3000-3002) so `npm run dev` in the root never collides.
+port_in_use() { (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null; }
+port_claimed() { grep -qsx "PORT=$1" worktrees/*/.factory-station; }
+PORT="${FACTORY_PORT_BASE:-3010}"
+while port_claimed "$PORT" || port_in_use "$PORT"; do
+  PORT=$(( PORT + 1 ))
+  if (( PORT > 65535 )); then echo "no free port for the station" >&2; exit 1; fi
+done
 echo "PORT=$PORT" > "$WT/.factory-station"
 
+# A failed install is an error, not a cue to fall back to `npm install`: that
+# silently rewrites the lockfile, and the station then builds against
+# dependencies nobody reviewed. Fix the lockfile on the base branch instead.
 echo "→ installing dependencies in the station"
-if [[ -f "$WT/package-lock.json" ]]; then (cd "$WT" && npm ci --silent) || (cd "$WT" && npm install --silent)
+if [[ -f "$WT/package-lock.json" ]]; then
+  if ! (cd "$WT" && npm ci --silent); then
+    echo "npm ci failed in $WT; the lockfile and package.json disagree or the install broke." >&2
+    echo "  the station is left in place; fix and re-run npm ci there, or tear it down:" >&2
+    echo "  git worktree remove $WT --force && git branch -D $SLUG" >&2
+    exit 1
+  fi
 elif [[ -f "$WT/package.json"      ]]; then (cd "$WT" && npm install --silent)
 elif [[ -f "$WT/pnpm-lock.yaml"    ]]; then (cd "$WT" && pnpm install --silent)
 elif [[ -f "$WT/uv.lock"           ]]; then (cd "$WT" && uv sync)
