@@ -78,7 +78,7 @@ def score_session(
             "mode": "anonymous",
             "stores_name": False,
             "stores_employer": False,
-            "retention": "In-memory session until delete or process restart. Share snapshots contain scores only.",
+            "retention": "Stored for up to 30 days (Redis or server disk) until you delete it. Share snapshots contain scores only.",
         },
         "disclaimer": "AI Fit scores are normalized similarity scores, not scientifically validated probabilities.",
     }

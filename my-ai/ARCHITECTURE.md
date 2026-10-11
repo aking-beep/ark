@@ -60,7 +60,7 @@ Exports
 ## Suggested services
 
 ```text
-apps/web
+apps/consumer (monorepo root)
   Next.js assessment + results UI
 
 services/api

@@ -53,38 +53,37 @@ PYTHONPATH=packages/core/src python3 -m evals.harness run-cases
 PYTHONPATH=packages/core/src uvicorn services.api.main:app --host 127.0.0.1 --port 8472
 ```
 
-In another terminal:
+In another terminal, from the monorepo root (the consumer UI is `apps/consumer`):
 
 ```bash
-cd apps/web
-npm install
-npm run dev
-# or a production-style preview: npm run build && npm run start
+npm ci
+npm run dev:consumer
+# or a production-style preview:
+npm run build --workspace @ark/consumer && (cd apps/consumer && npx next start --port 43123)
 ```
 
-Open `http://127.0.0.1:43123`.
+Open `http://127.0.0.1:3000` (dev) or `http://127.0.0.1:43123` (preview). The consumer app
+proxies `/v1/*` and `/health` to this API (`API_ORIGIN`, default `http://127.0.0.1:8472`).
 
-Frontend happy path:
+Frontend happy path (builds first; Playwright starts the API and the preview server itself):
 
 ```bash
-cd apps/web
+npm run build --workspace @ark/consumer
+cd apps/consumer
 npx playwright install chromium
 npm run test:e2e
 ```
 
-## Deploy on Vercel
+## Deploy
 
-This repo is a Vercel Services project: Next.js in `apps/web` and FastAPI at `/v1` and `/health` on the same domain. Scoring stays Python.
+The monorepo ships one container (see `deploy/` and `docs/05-hosting.md` at the repo root): the
+consumer app on :3000 proxies to this API on :8472.
 
-```bash
-npx vercel login
-npx vercel
-npx vercel --prod
-```
-
-Import the Git repo in the Vercel dashboard if you prefer. Leave the root directory at the repository root so `vercel.json` can see both services. Do not set the root to `apps/web`.
-
-On Vercel, assessment events are buffered in the browser and scored in one request. Add Upstash Redis or Vercel KV so share IDs survive across instances. Without that, share links still work via a compressed snapshot in the URL hash.
+Storage: sessions, scores, and share snapshots go to Upstash Redis / Vercel KV when
+`UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` are set, otherwise to files under
+`MYAI_STORE` (default `/tmp/myai-store`). Every record expires after 30 days, and deleting a
+session also deletes its share snapshots. See `docs/API_SPEC.md`. Without durable storage,
+share links still work via a compressed snapshot in the URL hash (`/share/local#...`).
 
 ## Architecture
 

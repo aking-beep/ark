@@ -80,7 +80,7 @@ def _maybe_llm_events(text: str, scenario_id: str, turn_id: str | None) -> list[
                 scenario_id=scenario_id,
                 turn_id=turn_id,
                 strength=min(1.0, max(0.0, float(row.get("strength", 0.6)))),
-                evidence=row.get("evidence") or "LLM classifier feature (not a final recommendation).",
+                evidence=str(row.get("evidence") or "LLM classifier feature (not a final recommendation).")[:500],
                 source_text=text,
                 classifier="llm_v0.1",
                 metadata={"model": payload.get("model"), "version": payload.get("version")},
