@@ -30,21 +30,51 @@ export function adaptersFromEnv(opts: AdaptersFromEnv = {}): ProviderAdapter[] {
     timeoutMs,
     fetch: fetchFn,
   };
-  const hfToken = env.HF_TOKEN || env.HUGGING_FACE_HUB_TOKEN || '';
-  const hostedDeepSeek = Boolean(env.DEEPSEEK_API_KEY) && !env.ARK_FRONTIER_API_KEY && !env.ARK_FRONTIER_BASE_URL;
-  const hostedHf = Boolean(hfToken) && !env.ARK_FRONTIER_API_KEY && !env.ARK_FRONTIER_BASE_URL && !hostedDeepSeek;
-  const apiKey = env.ARK_FRONTIER_API_KEY || env.DEEPSEEK_API_KEY || hfToken || '';
-  const frontier: OpenAICompatibleConfig = {
-    baseUrl:
-      env.ARK_FRONTIER_BASE_URL ||
-      (hostedDeepSeek ? 'https://api.deepseek.com' : '') ||
-      (hostedHf ? 'https://router.huggingface.co' : '') ||
-      '',
-    apiKey,
-    model:
-      env.ARK_FRONTIER_MODEL || (hostedDeepSeek ? 'deepseek-chat' : '') || (hostedHf ? 'Qwen/Qwen3-8B' : '') || '',
-    timeoutMs,
-    fetch: fetchFn,
-  };
+  const frontier: OpenAICompatibleConfig = { ...frontierFromEnv(env), timeoutMs, fetch: fetchFn };
   return [new OllamaAdapter(ollama), new BedrockAdapter(bedrock), new OpenAICompatibleAdapter(frontier)];
+}
+
+const DEEPSEEK_HOST = 'api.deepseek.com';
+const HF_ROUTER_HOST = 'router.huggingface.co';
+
+function httpsHost(url: string): string | null {
+  try {
+    const u = new URL(url);
+    return u.protocol === 'https:' ? u.hostname.toLowerCase() : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Frontier credentials are bound to the host they were issued for.
+ * DEEPSEEK_API_KEY is only ever sent to api.deepseek.com and HF_TOKEN only to
+ * router.huggingface.co. Any other ARK_FRONTIER_BASE_URL needs its own
+ * ARK_FRONTIER_API_KEY, so a custom gateway never receives a vendor key that
+ * happens to be in the environment.
+ */
+export function frontierFromEnv(env: NodeJS.Dict<string>): Pick<OpenAICompatibleConfig, 'baseUrl' | 'apiKey' | 'model'> {
+  const frontierKey = env.ARK_FRONTIER_API_KEY?.trim() || '';
+  const deepseekKey = env.DEEPSEEK_API_KEY?.trim() || '';
+  const hfToken = (env.HF_TOKEN || env.HUGGING_FACE_HUB_TOKEN || '').trim();
+  const customBase = env.ARK_FRONTIER_BASE_URL?.trim() || '';
+  const explicitModel = env.ARK_FRONTIER_MODEL?.trim() || '';
+
+  if (customBase) {
+    const host = httpsHost(customBase);
+    const isDeepSeek = host === DEEPSEEK_HOST;
+    const isHf = host === HF_ROUTER_HOST;
+    const apiKey = frontierKey || (isDeepSeek ? deepseekKey : '') || (isHf ? hfToken : '');
+    const model = explicitModel || (isDeepSeek ? 'deepseek-chat' : '') || (isHf ? 'Qwen/Qwen3-8B' : '');
+    return { baseUrl: customBase, apiKey, model };
+  }
+  // A frontier key without a base URL stays unconfigured: there is no default vendor.
+  if (frontierKey) return { baseUrl: '', apiKey: frontierKey, model: explicitModel };
+  if (deepseekKey) {
+    return { baseUrl: `https://${DEEPSEEK_HOST}`, apiKey: deepseekKey, model: explicitModel || 'deepseek-chat' };
+  }
+  if (hfToken) {
+    return { baseUrl: `https://${HF_ROUTER_HOST}`, apiKey: hfToken, model: explicitModel || 'Qwen/Qwen3-8B' };
+  }
+  return { baseUrl: '', apiKey: '', model: explicitModel };
 }

@@ -1,9 +1,10 @@
 import type { Capability } from '@ark/core';
-import { fetchWithTimeout, readJson } from './http.js';
+import { Deadline, requestJson } from './http.js';
 import { chatCompletionsUrl, parseOpenAIChat } from './parse.js';
 import {
   CompletionRequest,
   ProviderError,
+  type CompleteOptions,
   type FetchFn,
   type NormalizedCompletion,
   type ProviderAdapter,
@@ -57,7 +58,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
     return this.model;
   }
 
-  async complete(req: CompletionRequest): Promise<NormalizedCompletion> {
+  async complete(req: CompletionRequest, opts: CompleteOptions = {}): Promise<NormalizedCompletion> {
     const parsed = CompletionRequest.parse(req);
     if (!this.configured()) {
       throw new ProviderError(
@@ -75,21 +76,25 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
     if (parsed.maxTokens !== undefined) payload.max_tokens = parsed.maxTokens;
     if (parsed.temperature !== undefined) payload.temperature = parsed.temperature;
 
-    const res = await fetchWithTimeout(
-      this.fetchFn,
-      chatCompletionsUrl(this.baseUrl),
-      {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          authorization: `Bearer ${this.apiKey}`,
+    const deadline = new Deadline(this.timeoutMs, opts.signal);
+    try {
+      const body = await requestJson(
+        this.fetchFn,
+        chatCompletionsUrl(this.baseUrl),
+        {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            authorization: `Bearer ${this.apiKey}`,
+          },
+          body: JSON.stringify(payload),
         },
-        body: JSON.stringify(payload),
-      },
-      this.timeoutMs,
-      'openai-compatible',
-    );
-    const body = await readJson(res, 'openai-compatible');
-    return parseOpenAIChat(body, Date.now() - started, model);
+        deadline,
+        'openai-compatible',
+      );
+      return parseOpenAIChat(body, Date.now() - started, model);
+    } finally {
+      deadline.dispose();
+    }
   }
 }

@@ -109,3 +109,80 @@ describe('adaptersFromEnv DeepSeek', () => {
     assert.equal(posted, 'deepseek-r1');
   });
 });
+
+describe('adaptersFromEnv credential binding', () => {
+  function captureAuth(env: NodeJS.Dict<string>) {
+    const seen: { url: string; auth: string }[] = [];
+    const adapters = adaptersFromEnv({
+      env,
+      fetch: (async (url, init) => {
+        seen.push({ url: String(url), auth: String((init?.headers as Record<string, string>)?.authorization ?? '') });
+        return new Response(
+          JSON.stringify({
+            model: 'x',
+            choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }],
+            usage: { prompt_tokens: 1, completion_tokens: 1 },
+          }),
+          { status: 200 },
+        );
+      }) as typeof fetch,
+    });
+    return { frontier: adapters.find((a) => a.id === 'openai-compatible')!, seen };
+  }
+
+  test('custom ARK_FRONTIER_BASE_URL without ARK_FRONTIER_API_KEY does not borrow DEEPSEEK_API_KEY', () => {
+    const { frontier } = captureAuth({
+      DEEPSEEK_API_KEY: 'sk-ds',
+      ARK_FRONTIER_BASE_URL: 'https://gateway.example/v1',
+      ARK_FRONTIER_MODEL: 'm',
+    });
+    assert.equal(frontier.configured(), false);
+  });
+
+  test('custom ARK_FRONTIER_BASE_URL without ARK_FRONTIER_API_KEY does not borrow HF_TOKEN', () => {
+    const { frontier } = captureAuth({
+      HF_TOKEN: 'hf-secret',
+      ARK_FRONTIER_BASE_URL: 'https://gateway.example/v1',
+      ARK_FRONTIER_MODEL: 'm',
+    });
+    assert.equal(frontier.configured(), false);
+  });
+
+  test('custom base URL uses ARK_FRONTIER_API_KEY only', async () => {
+    const { frontier, seen } = captureAuth({
+      DEEPSEEK_API_KEY: 'sk-ds',
+      HF_TOKEN: 'hf-secret',
+      ARK_FRONTIER_API_KEY: 'sk-fr',
+      ARK_FRONTIER_BASE_URL: 'https://gateway.example/v1',
+      ARK_FRONTIER_MODEL: 'm',
+    });
+    await frontier.complete({ messages: [{ role: 'user', content: 'hi' }] });
+    assert.equal(seen[0]!.auth, 'Bearer sk-fr');
+    assert.equal(seen[0]!.url.startsWith('https://gateway.example/'), true);
+  });
+
+  test('explicit hosted DeepSeek base URL may use DEEPSEEK_API_KEY', async () => {
+    const { frontier, seen } = captureAuth({
+      DEEPSEEK_API_KEY: 'sk-ds',
+      ARK_FRONTIER_BASE_URL: 'https://api.deepseek.com',
+    });
+    assert.equal(frontier.configured(), true);
+    await frontier.complete({ messages: [{ role: 'user', content: 'hi' }] });
+    assert.equal(seen[0]!.auth, 'Bearer sk-ds');
+  });
+
+  test('explicit HF router base URL may use HF_TOKEN; lookalike or plain-http hosts may not', async () => {
+    const ok = captureAuth({ HF_TOKEN: 'hf-secret', ARK_FRONTIER_BASE_URL: 'https://router.huggingface.co/v1' });
+    assert.equal(ok.frontier.configured(), true);
+    await ok.frontier.complete({ messages: [{ role: 'user', content: 'hi' }] });
+    assert.equal(ok.seen[0]!.auth, 'Bearer hf-secret');
+    const evil = captureAuth({
+      HF_TOKEN: 'hf-secret',
+      ARK_FRONTIER_BASE_URL: 'https://router.huggingface.co.evil.example/v1',
+      ARK_FRONTIER_MODEL: 'm',
+    });
+    assert.equal(evil.frontier.configured(), false);
+    const plain = captureAuth({ DEEPSEEK_API_KEY: 'sk-ds', ARK_FRONTIER_BASE_URL: 'http://api.deepseek.com' });
+    assert.equal(plain.frontier.configured(), false);
+  });
+});
