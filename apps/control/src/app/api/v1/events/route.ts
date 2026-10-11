@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { applyIngest, deliverAlerts, orgFromBearer, bearerFrom } from '@ark/db';
+import { applyIngest, deliverAlerts, orgFromBearer, bearerFrom, DELIVERY_DEADLINE_MS } from '@ark/db';
 import { PROTOCOL_SPEC_VERSIONS } from '@ark/protocols';
 import { IngestBody, allowlist } from '@/lib/ingest';
+import { MAX_EVENTS_PER_BATCH, MAX_INGEST_BYTES, readBodyCapped, tooManyEvents } from '@/lib/guards';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,11 +16,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
+  const raw = await readBodyCapped(req, MAX_INGEST_BYTES);
+  if (!raw.ok) {
+    return NextResponse.json({ error: raw.error, maxBytes: MAX_INGEST_BYTES }, { status: raw.status });
+  }
+
   let body: unknown;
   try {
-    body = await req.json();
+    body = JSON.parse(raw.text);
   } catch {
     return NextResponse.json({ error: 'invalid json' }, { status: 400 });
+  }
+
+  if (tooManyEvents(body)) {
+    return NextResponse.json({ error: 'too many events', maxEvents: MAX_EVENTS_PER_BATCH }, { status: 413 });
   }
 
   const parsed = IngestBody.safeParse(body);
@@ -27,24 +37,28 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'invalid body', issues: parsed.error.issues }, { status: 422 });
   }
 
-  if (parsed.data.orgId && parsed.data.orgId !== caller.orgId) {
+  // orgId in the body is optional. Absent, the token's org is used; present,
+  // it must agree with the token. Either way the write goes to the token's
+  // org: applyIngest takes the authenticated org and never reads the body's.
+  const claimed = (parsed.data as { orgId?: string }).orgId;
+  if (claimed && claimed !== caller.orgId) {
     return NextResponse.json({ error: 'org_mismatch' }, { status: 403 });
   }
 
-  const result = await applyIngest(
-    { ...parsed.data, orgId: caller.orgId },
-    {
-      allowlist: allowlist(),
-      turnCeiling: TURN_CEILING,
-      traceCostCeiling: TRACE_COST_CEILING,
-    },
-  );
+  const result = await applyIngest(caller.orgId, parsed.data, {
+    allowlist: allowlist(),
+    turnCeiling: TURN_CEILING,
+    traceCostCeiling: TRACE_COST_CEILING,
+  });
 
+  // Only alerts this batch newly stored are delivered, in parallel, under one
+  // deadline. The batch is already persisted; a dead webhook must neither
+  // fail the request nor hold it open.
   const { alertRecords, ...publicResult } = result;
   try {
-    await deliverAlerts(caller.orgId, alertRecords ?? []);
+    await deliverAlerts(caller.orgId, alertRecords ?? [], { deadlineMs: DELIVERY_DEADLINE_MS });
   } catch {
-    // Destinations are best-effort. The batch is already persisted.
+    // Destinations are best-effort.
   }
 
   return NextResponse.json(publicResult, { status: 202 });
@@ -53,9 +67,8 @@ export async function POST(req: Request) {
 export async function GET() {
   return NextResponse.json({
     endpoint: 'POST /api/v1/events',
-    auth: 'Bearer org ingest token (see org_tokens). Open only before the first token is seeded.',
+    auth: 'Bearer org ingest token (see org_tokens). Open only in development before the first token is seeded; never open in production.',
     body: {
-      orgId: 'org_demo',
       events: [{
         id: 'ev_1', traceId: 'tr_1', workloadId: 'wl_support_triage',
         provider: 'anthropic', modelId: 'claude-haiku-4.5', turn: 0,
@@ -94,7 +107,9 @@ export async function GET() {
       ],
     },
     notes: [
-      'orgId in the body must match the token, or be omitted.',
+      'orgId in the body is optional: omit it and the token’s org is used; send it and it must match the token (403 org_mismatch otherwise).',
+      `Bodies over ${MAX_INGEST_BYTES} bytes are refused with 413, as are batches of more than ${MAX_EVENTS_PER_BATCH} events.`,
+      'Re-posting an id stores nothing, costs nothing and raises no alert; the response counts it under duplicates, not accepted.',
       'costUsd is optional. Omit it and Control prices the call from its own rate card.',
       'sample is scanned for sensitive patterns and then discarded. It is never stored.',
       'Posting the same event id twice is a no-op, so retries are safe. The same holds for evidence ids.',

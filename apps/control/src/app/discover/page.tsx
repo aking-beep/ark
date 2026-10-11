@@ -6,6 +6,7 @@ import {
 import { getDiscoveryRun } from '@ark/db';
 import { Panel, Table, Td, Badge, Callout, fmt } from '@ark/ui';
 import { requireOrg } from '@/lib/org';
+import { discoverErrorMessage } from '@/lib/discover';
 import { discoverRepo, registerCandidate } from './actions';
 
 export const dynamic = 'force-dynamic';
@@ -17,6 +18,9 @@ export default async function DiscoverPage({
 }) {
   const { orgId } = await requireOrg();
   const q = await searchParams;
+  // A fixed code mapped to fixed copy. The parameter itself is never
+  // rendered: a link can put any text in it.
+  const errorMessage = discoverErrorMessage(q.error);
   const run = q.run ? await getDiscoveryRun(orgId, q.run) : null;
   const result = run?.result ?? null;
 
@@ -31,9 +35,9 @@ export default async function DiscoverPage({
         </p>
       </header>
 
-      {q.error && (
+      {errorMessage && (
         <Callout tone="danger" title="Discovery did not complete">
-          {q.error}
+          {errorMessage}
         </Callout>
       )}
 
