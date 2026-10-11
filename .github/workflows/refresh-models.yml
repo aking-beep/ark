@@ -7,14 +7,19 @@ on:
     - cron: '0 8 * * 1'
   workflow_dispatch:
 
+# The audit only reads the catalog and exits non-zero; it never writes back.
+permissions:
+  contents: read
+
 jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Node 22: the script runs with --experimental-strip-types (>= 22.6).
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
       - run: npm ci
       - run: npm run build:packages
