@@ -52,7 +52,7 @@ describe('protocol evidence ingest', () => {
         actor: 'support-agent', target: 'crm-mcp', latencyMs: 84,
       })],
     });
-    const r = await applyIngest(body, opts);
+    const r = await applyIngest('org_demo', body, opts);
     assert.equal(r.evidenceAccepted, 1);
     assert.equal(r.accepted, 0, 'no model events were posted');
 
@@ -85,14 +85,14 @@ describe('protocol evidence ingest', () => {
     const body = IngestBody.parse({
       evidence: [ev({ id: 'pe_only', traceId: 'tr_only', workloadId: 'wl_support', operation: 'tools/call:different' })],
     });
-    await applyIngest(body, opts);
+    await applyIngest('org_demo', body, opts);
     const rows = await client.execute({ sql: 'SELECT operation FROM protocol_evidence WHERE id=?', args: ['pe_only'] });
     assert.equal(rows.rows.length, 1);
     assert.equal(String(rows.rows[0]!.operation), 'tools/call:noop', 'the first write wins; the duplicate changed nothing');
   });
 
   test('ingest redacts a payload a hand-rolled POST slipped past the SDK', async () => {
-    const r = await applyIngest(IngestBody.parse({
+    const r = await applyIngest('org_demo', IngestBody.parse({
       evidence: [ev({
         id: 'pe_leak', workloadId: 'wl_support',
         metadata: { toolArguments: 'accountId=129923', stepName: 'call ada@example.com', transport: 'http' },
@@ -112,7 +112,7 @@ describe('protocol evidence ingest', () => {
 
 describe('the alert that reports a redaction', () => {
   test('says what class of thing was dropped, and how many', async () => {
-    await applyIngest(IngestBody.parse({
+    await applyIngest('org_demo', IngestBody.parse({
       evidence: [ev({
         id: 'pe_alert', workloadId: 'wl_support', operation: 'tools/call:leaky',
         metadata: { toolArguments: 'accountId=129923', stepName: 'call ada@example.com' },
@@ -132,7 +132,7 @@ describe('the alert that reports a redaction', () => {
   test('never writes the caller’s key names, even when a key is itself the leak', async () => {
     // A key name is caller free text up to 64 characters, so it can be the
     // sensitive value. This is the whole reason the alert reports classes.
-    await applyIngest(IngestBody.parse({
+    await applyIngest('org_demo', IngestBody.parse({
       evidence: [ev({
         id: 'pe_keyleak', workloadId: 'wl_support', operation: 'tools/call:keyleak',
         metadata: { 'victim.bob@example.com_token': 'x' },
@@ -150,7 +150,7 @@ describe('the alert that reports a redaction', () => {
   });
 
   test('names the workload that carried the field, not the first one in the batch', async () => {
-    await applyIngest(IngestBody.parse({
+    await applyIngest('org_demo', IngestBody.parse({
       evidence: [
         ev({ id: 'pe_clean_a', workloadId: 'wl_support', operation: 'tools/call:clean' }),
         ev({ id: 'pe_dirty_b', workloadId: 'wl_other', operation: 'tools/call:dirty', metadata: { arguments: 'x' } }),
@@ -167,8 +167,8 @@ describe('the alert that reports a redaction', () => {
     const body = IngestBody.parse({
       evidence: [ev({ id: 'pe_retry', workloadId: 'wl_support', metadata: { payload: 'x' } })],
     });
-    await applyIngest(body, opts);
-    await applyIngest(body, opts);
+    await applyIngest('org_demo', body, opts);
+    await applyIngest('org_demo', body, opts);
     const a = await client.execute(`SELECT id FROM alerts WHERE id='al_redact_pe_retry'`);
     assert.equal(a.rows.length, 1);
   });
@@ -176,7 +176,7 @@ describe('the alert that reports a redaction', () => {
 
 describe('approval_missing', () => {
   test('fires on a completed operation that required approval and has none', async () => {
-    await applyIngest(IngestBody.parse({
+    await applyIngest('org_demo', IngestBody.parse({
       evidence: [ev({
         id: 'pe_unapproved', workloadId: 'wl_support', protocol: 'ap2', kind: 'payment',
         operation: 'payment_mandate', actor: 'procurement-agent', target: 'aws',
@@ -192,7 +192,7 @@ describe('approval_missing', () => {
   });
 
   test('severity follows the recorded risk', async () => {
-    await applyIngest(IngestBody.parse({
+    await applyIngest('org_demo', IngestBody.parse({
       evidence: [
         ev({ id: 'pe_med', operation: 'tools/call:a', outcome: 'ok', requiredApproval: true, risk: 'medium' }),
         ev({ id: 'pe_low', operation: 'tools/call:b', outcome: 'ok', requiredApproval: true, risk: 'low' }),
@@ -207,7 +207,7 @@ describe('approval_missing', () => {
   });
 
   test('stays silent while the approval is merely pending', async () => {
-    await applyIngest(IngestBody.parse({
+    await applyIngest('org_demo', IngestBody.parse({
       evidence: [ev({
         id: 'pe_pending', protocol: 'ag-ui', kind: 'approval', operation: 'approval.requested',
         outcome: 'pending', requiredApproval: true, risk: 'critical',
@@ -218,7 +218,7 @@ describe('approval_missing', () => {
   });
 
   test('stays silent when nothing happened — error, blocked, denied', async () => {
-    await applyIngest(IngestBody.parse({
+    await applyIngest('org_demo', IngestBody.parse({
       evidence: (['error', 'blocked', 'denied'] as const).map((outcome) => ev({
         id: `pe_${outcome}`, operation: `tools/call:${outcome}`,
         outcome, requiredApproval: true, risk: 'critical',
@@ -240,8 +240,8 @@ describe('approval_missing', () => {
         id: 'pe_dupe', operation: 'tools/call:dupe', outcome: 'ok', requiredApproval: true, risk: 'high',
       })],
     });
-    await applyIngest(body, opts);
-    await applyIngest(body, opts);
+    await applyIngest('org_demo', body, opts);
+    await applyIngest('org_demo', body, opts);
 
     const approved = await client.execute({ sql: 'SELECT id FROM alerts WHERE id=?', args: ['al_apprmiss_pe_approved'] });
     assert.equal(approved.rows.length, 0);
@@ -285,7 +285,7 @@ describe('the adapters produce storable evidence', () => {
       }),
     ];
 
-    const r = await applyIngest(IngestBody.parse({
+    const r = await applyIngest('org_demo', IngestBody.parse({
       evidence: observations.map((o) => ({ ...o, traceId: 'tr_story', workloadId: 'wl_support' })),
     }), opts);
     assert.equal(r.evidenceAccepted, 6);
@@ -302,7 +302,7 @@ describe('the adapters produce storable evidence', () => {
 
 describe('org isolation', () => {
   test('another org cannot see, or be named by, this org’s evidence', async () => {
-    await applyIngest(IngestBody.parse({
+    await applyIngest('org_other', IngestBody.parse({
       orgId: 'org_other',
       // The body names the wrong workload and org on purpose. `orgId` comes
       // from the authorised caller, not from anything inside the evidence.
@@ -345,7 +345,7 @@ describe('org isolation', () => {
   test('nor does an alert this evidence raised carry the name onto a dashboard', async () => {
     // The two evidence alerts take their workload from the sender, which is
     // why the alert list has to apply the boundary the ingest could not.
-    await applyIngest(IngestBody.parse({
+    await applyIngest('org_other', IngestBody.parse({
       orgId: 'org_other',
       evidence: [ev({
         id: 'pe_other_alert', workloadId: 'wl_support', operation: 'tools/call:peek',
@@ -404,7 +404,7 @@ describe('the rollups the Protocols page reads', () => {
 
 describe('one trace across four grains', () => {
   test('a trace reads as model cost, protocol chain, actions and outcome', async () => {
-    await applyIngest(IngestBody.parse({
+    await applyIngest('org_demo', IngestBody.parse({
       events: [{
         id: 'ev_story', traceId: 'tr_story', workloadId: 'wl_support',
         provider: 'anthropic', modelId: 'claude-haiku-4.5', turn: 0,

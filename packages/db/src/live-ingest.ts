@@ -13,10 +13,13 @@ const TRACES = Number(process.env.ARK_LIVE_TRACES ?? 40);
 export async function ingestLive(opts: { traces?: number } = {}): Promise<{ accepted: number; traces: number }> {
   const n = opts.traces ?? TRACES;
   let accepted = 0;
+  // One stamp per run, on event ids as well as trace ids: ingest de-duplicates
+  // by (org, id), so ids reused across runs would be accepted only once.
+  const run = Date.now().toString(36);
   for (let i = 0; i < n; i++) {
-    const traceId = `tr_live_${i}_${Date.now().toString(36)}`;
+    const traceId = `tr_live_${i}_${run}`;
     const events = [0, 1, 2].map((turn) => ({
-      id: `ev_live_${i}_${turn}`,
+      id: `ev_live_${i}_${turn}_${run}`,
       traceId,
       workloadId: NORTHWIND_CLAIMS.id,
       provider: 'anthropic' as const,
@@ -29,7 +32,6 @@ export async function ingestLive(opts: { traces?: number } = {}): Promise<{ acce
       status: 'ok' as const,
     }));
     const body = IngestBody.parse({
-      orgId: NW_ORG,
       events,
       traces: [{
         traceId,
@@ -39,7 +41,7 @@ export async function ingestLive(opts: { traces?: number } = {}): Promise<{ acce
         endedAt: Date.now(),
       }],
     });
-    const r = await applyIngest(body, {
+    const r = await applyIngest(NW_ORG, body, {
       allowlist: ['anthropic', 'openai', 'google', 'local'],
       turnCeiling: 25,
       traceCostCeiling: 1,

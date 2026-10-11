@@ -1,5 +1,6 @@
 import { createClient, type Client } from '@libsql/client';
 import { databaseUrl } from './client.js';
+import { periodWindow } from './budget-period.js';
 import {
   buildCalibration, findSubstitutions, byId, blendedRate,
   type CalibrationSet, type Substitution, type OutcomeRow,
@@ -46,7 +47,7 @@ export async function spendSummary(orgId: string, days = 30): Promise<SpendSumma
   const byWorkload = await c.execute({
     sql: `SELECT t.workload_id id, w.name, COALESCE(SUM(t.total_cost_usd),0) cost, COUNT(*) cnt,
                  SUM(CASE WHEN t.outcome='success' THEN 1 ELSE 0 END) ok
-          FROM traces t JOIN workloads w ON w.id=t.workload_id
+          FROM traces t JOIN workloads w ON w.id=t.workload_id AND w.org_id=t.org_id
           WHERE t.org_id=? AND t.started_at>=? GROUP BY t.workload_id ORDER BY cost DESC`,
     args: [orgId, from],
   });
@@ -155,7 +156,7 @@ export async function substitutionOpportunities(orgId: string, days = 30): Promi
   const c = raw();
   const workloads = await c.execute({
     sql: `SELECT w.id, w.name, w.spec, e.model_id, COUNT(*) calls
-          FROM workloads w JOIN events e ON e.workload_id=w.id
+          FROM workloads w JOIN events e ON e.workload_id=w.id AND e.org_id=w.org_id
           WHERE w.org_id=? AND e.ts>=? GROUP BY w.id, e.model_id ORDER BY calls DESC`,
     args: [orgId, since(days)],
   });
@@ -201,15 +202,15 @@ export interface BudgetStatus {
 export async function budgetStatus(orgId: string): Promise<BudgetStatus[]> {
   const c = raw();
   const rows = await c.execute({ sql: 'SELECT * FROM budgets WHERE org_id=?', args: [orgId] });
-  const start = new Date(); start.setDate(1); start.setHours(0, 0, 0, 0);
-  const dayOfMonth = new Date().getDate();
-  const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+  const now = Date.now();
 
   const out: BudgetStatus[] = [];
   for (const b of rows.rows) {
     const scope = s(b.scope), scopeId = b.scope_id ? s(b.scope_id) : null;
+    // The same UTC period the ingest path enforces against — see budget-period.ts.
+    const window = periodWindow(b.period, now);
     const where = scope === 'workload' ? 'AND workload_id=?' : '';
-    const args: any[] = [orgId, start.getTime()];
+    const args: any[] = [orgId, window.startMs];
     if (scope === 'workload') args.push(scopeId);
 
     const r = await c.execute({
@@ -219,11 +220,14 @@ export async function budgetStatus(orgId: string): Promise<BudgetStatus[]> {
     const spent = n(r.rows[0]?.spent);
     const limit = n(b.limit_usd);
     const pct = limit > 0 ? (spent / limit) * 100 : 0;
-    const projected = dayOfMonth > 0 ? (spent / dayOfMonth) * daysInMonth : spent;
+    // Linear run-rate to the end of the period. An hour into the period is
+    // floored at one hour so a single early call does not project to infinity.
+    const elapsed = Math.max(36e5, now - window.startMs);
+    const projected = (spent / elapsed) * (window.endMs - window.startMs);
 
     let label = 'Organisation';
     if (scope === 'workload' && scopeId) {
-      const w = await c.execute({ sql: 'SELECT name FROM workloads WHERE id=?', args: [scopeId] });
+      const w = await c.execute({ sql: 'SELECT name FROM workloads WHERE org_id=? AND id=?', args: [orgId, scopeId] });
       label = s(w.rows[0]?.name ?? scopeId);
     }
 
@@ -599,7 +603,7 @@ export async function richestProtocolTrace(orgId: string, workloadId: string, da
 export async function qualityByWorkload(orgId: string, days = 30) {
   const r = await raw().execute({
     sql: `SELECT q.workload_id id, w.name, COUNT(*) n, SUM(q.correct) correct
-          FROM quality_samples q JOIN workloads w ON w.id=q.workload_id
+          FROM quality_samples q JOIN workloads w ON w.id=q.workload_id AND w.org_id=q.org_id
           WHERE q.org_id=? AND q.ts>=? GROUP BY q.workload_id`,
     args: [orgId, since(days)],
   });
@@ -618,36 +622,43 @@ export async function qualityByWorkload(orgId: string, days = 30) {
  * payload never names the source org.
  */
 export async function calibration(orgId: string, days = 30): Promise<CalibrationSet> {
-  const own = await outcomeRows(orgId, days);
+  const { rows: own } = await outcomeRows(orgId, days);
   const ownSet = buildCalibration(own, { basis: 'measured', windowDays: days, orgId });
   if (own.length >= 30) return ownSet;
 
   const fleet = await outcomeRows(orgId, days, { excludeSelf: true });
-  if (fleet.length === 0) return ownSet;
-  const fleetSet = buildCalibration(fleet, { basis: 'calibrated', windowDays: days, orgId });
+  // With one or two other orgs in the pool, "the fleet" is a named tenant's
+  // telemetry with the name filed off — a caller who knows who else is on
+  // the deployment reads their cost per outcome. Below the floor we serve the
+  // thin own set rather than somebody else's.
+  if (fleet.sourceOrgs < FLEET_MIN_SOURCE_ORGS) return ownSet;
+  const fleetSet = buildCalibration(fleet.rows, { basis: 'calibrated', windowDays: days, orgId });
   return fleetSet;
 }
+
+/** Distinct other orgs required before fleet priors are served. */
+export const FLEET_MIN_SOURCE_ORGS = 3;
 
 async function outcomeRows(
   orgId: string,
   days: number,
   opts: { excludeSelf?: boolean } = {},
-): Promise<OutcomeRow[]> {
+): Promise<{ rows: OutcomeRow[]; sourceOrgs: number }> {
   const where = opts.excludeSelf
     ? 't.org_id!=? AND t.started_at>=?'
     : 't.org_id=? AND t.started_at>=?';
   const r = await raw().execute({
-    sql: `SELECT w.pattern, t.total_turns turns, t.outcome, t.retries, t.total_cost_usd cost,
-                 (SELECT input_tokens FROM events e WHERE e.trace_id=t.id ORDER BY turn ASC LIMIT 1) first_in,
-                 (SELECT input_tokens FROM events e WHERE e.trace_id=t.id ORDER BY turn DESC LIMIT 1) last_in,
-                 (SELECT COALESCE(SUM(cached_input_tokens),0) FROM events e WHERE e.trace_id=t.id) cached,
-                 (SELECT COALESCE(SUM(input_tokens),0) FROM events e WHERE e.trace_id=t.id) total_in
-          FROM traces t JOIN workloads w ON w.id=t.workload_id
+    sql: `SELECT t.org_id, w.pattern, t.total_turns turns, t.outcome, t.retries, t.total_cost_usd cost,
+                 (SELECT input_tokens FROM events e WHERE e.org_id=t.org_id AND e.trace_id=t.id ORDER BY turn ASC LIMIT 1) first_in,
+                 (SELECT input_tokens FROM events e WHERE e.org_id=t.org_id AND e.trace_id=t.id ORDER BY turn DESC LIMIT 1) last_in,
+                 (SELECT COALESCE(SUM(cached_input_tokens),0) FROM events e WHERE e.org_id=t.org_id AND e.trace_id=t.id) cached,
+                 (SELECT COALESCE(SUM(input_tokens),0) FROM events e WHERE e.org_id=t.org_id AND e.trace_id=t.id) total_in
+          FROM traces t JOIN workloads w ON w.id=t.workload_id AND w.org_id=t.org_id
           WHERE ${where}`,
     args: [orgId, since(days)],
   });
 
-  return r.rows.map((x) => ({
+  const rows = r.rows.map((x) => ({
     pattern: s(x.pattern),
     turns: n(x.turns),
     inputTokensFirstTurn: n(x.first_in),
@@ -658,6 +669,7 @@ async function outcomeRows(
     totalInputTokens: n(x.total_in),
     costUsd: n(x.cost),
   }));
+  return { rows, sourceOrgs: new Set(r.rows.map((x) => s(x.org_id))).size };
 }
 
 export async function listWorkloads(orgId: string) {
@@ -703,6 +715,10 @@ export async function wasteBreakdown(orgId: string, days = 30) {
 /**
  * Versioned priors. Never UPDATE — when a forecast is wrong we need to know
  * what the system believed at the time, not what it believes now.
+ *
+ * Throttled per org, not per (org, window): otherwise a caller cycling
+ * `days` from 1 to 365 writes 365 rows a minute. There is deliberately no
+ * way to bypass the interval from a request.
  */
 export async function persistCalibrationSnapshot(
   orgId: string,
@@ -712,8 +728,8 @@ export async function persistCalibrationSnapshot(
 ): Promise<{ wrote: boolean }> {
   const last = await raw().execute({
     sql: `SELECT generated_at FROM calibration_snapshots
-          WHERE org_id=? AND window_days=? ORDER BY generated_at DESC LIMIT 1`,
-    args: [orgId, days],
+          WHERE org_id=? ORDER BY generated_at DESC LIMIT 1`,
+    args: [orgId],
   });
   const prev = last.rows[0]?.generated_at;
   if (prev != null && Date.now() - Number(prev) < minIntervalMs) {

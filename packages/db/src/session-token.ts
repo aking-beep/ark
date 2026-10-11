@@ -59,12 +59,18 @@ export async function verifySession(token: string | undefined, secret: string): 
   if (diff !== 0) return null;
   try {
     const json = new TextDecoder().decode(fromB64url(body));
-    const payload = JSON.parse(json) as SessionPayload;
-    if (!payload.userId || !payload.orgId || payload.exp < Date.now()) return null;
-    return payload;
+    const payload = JSON.parse(json) as Partial<SessionPayload> | null;
+    if (!payload || typeof payload !== 'object') return null;
+    if (typeof payload.userId !== 'string' || !payload.userId) return null;
+    if (typeof payload.orgId !== 'string' || !payload.orgId) return null;
+    // A missing or non-numeric exp must fail closed. `undefined < Date.now()`
+    // is false, so the old check let a token without exp live forever.
+    if (typeof payload.exp !== 'number' || !Number.isFinite(payload.exp) || payload.exp < Date.now()) return null;
+    return payload as SessionPayload;
   } catch {
     return null;
   }
 }
 
-export const SESSION_TTL_MS = 7 * 24 * 3600 * 1000;
+/** Twelve hours: a working day, not a week of standing access from one stolen cookie. */
+export const SESSION_TTL_MS = 12 * 3600 * 1000;
