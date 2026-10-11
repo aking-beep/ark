@@ -6,7 +6,7 @@ import type { Basis, Estimate, Provider } from '@ark/core';
 import type { EvalReport } from '@ark/evals';
 
 /** Closed set posted to Control. Never a provider HTTP body. */
-export const INGEST_ERROR_KINDS = ['timeout', 'http', 'network', 'parse', 'config', 'unknown'] as const;
+export const INGEST_ERROR_KINDS = ['timeout', 'http', 'network', 'parse', 'config', 'aborted', 'unknown'] as const;
 export type IngestErrorKind = (typeof INGEST_ERROR_KINDS)[number];
 
 export const RuntimeConstraints = z.object({
@@ -94,6 +94,14 @@ export interface RuntimeResult {
   evaluation: EvalReport;
   attempts: Attempt[];
   telemetry: { attempted: boolean; ok: boolean; error?: string };
+}
+
+/** The caller's AbortSignal fired. Nothing is ingested for an aborted run. */
+export class ExecutionAbortedError extends Error {
+  constructor(message = 'runtime execution aborted by caller') {
+    super(message);
+    this.name = 'ExecutionAbortedError';
+  }
 }
 
 export class PolicyError extends Error {

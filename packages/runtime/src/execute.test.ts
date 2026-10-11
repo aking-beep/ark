@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { OllamaAdapter, ProviderError } from '@ark/providers';
 import { ArkIngest } from '@ark/sdk';
 import { execute } from './execute.js';
-import { PolicyError } from './types.js';
+import { ExecutionAbortedError, PolicyError } from './types.js';
 import { fakeAdapter, trio } from './fake.js';
 
 function failingIngest(): ArkIngest {
@@ -31,6 +31,73 @@ function capturingIngest(posted: unknown[]): ArkIngest {
     }) as typeof fetch,
   });
 }
+
+describe('execute abort', () => {
+  test('aborting mid-call stops the provider, skips fallback, and ingests nothing', async () => {
+    const posted: unknown[] = [];
+    let sawSignal = false;
+    let fallbackCalls = 0;
+    const ollama = fakeAdapter({
+      id: 'ollama',
+      residency: 'local',
+      complete: (_req, opts) =>
+        new Promise((_resolve, reject) => {
+          sawSignal = opts?.signal instanceof AbortSignal;
+          opts?.signal?.addEventListener('abort', () =>
+            reject(new ProviderError('aborted', 'aborted', 'ollama')),
+          );
+        }),
+    });
+    const frontier = fakeAdapter({
+      id: 'openai-compatible',
+      residency: 'cloud',
+      complete: async () => {
+        fallbackCalls++;
+        throw new Error('fallback must not run after abort');
+      },
+    });
+    const ac = new AbortController();
+    setTimeout(() => ac.abort(), 20);
+    await assert.rejects(
+      () =>
+        execute(
+          { messages: [{ role: 'user', content: 'hi' }], maxFallbacks: 1 },
+          { adapters: [ollama, frontier], ingest: capturingIngest(posted) },
+          { signal: ac.signal },
+        ),
+      (err: unknown) => err instanceof ExecutionAbortedError,
+    );
+    assert.equal(sawSignal, true);
+    assert.equal(fallbackCalls, 0);
+    assert.equal(posted.length, 0);
+  });
+
+  test('a completion that lands after abort is not ingested', async () => {
+    const posted: unknown[] = [];
+    const ac = new AbortController();
+    const ollama = fakeAdapter({
+      id: 'ollama',
+      residency: 'local',
+      complete: async () => {
+        ac.abort();
+        return {
+          text: 'late', modelId: 'llama3.2', adapterId: 'ollama', catalogProvider: 'local',
+          inputTokens: 1, outputTokens: 1, latencyMs: 1, finishReason: 'stop' as const,
+        };
+      },
+    });
+    await assert.rejects(
+      () =>
+        execute(
+          { messages: [{ role: 'user', content: 'hi' }] },
+          { adapters: [ollama], ingest: capturingIngest(posted) },
+          { signal: ac.signal },
+        ),
+      (err: unknown) => err instanceof ExecutionAbortedError,
+    );
+    assert.equal(posted.length, 0);
+  });
+});
 
 describe('execute', () => {
   test('local-only never calls a cloud adapter, even when local is missing', async () => {

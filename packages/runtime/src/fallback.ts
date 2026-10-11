@@ -1,16 +1,19 @@
 import type { AdapterId, CompletionRequest, NormalizedCompletion, ProviderAdapter } from '@ark/providers';
 import { ProviderError } from '@ark/providers';
-import { hintAdapter } from './catalog.js';
+import { requestForAdapter } from './catalog.js';
 import type { Attempt, IngestErrorKind } from './types.js';
 
 export interface FallbackInput {
   chain: ProviderAdapter[];
   request: CompletionRequest;
+  /** Caller cancellation. Once aborted, no further adapter is tried. */
+  signal?: AbortSignal;
 }
 
 export interface FallbackOutput {
   completion?: NormalizedCompletion;
   attempts: Attempt[];
+  aborted?: boolean;
 }
 
 /**
@@ -20,11 +23,12 @@ export interface FallbackOutput {
 export async function runFallback(input: FallbackInput): Promise<FallbackOutput> {
   const attempts: Attempt[] = [];
   for (const adapter of input.chain) {
+    if (input.signal?.aborted) return { attempts, aborted: true };
     const started = Date.now();
-    const req = requestFor(adapter, input.request);
+    const req = requestForAdapter(adapter, input.request);
     const modelId = req.model ?? adapter.defaultModel();
     try {
-      const completion = await adapter.complete(req);
+      const completion = await adapter.complete(req, input.signal ? { signal: input.signal } : undefined);
       attempts.push({
         adapterId: adapter.id,
         catalogProvider: adapter.catalogProvider,
@@ -45,17 +49,8 @@ export async function runFallback(input: FallbackInput): Promise<FallbackOutput>
       });
     }
   }
+  if (input.signal?.aborted) return { attempts, aborted: true };
   return { attempts };
-}
-
-/** A model hint is for ranking. Do not send gpt-* to Ollama on fallback. */
-function requestFor(adapter: ProviderAdapter, request: CompletionRequest): CompletionRequest {
-  const hinted = hintAdapter(request.model);
-  if (request.model && hinted && hinted !== adapter.id) {
-    const { model: _ignored, ...rest } = request;
-    return rest;
-  }
-  return request;
 }
 
 function describeError(err: unknown, adapterId: AdapterId): string {

@@ -1,10 +1,10 @@
-import type { AdapterId, CompletionRequest, NormalizedCompletion, ProviderAdapter } from '@ark/providers';
+import type { AdapterId, CompleteOptions, CompletionRequest, NormalizedCompletion, ProviderAdapter } from '@ark/providers';
 
 export function fakeAdapter(opts: {
   id: AdapterId;
   residency: 'local' | 'cloud';
   configured?: boolean;
-  complete?: (req: CompletionRequest) => Promise<NormalizedCompletion>;
+  complete?: (req: CompletionRequest, opts?: CompleteOptions) => Promise<NormalizedCompletion>;
   capabilities?: ProviderAdapter['capabilities'];
   latencyClass?: ProviderAdapter['latencyClass'];
   model?: string;
