@@ -95,14 +95,19 @@ export function sameOrigin(
   return site == null || site === 'same-origin' || site === 'none';
 }
 
-/** First hop of X-Forwarded-For, else X-Real-IP, else a shared bucket. */
+/**
+ * Client address for rate limiting. X-Forwarded-For is client-writable: only
+ * entries appended by proxies we run can be trusted. With
+ * ARK_TRUSTED_PROXY_HOPS=N we take the Nth entry from the right; unset (or 1)
+ * means the right-most, which is the socket address when the request reached
+ * Next directly. A client can still spoof that header on a direct connection,
+ * so every caller pairs this per-client limit with a global ceiling.
+ */
 export function clientIp(headers: { get(name: string): string | null }): string {
-  const xff = headers.get('x-forwarded-for');
-  if (xff) {
-    const first = xff.split(',')[0]?.trim();
-    if (first) return first;
-  }
-  return headers.get('x-real-ip')?.trim() || 'unknown';
+  const list = (headers.get('x-forwarded-for') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  if (list.length === 0) return headers.get('x-real-ip')?.trim() || 'unknown';
+  const hops = Math.max(1, Math.floor(Number(process.env.ARK_TRUSTED_PROXY_HOPS ?? 1)) || 1);
+  return list[Math.max(0, list.length - hops)]!;
 }
 
 /**
@@ -152,7 +157,8 @@ export class RateLimiter {
  */
 export function parseDays(raw: string | null, fallback: number): number {
   const base = Number.isFinite(fallback) ? Math.trunc(fallback) : 30;
-  const parsed = raw == null || raw.trim() === '' ? NaN : Number.parseInt(raw, 10);
+  // Digits only: parseInt would read '1e3' as 1 and '30abc' as 30.
+  const parsed = raw != null && /^-?\d{1,6}$/.test(raw.trim()) ? Number(raw.trim()) : NaN;
   const days = Number.isFinite(parsed) ? parsed : base;
   return Math.min(365, Math.max(1, days));
 }

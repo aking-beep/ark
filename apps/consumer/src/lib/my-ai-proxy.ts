@@ -54,9 +54,13 @@ export function upstreamRequestHeaders(incoming: Headers): Headers {
     const value = incoming.get(name);
     if (value !== null) headers.set(name, value);
   }
-  // Best effort: the hop nearest to us is the last X-Forwarded-For entry.
-  const forwarded = incoming.get("x-forwarded-for");
-  const client = forwarded?.split(",").map((part) => part.trim()).filter(Boolean).pop() ?? incoming.get("x-real-ip");
+  // X-Forwarded-For is client-writable. Take the entry our own proxies appended:
+  // ARK_TRUSTED_PROXY_HOPS from the right (default 1, the socket address when the
+  // request reached Next directly). The API also keeps a global ceiling, because
+  // a direct client can still spoof this.
+  const list = (incoming.get("x-forwarded-for") ?? "").split(",").map((part) => part.trim()).filter(Boolean);
+  const hops = Math.max(1, Math.floor(Number(process.env.ARK_TRUSTED_PROXY_HOPS ?? 1)) || 1);
+  const client = list.length ? list[Math.max(0, list.length - hops)] : incoming.get("x-real-ip");
   if (client && /^[0-9a-fA-F:.]{2,45}$/.test(client)) headers.set("x-forwarded-for", client);
   return headers;
 }

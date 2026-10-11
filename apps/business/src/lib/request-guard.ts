@@ -97,12 +97,17 @@ export class RateLimiter {
   }
 }
 
-/** Best-effort client address. Behind a proxy, the left-most x-forwarded-for entry. */
+/**
+ * Client address for rate limiting. X-Forwarded-For is client-writable: only
+ * entries appended by proxies we run can be trusted. With
+ * ARK_TRUSTED_PROXY_HOPS=N we take the Nth entry from the right; unset (or 1)
+ * means the right-most, which is the socket address when the request reached
+ * Next directly. A client can still spoof that header on a direct connection,
+ * so every caller pairs this per-client limit with a global ceiling.
+ */
 export function clientIp(req: Request): string {
-  const fwd = req.headers.get('x-forwarded-for');
-  if (fwd) {
-    const first = fwd.split(',')[0]?.trim();
-    if (first) return first;
-  }
-  return req.headers.get('x-real-ip')?.trim() || 'unknown';
+  const list = (req.headers.get('x-forwarded-for') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  if (list.length === 0) return req.headers.get('x-real-ip')?.trim() || 'unknown';
+  const hops = Math.max(1, Math.floor(Number(process.env.ARK_TRUSTED_PROXY_HOPS ?? 1)) || 1);
+  return list[Math.max(0, list.length - hops)]!;
 }

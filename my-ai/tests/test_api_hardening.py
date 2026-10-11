@@ -186,6 +186,16 @@ def test_share_and_score_are_rate_limited_per_client(client: TestClient, monkeyp
     assert codes == [200, 200, 429]
 
 
+def test_rotating_forwarded_for_cannot_escape_the_global_ceiling(client: TestClient, monkeypatch):
+    monkeypatch.setattr(main.SHARE_GLOBAL_LIMIT, "limit", 5)
+    _, result = _scored_session(client)
+    codes = [
+        client.post("/v1/share", json={"result": result}, headers={"x-forwarded-for": f"203.0.113.{i}"}).status_code
+        for i in range(7)
+    ]
+    assert codes == [200] * 5 + [429, 429]
+
+
 def test_forwarded_for_is_ignored_from_non_loopback_peers():
     from starlette.requests import Request
 
@@ -198,5 +208,8 @@ def test_forwarded_for_is_ignored_from_non_loopback_peers():
             }
         )
 
-    assert main._client_key(req("127.0.0.1", "198.51.100.7, 10.0.0.1")) == "198.51.100.7"
+    # The consumer proxy sends one address; a longer list means a client wrote it, so
+    # only the right-most (nearest) entry counts.
+    assert main._client_key(req("127.0.0.1", "198.51.100.7")) == "198.51.100.7"
+    assert main._client_key(req("127.0.0.1", "203.0.113.66, 198.51.100.7")) == "198.51.100.7"
     assert main._client_key(req("192.0.2.9", "198.51.100.7")) == "192.0.2.9"

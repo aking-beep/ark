@@ -153,6 +153,10 @@ class RateLimiter:
 
 SHARE_LIMIT = RateLimiter(int(os.environ.get("MYAI_SHARE_RATE_PER_MIN", "20")))
 SCORE_LIMIT = RateLimiter(int(os.environ.get("MYAI_SCORE_RATE_PER_MIN", "60")))
+# Ceilings across every client. A caller that rotates X-Forwarded-For gets a new
+# per-client bucket each time, but cannot get past these.
+SHARE_GLOBAL_LIMIT = RateLimiter(int(os.environ.get("MYAI_SHARE_GLOBAL_RATE_PER_MIN", "300")))
+SCORE_GLOBAL_LIMIT = RateLimiter(int(os.environ.get("MYAI_SCORE_GLOBAL_RATE_PER_MIN", "1200")))
 _LOOPBACK = {"127.0.0.1", "::1", "localhost", "testclient"}
 
 
@@ -160,14 +164,17 @@ def _client_key(request: Request) -> str:
     """Client IP. X-Forwarded-For is trusted only from a loopback peer (the Next proxy)."""
     peer = request.client.host if request.client else "unknown"
     if peer in _LOOPBACK:
-        forwarded = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+        forwarded = request.headers.get("x-forwarded-for", "").split(",")[-1].strip()
         if forwarded:
             return forwarded[:64]
     return peer
 
 
-def _rate_limit(limiter: RateLimiter, request: Request) -> None:
-    if not limiter.allow(_client_key(request)):
+def _rate_limit(limiter: RateLimiter, request: Request, global_limiter: RateLimiter | None = None) -> None:
+    allowed = limiter.allow(_client_key(request))
+    if allowed and global_limiter is not None:
+        allowed = global_limiter.allow("*")
+    if not allowed:
         raise HTTPException(status_code=429, detail="Too many requests. Try again in a minute.")
 
 
@@ -394,7 +401,7 @@ def score_stored_session(
     request: Request,
     payload: ScoreRequest | None = Body(default=None),
 ):
-    _rate_limit(SCORE_LIMIT, request)
+    _rate_limit(SCORE_LIMIT, request, SCORE_GLOBAL_LIMIT)
     session = _get_session(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Unknown session")
@@ -404,7 +411,7 @@ def score_stored_session(
 
 @app.post("/v1/sessions/{session_id}/share")
 def share_session(session_id: SessionIdPath, request: Request):
-    _rate_limit(SHARE_LIMIT, request)
+    _rate_limit(SHARE_LIMIT, request, SHARE_GLOBAL_LIMIT)
     result = _load_persisted("scores", session_id)
     if result is None:
         session = _get_session(session_id)
@@ -456,7 +463,7 @@ def _store_share(result: dict[str, Any], session_id: str | None = None) -> dict[
 
 @app.post("/v1/share")
 def publish_share(request: Request, payload: Any = Body(default=None)):
-    _rate_limit(SHARE_LIMIT, request)
+    _rate_limit(SHARE_LIMIT, request, SHARE_GLOBAL_LIMIT)
     try:
         body = ShareBody.model_validate(payload)
     except ValidationError as err:
@@ -513,7 +520,7 @@ def delete_session(session_id: SessionIdPath):
 
 @app.post("/v1/score")
 def score(payload: ScoreBody, request: Request):
-    _rate_limit(SCORE_LIMIT, request)
+    _rate_limit(SCORE_LIMIT, request, SCORE_GLOBAL_LIMIT)
     session = AssessmentSession(session_id=payload.session_id, events=payload.events)
     return _score_and_store(session, payload.filters)
 

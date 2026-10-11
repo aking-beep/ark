@@ -306,6 +306,14 @@ describe('measure gate (C6)', () => {
     assert.equal(measureGate('5.6.7.8', limiter, env), null);
   });
 
+  test('a rotating client address cannot escape the global ceiling', () => {
+    const limiter = new RateLimiter(5, 60_000);
+    const global = new RateLimiter(3, 60_000);
+    const env = { ARK_MEASURE_ENABLED: '1' };
+    for (let i = 0; i < 3; i++) assert.equal(measureGate(`10.0.0.${i}`, limiter, env, global), null);
+    assert.equal(measureGate('10.0.0.99', limiter, env, global)?.status, 429);
+  });
+
   test('rate limiter window resets', () => {
     const limiter = new RateLimiter(1, 1000);
     assert.equal(limiter.take('a', 0), 0);
@@ -318,9 +326,9 @@ describe('measure gate (C6)', () => {
     assert.equal(MEASURE_CLIENT_TIMEOUT_MS, MEASURE_TIMEOUT_MS + 5_000);
   });
 
-  test('clientIp takes the left-most forwarded address', () => {
+  test('clientIp takes the right-most forwarded address, not one the client wrote', () => {
     const req = new Request('http://x/', { headers: { 'x-forwarded-for': '9.9.9.9, 10.0.0.1' } });
-    assert.equal(clientIp(req), '9.9.9.9');
+    assert.equal(clientIp(req), '10.0.0.1');
     assert.equal(clientIp(new Request('http://x/')), 'unknown');
   });
 });

@@ -21,6 +21,8 @@ const STATUS: Record<string, number> = {
 
 /** Each sample spends real model tokens: 5 per minute per client address. */
 const limiter = new RateLimiter(5, 60_000);
+/** And 30 per minute across every client, which address rotation cannot escape. */
+const globalLimiter = new RateLimiter(30, 60_000);
 
 const NO_STORE = { 'cache-control': 'no-store' };
 
@@ -34,7 +36,7 @@ const NO_STORE = { 'cache-control': 'no-store' };
  * traces into a real workload.
  */
 export async function POST(req: Request) {
-  const refused = measureGate(clientIp(req), limiter);
+  const refused = measureGate(clientIp(req), limiter, process.env, globalLimiter);
   if (refused) {
     return NextResponse.json(refused.body, { status: refused.status, headers: refused.headers });
   }

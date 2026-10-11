@@ -52,6 +52,7 @@ export function measureGate(
   clientKey: string,
   limiter: RateLimiter,
   env: NodeJS.Dict<string> = process.env,
+  globalLimiter?: RateLimiter,
 ): GateRefusal | null {
   if (!measureEnabled(env)) {
     return {
@@ -64,7 +65,8 @@ export function measureGate(
       headers: { 'cache-control': 'no-store' },
     };
   }
-  const retryMs = limiter.take(clientKey);
+  // The global ceiling caps spend even when a caller rotates its address.
+  const retryMs = Math.max(limiter.take(clientKey), globalLimiter?.take('*') ?? 0);
   if (retryMs > 0) {
     return {
       status: 429,

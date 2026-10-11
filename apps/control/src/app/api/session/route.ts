@@ -8,6 +8,8 @@ export const dynamic = 'force-dynamic';
 
 /** Ten attempts a minute per IP and email: enough for a typo, not for a guess list. */
 const loginLimiter = new RateLimiter(10, 60_000);
+/** Twenty a minute per email whatever the address, so rotating it does not widen a guess list. */
+const emailLimiter = new RateLimiter(20, 60_000);
 
 const MAX_LOGIN_BYTES = 8 * 1024;
 
@@ -20,6 +22,15 @@ const cookieOptions = () => ({
 
 function allowedOrigins(): string[] {
   return (process.env.ARK_ALLOWED_ORIGINS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+}
+
+/**
+ * Relative Location on purpose: behind `next start` or a proxy, req.url carries
+ * the server's own host (often localhost), which sent the browser — and the
+ * session cookie — to the wrong origin. RFC 9110 allows a relative reference.
+ */
+function seeOther(path: string) {
+  return new NextResponse(null, { status: 303, headers: { location: path } });
 }
 
 function crossSite() {
@@ -52,7 +63,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'invalid body' }, { status: 400 });
   }
 
-  const limit = loginLimiter.take(`${clientIp(req.headers)}|${email.trim().toLowerCase()}`);
+  const normalized = email.trim().toLowerCase();
+  const perClient = loginLimiter.take(`${clientIp(req.headers)}|${normalized}`);
+  const perEmail = emailLimiter.take(normalized);
+  const limit = perClient.allowed ? perEmail : perClient;
   if (!limit.allowed) {
     if (json) {
       return NextResponse.json(
@@ -60,7 +74,7 @@ export async function POST(req: Request) {
         { status: 429, headers: { 'retry-after': String(limit.retryAfterSec) } },
       );
     }
-    return NextResponse.redirect(new URL('/login?error=rate', req.url), { status: 303 });
+    return seeOther('/login?error=rate');
   }
 
   const user = await authenticateUser(email, password);
@@ -68,7 +82,7 @@ export async function POST(req: Request) {
     if (json) {
       return NextResponse.json({ error: 'invalid credentials' }, { status: 401 });
     }
-    return NextResponse.redirect(new URL('/login?error=1', req.url), { status: 303 });
+    return seeOther('/login?error=1');
   }
 
   const token = await signSession({
@@ -81,7 +95,7 @@ export async function POST(req: Request) {
 
   const res = json
     ? NextResponse.json({ ok: true, orgId: user.orgId })
-    : NextResponse.redirect(new URL('/dashboard', req.url), { status: 303 });
+    : seeOther('/dashboard');
   res.cookies.set(COOKIE, token, { ...cookieOptions(), maxAge: SESSION_TTL_MS / 1000 });
   return res;
 }

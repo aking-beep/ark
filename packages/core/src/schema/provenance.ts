@@ -79,7 +79,7 @@ export function describeBasis(e: Estimate<unknown>): string {
     case 'measured':
       return `Measured from your own telemetry${e.sampleSize ? ` (${fmt(e.sampleSize)} observations)` : ''}.`;
     case 'calibrated':
-      return `Calibrated from comparable workloads in ARK Control${e.sampleSize ? ` (${fmt(e.sampleSize)} observations)` : ''}, not your own.`;
+      return `Calibrated from ARK Control observations${e.sampleSize ? ` (${fmt(e.sampleSize)} of them)` : ''} — derived from telemetry, not itself observed.`;
     case 'benchmark':
       return `Published figure${e.asOf ? ` as of ${e.asOf}` : ''}. Verify before you rely on it.`;
     case 'heuristic':

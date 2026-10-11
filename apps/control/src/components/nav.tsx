@@ -25,7 +25,8 @@ export function Nav({ orgName, email }: { orgName: string; email: string }) {
           <span className="font-mono text-sm font-semibold tracking-tight text-signal">ARK</span>
           <span className="text-sm font-medium text-ink-100">Control</span>
         </Link>
-        <nav className="flex items-center gap-1 overflow-x-auto">
+        {/* min-w-0 lets the link row shrink and scroll instead of pushing the last links off-screen. */}
+        <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
           {LINKS.map((l) => {
             const active = path === l.href || path.startsWith(l.href + '/');
             return (
@@ -33,7 +34,7 @@ export function Nav({ orgName, email }: { orgName: string; email: string }) {
                 key={l.href}
                 href={l.href}
                 className={
-                  'whitespace-nowrap rounded-md px-3 py-1.5 text-sm transition ' +
+                  'whitespace-nowrap rounded-md px-2.5 py-1.5 text-sm transition ' +
                   (active ? 'bg-ink-800 text-ink-100' : 'text-ink-400 hover:text-ink-200')
                 }
               >
@@ -42,8 +43,8 @@ export function Nav({ orgName, email }: { orgName: string; email: string }) {
             );
           })}
         </nav>
-        <div className="ml-auto flex items-center gap-3 text-2xs text-ink-500">
-          <span className="hidden sm:inline">{email}</span>
+        <div className="ml-auto flex shrink-0 items-center gap-3 text-2xs text-ink-500">
+          <span className="hidden 2xl:inline">{email}</span>
           <span className="font-mono text-ink-300">{orgName}</span>
           <Logout />
         </div>

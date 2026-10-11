@@ -74,6 +74,10 @@ export default async function Report({
   // it is not. Either way the basis tag on every figure says which happened.
   const calibration = await fetchCalibration({ days: 30 });
   const a = assess(workload, { depth: 'business', calibration });
+  // The call shape is what the cost was computed from; it is observed when
+  // Control answered above the sample floor, otherwise the rubric prior.
+  const shapeTag = <BasisTag basis={a.callShape.basis} source={a.callShape.source} sampleSize={a.callShape.sampleSize} />;
+  const controlConfigured = Boolean(process.env.ARK_CONTROL_URL?.trim() && process.env.ARK_CONTROL_TOKEN?.trim());
 
   const v = VERDICT[a.suitability.verdict];
   const model = byId(a.model.primary.id);
@@ -116,9 +120,25 @@ export default async function Report({
           <p>
             Turns per outcome and failure rate are rubric priors, not measurements. They are the two
             numbers that move the cost figure most, so treat the monthly run cost as an order of
-            magnitude rather than a budget line. Set <span className="font-mono">ARK_CONTROL_URL</span>{' '}
-            and <span className="font-mono">ARK_CONTROL_TOKEN</span> so this app can read{' '}
-            <span className="font-mono">GET /api/v1/calibration</span>. A first trace is{' '}
+            magnitude rather than a budget line.{' '}
+            {controlConfigured && !calibration ? (
+              <>
+                <span className="font-mono">ARK_CONTROL_URL</span> is set, but ARK Control did not
+                answer the calibration request, so the rubric prior stands.
+              </>
+            ) : controlConfigured ? (
+              <>
+                ARK Control is connected, but it has fewer than 30 observed outcomes for the{' '}
+                <span className="font-mono">{a.architecture.pattern}</span> pattern, so the rubric
+                prior stands.
+              </>
+            ) : (
+              <>
+                Set <span className="font-mono">ARK_CONTROL_URL</span>{' '}
+                and <span className="font-mono">ARK_CONTROL_TOKEN</span> so this app can read{' '}
+                <span className="font-mono">GET /api/v1/calibration</span>.
+              </>
+            )}{' '}A first trace is{' '}
             <span className="font-mono">POST /api/measure</span> on this app — one synthetic Runtime
             sample on the operator&apos;s configured model, not a gateway. One sample does not clear
             the 30-trace floor; it is how Control stops being empty.
@@ -251,7 +271,7 @@ export default async function Report({
 
         <div className="mt-6 border-t border-ink-700 pt-5">
           <h3 className="text-xs font-medium uppercase tracking-wider text-ink-400">
-            Assumed call shape
+            Call shape behind the cost
           </h3>
           <p className="mt-1.5 max-w-3xl text-2xs leading-relaxed text-ink-500">
             These five numbers drive the entire cost figure. Two of them — turns per outcome and failure
@@ -259,10 +279,10 @@ export default async function Report({
             the system runs.
           </p>
           <Grid cols={4}>
-            <Stat label="Turns / outcome" value={a.architecture.callShape.turnsPerOutcome.toFixed(1)} />
-            <Stat label="Context growth / turn" value={fmt.int(a.architecture.callShape.contextGrowthPerTurn)} unit="tok" />
-            <Stat label="Failure rate" value={fmt.pct(a.architecture.callShape.failureRate * 100, 1)} />
-            <Stat label="Cache hit rate" value={fmt.pct(a.architecture.callShape.cacheHitRate * 100)} />
+            <Stat label="Turns / outcome" value={a.callShape.turnsPerOutcome.toFixed(1)} footer={shapeTag} />
+            <Stat label="Context growth / turn" value={fmt.int(a.callShape.contextGrowthPerTurn)} unit="tok" footer={shapeTag} />
+            <Stat label="Failure rate" value={fmt.pct(a.callShape.failureRate * 100, 1)} footer={shapeTag} />
+            <Stat label="Cache hit rate" value={fmt.pct(a.callShape.cacheHitRate * 100)} footer={shapeTag} />
           </Grid>
         </div>
       </Panel>

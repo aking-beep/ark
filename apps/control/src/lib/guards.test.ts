@@ -90,8 +90,16 @@ describe('RateLimiter', () => {
     assert.ok((rl as unknown as { hits: Map<string, unknown> }).hits.size <= 10);
   });
 
-  test('clientIp takes the first forwarded hop', () => {
-    assert.equal(clientIp(headers({ 'x-forwarded-for': '203.0.113.9, 10.0.0.1' })), '203.0.113.9');
+  test('clientIp takes the right-most hop, the one a client cannot write', () => {
+    // A client-supplied entry sits on the left; the nearest proxy (or Next's own
+    // socket address) is on the right.
+    assert.equal(clientIp(headers({ 'x-forwarded-for': '203.0.113.9, 10.0.0.1' })), '10.0.0.1');
+    process.env.ARK_TRUSTED_PROXY_HOPS = '2';
+    try {
+      assert.equal(clientIp(headers({ 'x-forwarded-for': '6.6.6.6, 203.0.113.9, 10.0.0.1' })), '203.0.113.9');
+    } finally {
+      delete process.env.ARK_TRUSTED_PROXY_HOPS;
+    }
     assert.equal(clientIp(headers({ 'x-real-ip': '198.51.100.2' })), '198.51.100.2');
     assert.equal(clientIp(headers({})), 'unknown');
   });
@@ -103,7 +111,9 @@ describe('parseDays', () => {
     assert.equal(parseDays('', 30), 30);
     assert.equal(parseDays('abc', 30), 30);
     assert.equal(parseDays('7', 30), 7);
-    assert.equal(parseDays('7.9', 30), 7);
+    assert.equal(parseDays('7.9', 30), 30);
+    assert.equal(parseDays('1e3', 30), 30);
+    assert.equal(parseDays('30abc', 30), 30);
     assert.equal(parseDays('0', 30), 1);
     assert.equal(parseDays('-5', 30), 1);
     assert.equal(parseDays('100000', 30), 365);

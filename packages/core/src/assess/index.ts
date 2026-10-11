@@ -8,7 +8,7 @@ import { roadmap, Phase } from './roadmap.js';
 import { recommendModel, ModelRecommendation } from '../models/routing.js';
 import { monthlyCost, MonthlyCost } from '../economics/tokens.js';
 import { valueModel, ValueModel, estimateBuildCost } from '../economics/value.js';
-import { CalibrationSet, resolveCallShape, withPriorBasis } from '../calibration/priors.js';
+import { CalibrationSet, resolveCallShape, withPriorBasis, type CallShapePrior } from '../calibration/priors.js';
 import { byId } from '../models/catalog.js';
 
 export * from './suitability.js';
@@ -25,6 +25,12 @@ export interface Assessment {
   workload: Workload;
   suitability: Suitability;
   architecture: ArchitectureRecommendation;
+  /**
+   * The call shape the cost was actually computed from: observed telemetry when
+   * Control answered above the sample floor, otherwise the rubric prior in
+   * `architecture.callShape`. Carries its own basis so a surface can tag it.
+   */
+  callShape: CallShapePrior;
   model: ModelRecommendation;
   cost: MonthlyCost;
   value: ValueModel;
@@ -116,6 +122,7 @@ export function assess(input: Workload, opts: AssessOptions = {}): Assessment {
     workload: w,
     suitability,
     architecture,
+    callShape: prior,
     model,
     cost,
     value,

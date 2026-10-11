@@ -19,8 +19,8 @@ for _var in ("UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN", "KV_REST_API_
 
 @pytest.fixture(autouse=True)
 def _fresh_rate_limits():
-    from services.api.main import SCORE_LIMIT, SHARE_LIMIT
+    from services.api.main import SCORE_GLOBAL_LIMIT, SCORE_LIMIT, SHARE_GLOBAL_LIMIT, SHARE_LIMIT
 
-    SCORE_LIMIT.reset()
-    SHARE_LIMIT.reset()
+    for limiter in (SCORE_LIMIT, SHARE_LIMIT, SCORE_GLOBAL_LIMIT, SHARE_GLOBAL_LIMIT):
+        limiter.reset()
     yield

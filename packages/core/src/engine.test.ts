@@ -126,7 +126,7 @@ describe('provenance', () => {
     assert.ok(r.trust.unknowns.some((u) => /rule of thumb/i.test(u)));
   });
 
-  test('telemetry promotes the basis from heuristic to measured', () => {
+  test('telemetry promotes cost from heuristic to calibrated, never measured', () => {
     const rows = Array.from({ length: 200 }, () => ({
       pattern: 'bounded-agent',
       turns: 9, inputTokensFirstTurn: 900, inputTokensLastTurn: 6000,
@@ -135,8 +135,11 @@ describe('provenance', () => {
     const cal = buildCalibration(rows, { basis: 'measured', windowDays: 30, orgId: 'acme' });
     const r = assess(SUPPORT_TRIAGE, { calibration: cal });
     assert.equal(r.trust.calibrated, true);
-    assert.equal(r.cost.perUnit.basis, 'measured');
+    // The shape is measured; the dollar figure is shape × list price × assumed
+    // token sizes, so it is derived and must not read as a measurement.
+    assert.equal(r.cost.perUnit.basis, 'calibrated');
     assert.equal(r.cost.perUnit.sampleSize, 200);
+    assert.match(r.cost.perUnit.source, /priced at list rates/);
   });
 
   test('a thin sample is rejected and stays heuristic', () => {

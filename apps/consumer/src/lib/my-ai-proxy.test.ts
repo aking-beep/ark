@@ -154,6 +154,16 @@ describe("header filtering", () => {
     assert.equal(out.get("x-forwarded-for"), "203.0.113.9");
   });
 
+  test("ARK_TRUSTED_PROXY_HOPS picks the entry our own proxies appended", () => {
+    process.env.ARK_TRUSTED_PROXY_HOPS = "2";
+    try {
+      const out = upstreamRequestHeaders(new Headers({ "x-forwarded-for": "6.6.6.6, 198.51.100.1, 203.0.113.9" }));
+      assert.equal(out.get("x-forwarded-for"), "198.51.100.1");
+    } finally {
+      delete process.env.ARK_TRUSTED_PROXY_HOPS;
+    }
+  });
+
   test("drops a malformed forwarded-for value", () => {
     const out = upstreamRequestHeaders(new Headers({ "x-forwarded-for": "not an ip<script>" }));
     assert.equal(out.get("x-forwarded-for"), null);
@@ -233,5 +243,12 @@ describe("proxyMyAiRequest hardening", { concurrency: 1 }, () => {
     );
     assert.equal(streamed.status, 413);
     assert.equal(calls, 0);
+  });
+});
+
+describe("next.config", () => {
+  test("has no /v1 rewrite, which would run before the hardened route handler", async () => {
+    const config = (await import("../../next.config.ts")).default;
+    assert.equal(config.rewrites, undefined);
   });
 });

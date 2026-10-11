@@ -49,6 +49,8 @@ MY AI and MY AI for teams are **separate products**. They do not link to each ot
 | `ARK_DISCOVER_ALLOW_PRIVATE` | off | `1` lets `/discover` scan private repositories with the shared `ARK_GITHUB_TOKEN`. Off, only repositories GitHub reports as public are scanned. |
 | `MYAI_STORE` | `/tmp/myai-store` | Filesystem store for AI Fit sessions, scores and shares (30-day TTL) when Redis is not configured. |
 | `MYAI_SHARE_RATE_PER_MIN` / `MYAI_SCORE_RATE_PER_MIN` | `20` / `60` | Per-client rate limits on the AI Fit API's `/v1/share` and `/v1/score`. |
+| `MYAI_SHARE_GLOBAL_RATE_PER_MIN` / `MYAI_SCORE_GLOBAL_RATE_PER_MIN` | `300` / `1200` | Ceilings across all clients on the same endpoints. |
+| `ARK_TRUSTED_PROXY_HOPS` | `1` | How many proxies you run in front of the Next apps. Rate limits key on the X-Forwarded-For entry this many places from the right, the one a client cannot write. Every per-client limit also has a global ceiling, so a client that spoofs the header on a direct connection still cannot exceed it. |
 | `ARK_WEBHOOK_URL` / `ARK_SLACK_WEBHOOK_URL` | empty | Alert destinations attached to Northwind at first seed. |
 | `API_ORIGIN` | `http://127.0.0.1:8472` | Consumer → MY AI API. |
 | `MYAI_ROOT` | `/app/my-ai` | Python engine repo root inside Docker. |
