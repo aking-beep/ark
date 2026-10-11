@@ -1,6 +1,9 @@
-import { sqliteTable, text, integer, real, index } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, index, primaryKey } from 'drizzle-orm/sqlite-core';
 
 /**
+ * Tables whose ids a client chooses are keyed (org_id, id) — see sql.ts. The
+ * DDL there is what actually runs; this file mirrors it for types.
+ *
  * SQLite so the repo runs with no external services. The schema is
  * deliberately Postgres-portable — no SQLite-specific types — so the move is
  * a driver swap. See docs/adr/0004-sqlite-first.md.
@@ -14,7 +17,7 @@ export const orgs = sqliteTable('orgs', {
 
 /** A workload is the unit everything attributes to. Mirrors @ark/core Workload. */
 export const workloads = sqliteTable('workloads', {
-  id: text('id').primaryKey(),
+  id: text('id').notNull(),
   orgId: text('org_id').notNull().references(() => orgs.id),
   name: text('name').notNull(),
   /** Architecture pattern, so calibration can group by it. */
@@ -25,7 +28,7 @@ export const workloads = sqliteTable('workloads', {
   assessment: text('assessment', { mode: 'json' }),
   status: text('status', { enum: ['proposed', 'shadow', 'assisted', 'live', 'retired'] }).notNull().default('proposed'),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
-});
+}, (t) => ({ pk: primaryKey({ columns: [t.orgId, t.id] }) }));
 
 /**
  * A trace is one unit of business work — one ticket, one brief, one refund.
@@ -33,9 +36,9 @@ export const workloads = sqliteTable('workloads', {
  * traces rather than calls is the entire point of the schema.
  */
 export const traces = sqliteTable('traces', {
-  id: text('id').primaryKey(),
+  id: text('id').notNull(),
   orgId: text('org_id').notNull(),
-  workloadId: text('workload_id').notNull().references(() => workloads.id),
+  workloadId: text('workload_id').notNull(),
   startedAt: integer('started_at', { mode: 'timestamp' }).notNull(),
   endedAt: integer('ended_at', { mode: 'timestamp' }),
   /** Did this produce the business outcome it was supposed to? */
@@ -49,15 +52,16 @@ export const traces = sqliteTable('traces', {
   retries: integer('retries').notNull().default(0),
   escalatedToHuman: integer('escalated_to_human', { mode: 'boolean' }).notNull().default(false),
 }, (t) => ({
-  byWorkload: index('traces_workload_idx').on(t.workloadId, t.startedAt),
+  pk: primaryKey({ columns: [t.orgId, t.id] }),
+  byWorkload: index('traces_workload_idx').on(t.orgId, t.workloadId, t.startedAt),
   byOutcome: index('traces_outcome_idx').on(t.outcome),
 }));
 
 /** One model call. The raw ingest record. */
 export const events = sqliteTable('events', {
-  id: text('id').primaryKey(),
+  id: text('id').notNull(),
   orgId: text('org_id').notNull(),
-  traceId: text('trace_id').references(() => traces.id),
+  traceId: text('trace_id'),
   workloadId: text('workload_id'),
   ts: integer('ts', { mode: 'timestamp' }).notNull(),
 
@@ -85,7 +89,8 @@ export const events = sqliteTable('events', {
   /** Registered Agent Manifest id. Optional — events without it still ingest. */
   agentId: text('agent_id'),
 }, (t) => ({
-  byTrace: index('events_trace_idx').on(t.traceId),
+  pk: primaryKey({ columns: [t.orgId, t.id] }),
+  byTrace: index('events_trace_idx').on(t.orgId, t.traceId),
   byTs: index('events_ts_idx').on(t.orgId, t.ts),
   byModel: index('events_model_idx').on(t.modelId),
   byAgent: index('events_agent_idx').on(t.orgId, t.agentId),
@@ -93,9 +98,9 @@ export const events = sqliteTable('events', {
 
 /** Actions an agent actually took, and whether they were approved. */
 export const actions = sqliteTable('actions', {
-  id: text('id').primaryKey(),
+  id: text('id').notNull(),
   orgId: text('org_id').notNull(),
-  traceId: text('trace_id').notNull().references(() => traces.id),
+  traceId: text('trace_id').notNull(),
   ts: integer('ts', { mode: 'timestamp' }).notNull(),
   name: text('name').notNull(),
   system: text('system').notNull(),
@@ -105,7 +110,10 @@ export const actions = sqliteTable('actions', {
   approvedBy: text('approved_by'),
   requiredApproval: integer('required_approval', { mode: 'boolean' }).notNull().default(false),
   credentialId: text('credential_id'),
-}, (t) => ({ byTrace: index('actions_trace_idx').on(t.traceId) }));
+}, (t) => ({
+  pk: primaryKey({ columns: [t.orgId, t.id] }),
+  byTrace: index('actions_trace_idx').on(t.orgId, t.traceId),
+}));
 
 /**
  * One normalised observation from an agent protocol.
@@ -122,7 +130,7 @@ export const actions = sqliteTable('actions', {
  * docs/07-protocol-evidence.md.
  */
 export const protocolEvidence = sqliteTable('protocol_evidence', {
-  id: text('id').primaryKey(),
+  id: text('id').notNull(),
   orgId: text('org_id').notNull(),
   /** Correlates to the unit of business work. Null for uncorrelated observation. */
   traceId: text('trace_id'),
@@ -163,10 +171,11 @@ export const protocolEvidence = sqliteTable('protocol_evidence', {
   /** Low-cardinality scalars only. Enforced by @ark/core's EvidenceInput, not by SQLite. */
   metadata: text('metadata', { mode: 'json' }).$type<Record<string, string | number | boolean>>(),
 }, (t) => ({
+  pk: primaryKey({ columns: [t.orgId, t.id] }),
   byTs: index('protocol_evidence_ts_idx').on(t.orgId, t.ts),
   byProtocol: index('protocol_evidence_protocol_idx').on(t.protocol, t.ts),
-  byTrace: index('protocol_evidence_trace_idx').on(t.traceId),
-  byWorkload: index('protocol_evidence_workload_idx').on(t.workloadId, t.ts),
+  byTrace: index('protocol_evidence_trace_idx').on(t.orgId, t.traceId),
+  byWorkload: index('protocol_evidence_workload_idx').on(t.orgId, t.workloadId, t.ts),
 }));
 
 /** Spend ceilings with an enforcement mode. A budget you cannot enforce is a wish. */
@@ -183,7 +192,7 @@ export const budgets = sqliteTable('budgets', {
 });
 
 export const alerts = sqliteTable('alerts', {
-  id: text('id').primaryKey(),
+  id: text('id').notNull(),
   orgId: text('org_id').notNull(),
   ts: integer('ts', { mode: 'timestamp' }).notNull(),
   kind: text('kind', {
@@ -196,20 +205,26 @@ export const alerts = sqliteTable('alerts', {
   message: text('message').notNull(),
   detail: text('detail', { mode: 'json' }),
   acknowledgedAt: integer('acknowledged_at', { mode: 'timestamp' }),
-}, (t) => ({ byTs: index('alerts_ts_idx').on(t.orgId, t.ts) }));
+}, (t) => ({
+  pk: primaryKey({ columns: [t.orgId, t.id] }),
+  byTs: index('alerts_ts_idx').on(t.orgId, t.ts),
+}));
 
 /** Quality samples — the link between cost and whether it was any good. */
 export const qualitySamples = sqliteTable('quality_samples', {
-  id: text('id').primaryKey(),
+  id: text('id').notNull(),
   orgId: text('org_id').notNull(),
-  workloadId: text('workload_id').notNull().references(() => workloads.id),
-  traceId: text('trace_id').references(() => traces.id),
+  workloadId: text('workload_id').notNull(),
+  traceId: text('trace_id'),
   ts: integer('ts', { mode: 'timestamp' }).notNull(),
   /** 1 = correct, 0 = incorrect, judged by a human or a graded eval. */
   correct: integer('correct', { mode: 'boolean' }).notNull(),
   judgedBy: text('judged_by', { enum: ['human', 'eval', 'heuristic'] }).notNull(),
   note: text('note'),
-});
+}, (t) => ({
+  pk: primaryKey({ columns: [t.orgId, t.id] }),
+  byWorkload: index('quality_samples_workload_idx').on(t.orgId, t.workloadId, t.ts),
+}));
 
 /** Snapshots of calibration sets emitted to MY AI for teams. Versioned, not overwritten. */
 export const calibrationSnapshots = sqliteTable('calibration_snapshots', {
@@ -277,7 +292,7 @@ export const agents = sqliteTable('agents', {
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 }, (t) => ({
-  pk: index('agents_pk').on(t.orgId, t.id),
+  pk: primaryKey({ columns: [t.orgId, t.id] }),
   byOrg: index('agents_org_idx').on(t.orgId, t.updatedAt),
 }));
 

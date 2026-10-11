@@ -60,4 +60,28 @@ describe('deliverAlerts', () => {
     const miss = await client.execute(`SELECT error FROM alert_deliveries ORDER BY ts DESC LIMIT 1`);
     assert.match(String(miss.rows[0]?.error), /timeout/);
   });
+
+  test('delivers in parallel and gives up at the overall deadline', async () => {
+    await client.execute({
+      sql: 'INSERT INTO alert_destinations (id,org_id,kind,url,created_at) VALUES (?,?,?,?,?)',
+      args: ['dest_2', 'org_a', 'slack', 'http://sink.test/slack', Date.now()],
+    });
+    const alerts = Array.from({ length: 4 }, (_, i) => ({
+      kind: 'budget_warn', severity: 'warn', workloadId: null, message: `a${i}`,
+    }));
+    // Every request ignores its abort signal and never settles. Serially this
+    // would never return; in parallel under a deadline it returns at ~deadline.
+    const t0 = Date.now();
+    const r = await deliverAlerts('org_a', alerts, {
+      client,
+      timeoutMs: 10_000,
+      deadlineMs: 80,
+      fetchFn: (() => new Promise<Response>(() => {})) as typeof fetch,
+    });
+    const took = Date.now() - t0;
+    assert.ok(took < 1_000, `took ${took}ms`);
+    assert.equal(r.attempted, 8);
+    assert.equal(r.ok, 0);
+    await client.execute(`DELETE FROM alert_destinations WHERE id='dest_2'`);
+  });
 });

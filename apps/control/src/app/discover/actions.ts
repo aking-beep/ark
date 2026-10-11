@@ -17,17 +17,30 @@ import {
   createAssuranceRun,
 } from '@ark/db';
 import { requireOrg } from '@/lib/org';
+import { discoverErrorCode, isPublicRepo, privateDiscoveryAllowed, type DiscoverErrorCode } from '@/lib/discover';
+
+/** Redirect targets carry a fixed code, never message text; see lib/discover.ts. */
+function fail(code: DiscoverErrorCode, runId?: string): never {
+  redirect(runId ? `/discover?run=${encodeURIComponent(runId)}&error=${code}` : `/discover?error=${code}`);
+}
 
 export async function discoverRepo(formData: FormData) {
   const { orgId } = await requireOrg();
   const url = String(formData.get('repository') ?? '');
   const branchRaw = String(formData.get('branch') ?? '').trim();
   const parsed = parseGithubRepoUrl(url);
-  if (!parsed) redirect('/discover?error=' + encodeURIComponent('Use a github.com/owner/repo URL.'));
+  if (!parsed) fail('bad_url');
 
+  // The server token is the operator's credential, not this user's. Unless
+  // the operator opts in, it is only spent on repositories GitHub reports as
+  // public to an anonymous caller, so a tenant cannot use it to read private
+  // code the token happens to see.
   const token = process.env.ARK_GITHUB_TOKEN;
+  if (token && !privateDiscoveryAllowed() && !(await isPublicRepo(parsed.owner, parsed.repo))) {
+    fail('not_public');
+  }
   let runId = '';
-  let fail = '';
+  let failure: DiscoverErrorCode | null = null;
   try {
     const snap = await fetchGithubSnapshot({
       ref: { owner: parsed.owner, repo: parsed.repo, branch: branchRaw || parsed.branch },
@@ -49,10 +62,10 @@ export async function discoverRepo(formData: FormData) {
     });
     runId = run.id;
   } catch (err) {
-    fail = err instanceof Error ? err.message.slice(0, 180) : 'Discovery failed.';
+    failure = discoverErrorCode(err);
   }
-  if (fail) redirect('/discover?error=' + encodeURIComponent(fail));
-  redirect(`/discover?run=${runId}`);
+  if (failure) fail(failure);
+  redirect(`/discover?run=${encodeURIComponent(runId)}`);
 }
 
 export async function registerCandidate(formData: FormData) {
@@ -65,11 +78,11 @@ export async function registerCandidate(formData: FormData) {
   const environment = envParsed.success ? envParsed.data : 'unknown';
 
   const run = await getDiscoveryRun(orgId, runId);
-  if (!run?.result) redirect('/discover?error=' + encodeURIComponent('Discovery run not found.'));
+  if (!run?.result) fail('run_not_found');
 
   const candidates = materializeAgentManifests(run.result, { discoveryMethod: 'github' });
   const hit = candidates.find((c) => c.manifest.id === candidateId);
-  if (!hit) redirect(`/discover?run=${runId}&error=` + encodeURIComponent('Candidate not in this run.'));
+  if (!hit) fail('candidate_not_found', runId);
 
   const agent = await upsertAgent(orgId, hit.manifest, { owner, environment, status: 'registered' });
   redirect(`/agents/${encodeURIComponent(agent.id)}`);

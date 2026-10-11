@@ -1,5 +1,7 @@
 import { createClient } from '@libsql/client';
+import { pathToFileURL } from 'node:url';
 import { databaseUrl } from './client.js';
+import { seedGuard } from './seed-guard.js';
 import { byId, assess, SUPPORT_TRIAGE, INVOICE_LOOKUP, CONTENT_DRAFTING, costOfCall } from '@ark/core';
 import { hashPassword, hashSecret } from './auth.js';
 import { NW_ORG, NORTHWIND_CLAIMS, NORTHWIND_BLOCKED_ID } from './northwind.js';
@@ -20,6 +22,19 @@ const now = Date.now();
 const rnd = mulberry32(20260914);
 
 const client = createClient({ url: databaseUrl(), authToken: process.env.ARK_DATABASE_AUTH_TOKEN });
+
+/**
+ * Wipe and reseed. Destructive: every table below is emptied first. Refused
+ * in production unless deliberately enabled with real credentials — see
+ * seed-guard.ts. `npm run bootstrap` calls this only on an empty database.
+ */
+export async function runSeed(): Promise<void> {
+  const guard = seedGuard();
+  if (!guard.ok) {
+    throw new Error(`Seed refused:\n  ${guard.problems.join('\n  ')}`);
+  }
+  await run();
+}
 
 async function run() {
   for (const t of [
@@ -439,7 +454,8 @@ async function seedProtocolEvidence(client: ReturnType<typeof createClient>, rnd
   }));
 
   const result = await applyIngest(
-    IngestBody.parse({ orgId: ORG, evidence: rows }),
+    ORG,
+    IngestBody.parse({ evidence: rows }),
     { client, allowlist: [], turnCeiling: 1e9, traceCostCeiling: 1e9 },
   );
   if (result.evidenceRedacted.length) {
@@ -458,7 +474,14 @@ function mulberry32(seed: number) {
   };
 }
 
-await run();
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  try {
+    await runSeed();
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : err);
+    process.exit(1);
+  }
+}
 
 async function seedSecondOrg(client: ReturnType<typeof createClient>, now: number) {
   await client.execute({
