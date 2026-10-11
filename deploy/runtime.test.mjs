@@ -29,9 +29,9 @@ describe("three-product docker runtime", () => {
     assert.match(entry, /--host 0\.0\.0\.0/);
   });
 
-  test("compose publishes 8472 and API_ORIGIN, not Fit↔business URLs", () => {
+  test("compose publishes 8472 on loopback only and API_ORIGIN, not Fit↔business URLs", () => {
     const compose = read("deploy/docker-compose.yml");
-    assert.match(compose, /"8472:8472"/);
+    assert.match(compose, /"127\.0\.0\.1:8472:8472"/);
     assert.match(compose, /API_ORIGIN: http:\/\/127\.0\.0\.1:8472/);
     assert.match(compose, /MYAI_ROOT: \/app\/my-ai/);
     assert.doesNotMatch(compose, /ARK_CONSUMER_URL:/);

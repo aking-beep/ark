@@ -49,7 +49,7 @@ const ev = (over) => ({ id: 'pe_x', protocol: 'mcp', kind: 'tool', operation: 't
 // Reviewer's input, verbatim. Before: alerts.message contained the key, and
 // therefore the email address inside it.
 const LEAKY_KEY = 'victim.bob@example.com_token';
-await db.applyIngest(
+await db.applyIngest('org_demo', 
   core.IngestBody.parse({
     orgId: 'org_demo',
     evidence: [ev({ id: 'pe_f1', workloadId: 'wl_secret', operation: 'tools/call:leaky', metadata: { [LEAKY_KEY]: 'x' } })],
@@ -64,7 +64,7 @@ line('alert trips a detector of its own', core.detectSensitive(f1msg).join(',') 
 line('alert names the class instead', /named as a payload or a credential/.test(f1msg) ? 'yes' : 'NO');
 
 // The key does go back to the sender, which is not a place anything is stored.
-const f1r = await db.applyIngest(
+const f1r = await db.applyIngest('org_demo', 
   core.IngestBody.parse({
     orgId: 'org_demo',
     evidence: [ev({ id: 'pe_f1b', workloadId: 'wl_secret', metadata: { [LEAKY_KEY]: 'x' } })],
@@ -74,7 +74,7 @@ const f1r = await db.applyIngest(
 line('ingest response still names the key', f1r.evidenceRedacted.includes(LEAKY_KEY) ? 'yes' : 'no');
 
 // Finding 4: attribution. The dirty row is second and carries its own workload.
-await db.applyIngest(
+await db.applyIngest('org_demo', 
   core.IngestBody.parse({
     orgId: 'org_demo',
     evidence: [
@@ -90,7 +90,7 @@ line('redaction alert names the offending workload', f4.rows.length ? String(f4.
 /* --- finding 2: org-unscoped join leaked another tenant's workload name --- */
 // org_other posts evidence naming org_demo's workload id. Nothing validates
 // that id, so the boundary has to hold on the read.
-await db.applyIngest(
+await db.applyIngest('org_other', 
   core.IngestBody.parse({
     orgId: 'org_other',
     evidence: [ev({ id: 'pe_f2', traceId: 'tr_f2', workloadId: 'wl_secret', operation: 'tools/call:peek' })],
@@ -110,7 +110,7 @@ line('own rows still resolve their name', ours.some((r) => r.workloadName === 'P
 // recentAlerts was already unscoped, but until protocol evidence existed an
 // alert's workload_id came from a workload ARK had matched. The two evidence
 // alerts carry the sender's, so the gap became reachable through this diff.
-await db.applyIngest(
+await db.applyIngest('org_other', 
   core.IngestBody.parse({
     orgId: 'org_other',
     evidence: [ev({ id: 'pe_f2b', workloadId: 'wl_secret', operation: 'tools/call:peek2', metadata: { arguments: 'x' } })],

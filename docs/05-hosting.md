@@ -28,7 +28,7 @@ Then:
 | MY AI for teams | http://localhost:3001 |
 | ARK Control | http://localhost:3002 |
 
-Consumer Next proxies `/health` and `/v1/*` to the MY AI API at `API_ORIGIN` (default `http://127.0.0.1:8472` inside the container). From a browser, use the consumer origin for the quiz; 8472 is for operators.
+Consumer Next proxies `/health` and `/v1/*` to the MY AI API at `API_ORIGIN` (default `http://127.0.0.1:8472` inside the container). From a browser, use the consumer origin for the quiz; 8472 is for operators and compose publishes it on `127.0.0.1` only.
 
 MY AI and MY AI for teams are **separate products**. They do not link to each other. The only product-to-product wire in this stack is business → Control (`ARK_CONTROL_URL`), which is the estimator↔measurement loop.
 
@@ -44,11 +44,17 @@ MY AI and MY AI for teams are **separate products**. They do not link to each ot
 | `ARK_DATABASE_AUTH_TOKEN` | empty | libSQL/Turso auth token. |
 | `ARK_SHOW_DEMO_LOGIN` | off | `1` shows the demo credentials on Control's login page in production — for a deliberate public demo only. |
 | `ARK_MEASURE_ENABLED` | off | `1` enables MY AI for teams `POST /api/measure` (real model call + ingest). Rate-limited per IP; writes only `teams_sample_*` workloads. |
-| `ARK_ALLOW_SEED` | off | `1` lets `npm run db:seed` run in production. Bootstrap does not need it set (below). |
+| `ARK_ALLOW_SEED` | off | `1` lets the seed run in production. The entrypoint sets it for its own `db:bootstrap` call only; run by hand, bootstrap leaves an empty production database unseeded unless it is set. |
+| `ARK_ALLOWED_ORIGINS` | empty | Extra origins Control's login/logout accept, comma-separated. Needed only behind a proxy that rewrites `Host` without setting `X-Forwarded-Host`. |
+| `ARK_DISCOVER_ALLOW_PRIVATE` | off | `1` lets `/discover` scan private repositories with the shared `ARK_GITHUB_TOKEN`. Off, only repositories GitHub reports as public are scanned. |
+| `MYAI_STORE` | `/tmp/myai-store` | Filesystem store for AI Fit sessions, scores and shares (30-day TTL) when Redis is not configured. |
+| `MYAI_SHARE_RATE_PER_MIN` / `MYAI_SCORE_RATE_PER_MIN` | `20` / `60` | Per-client rate limits on the AI Fit API's `/v1/share` and `/v1/score`. |
 | `ARK_WEBHOOK_URL` / `ARK_SLACK_WEBHOOK_URL` | empty | Alert destinations attached to Northwind at first seed. |
 | `API_ORIGIN` | `http://127.0.0.1:8472` | Consumer → MY AI API. |
 | `MYAI_ROOT` | `/app/my-ai` | Python engine repo root inside Docker. |
 | `ARK_CONTROL_URL` | `http://127.0.0.1:3002` | Business → Control. |
+
+Control sessions last 12 hours and are re-checked against the membership table on every request. Ingest responses report `duplicates` for rows already stored (a retried batch is a no-op). A custom `ARK_FRONTIER_BASE_URL` requires `ARK_FRONTIER_API_KEY`; `DEEPSEEK_API_KEY` and `HF_TOKEN` are only ever sent to their own hosts.
 
 Provider credentials (`ARK_OLLAMA_*`, `ARK_BEDROCK_*`, `ARK_FRONTIER_*`, …) and `ARK_GITHUB_TOKEN` are documented in [`.env.example`](../.env.example); add them to the compose `environment:` block if you use them.
 

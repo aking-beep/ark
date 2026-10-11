@@ -8,7 +8,9 @@ services:
       - "3000:3000"
       - "3001:3001"
       - "3002:3002"
-      - "8472:8472"
+      # Operators only: bound to loopback so browsers go through the consumer
+      # proxy (body cap, header allow-list) rather than straight to the API.
+      - "127.0.0.1:8472:8472"
     environment:
       # Default is the volume file. Point at libSQL/Turso to share one DB across
       # replicas; entrypoint's db:bootstrap only seeds when the orgs table is empty.
