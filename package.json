@@ -4,12 +4,18 @@
   "version": "0.1.0",
   "type": "module",
   "description": "ARK — AI decision intelligence, AI economics, secure AI operations.",
-  "workspaces": ["packages/*", "apps/*"],
-  "engines": { "node": ">=20" },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22.6"
+  },
   "scripts": {
     "build:packages": "npm run build --workspace @ark/core && npm run build --workspace @ark/protocols && npm run build --workspace @ark/db && npm run build --workspace @ark/ui && npm run build --workspace @ark/sdk && npm run build --workspace @ark/providers && npm run build --workspace @ark/evals && npm run build --workspace @ark/runtime",
     "db:push": "npm run push --workspace @ark/db",
     "db:seed": "npm run seed --workspace @ark/db",
+    "db:bootstrap": "npm run bootstrap --workspace @ark/db",
     "ingest:live": "npm run ingest:live --workspace @ark/db",
     "setup": "npm run build:packages && npm run db:push && npm run db:seed",
     "setup:my-ai": "pip install -e 'my-ai/[dev]'",
@@ -20,12 +26,15 @@
     "dev:business": "npm run dev --workspace @ark/business",
     "dev:control": "npm run dev --workspace @ark/control",
     "build": "npm run build:packages && npm run build --workspace @ark/consumer && npm run build --workspace @ark/business && npm run build --workspace @ark/control",
-    "typecheck": "npm run build:packages && npm run typecheck --workspaces --if-present",
-    "test": "npm run test --workspace @ark/core && npm run test --workspace @ark/protocols && npm run test --workspace @ark/db && npm run test --workspace @ark/sdk && npm run test --workspace @ark/providers && npm run test --workspace @ark/evals && npm run test --workspace @ark/runtime && node --test deploy/runtime.test.mjs && node --experimental-strip-types --test apps/consumer/src/lib/my-ai-proxy.test.ts && node --experimental-strip-types --test apps/business/src/lib/measure.test.ts",
+    "typecheck": "npm run build:packages && npm run typecheck --workspaces --if-present && npm run typecheck:scripts",
+    "test": "npm run test --workspace @ark/core && npm run test --workspace @ark/protocols && npm run test --workspace @ark/db && npm run test --workspace @ark/sdk && npm run test --workspace @ark/providers && npm run test --workspace @ark/evals && npm run test --workspace @ark/runtime && npm run test:control && node --test deploy/runtime.test.mjs && node --experimental-strip-types --test apps/consumer/src/lib/my-ai-proxy.test.ts && node --experimental-strip-types --test apps/business/src/lib/measure.test.ts",
     "smoke:runtime": "npm run smoke --workspace @ark/runtime",
     "test:my-ai": "cd my-ai && python3 -m pytest",
     "refresh:models": "node --experimental-strip-types scripts/refresh-models.ts",
-    "lint": "npm run typecheck"
+    "lint": "npm run typecheck",
+    "typecheck:scripts": "tsc -p scripts/tsconfig.json",
+    "test:control": "npm run test --workspace @ark/control --if-present",
+    "check:harness": "bash scripts/check-harness-sync.sh"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",
