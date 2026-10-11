@@ -42,7 +42,7 @@ MY AI and MY AI for teams are **separate products**. They do not link to each ot
 | `ARK_CONTROL_TOKEN` | `$ARK_INGEST_TOKEN_DEMO` | Bearer business uses to read calibration from Control. |
 | `ARK_DATABASE_URL` | `file:/data/ark.db` | The compose volume. Point at libSQL/Turso to share one DB (below). |
 | `ARK_DATABASE_AUTH_TOKEN` | empty | libSQL/Turso auth token. |
-| `ARK_SHOW_DEMO_LOGIN` | off | `1` shows the demo credentials on Control's login page in production — for a deliberate public demo only. |
+| `ARK_SHOW_DEMO_LOGIN` | off | `1` shows the demo credentials on Control's login page in production — the real configured passwords, to anyone who loads the page. For a deliberate public demo only; never on a deployment holding real data. |
 | `ARK_MEASURE_ENABLED` | off | `1` enables MY AI for teams `POST /api/measure` (real model call + ingest). Rate-limited per IP; writes only `teams_sample_*` workloads. |
 | `ARK_ALLOW_SEED` | off | `1` lets the seed run in production. The entrypoint sets it for its own `db:bootstrap` call only; run by hand, bootstrap leaves an empty production database unseeded unless it is set. |
 | `ARK_ALLOWED_ORIGINS` | empty | Extra origins Control's login/logout accept, comma-separated. Needed only behind a proxy that rewrites `Host` without setting `X-Forwarded-Host`. |

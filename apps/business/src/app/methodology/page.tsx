@@ -43,7 +43,8 @@ export default function Methodology() {
             third-party benchmark. True of the world, not necessarily of you.
           </Rung>
           <Rung basis="calibrated">
-            Derived from measurements taken on systems like yours, but not yours. Useful, and still a prior.
+            Derived from measurements, but not itself a measurement: either observed on systems like yours,
+            or your own observed call shape priced at list rates. Useful, and still a prior.
           </Rung>
           <Rung basis="measured">
             Computed from telemetry emitted by your own running workload, above the sample floor. This is

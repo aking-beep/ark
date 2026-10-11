@@ -66,7 +66,10 @@ export function measureGate(
     };
   }
   // The global ceiling caps spend even when a caller rotates its address.
-  const retryMs = Math.max(limiter.take(clientKey), globalLimiter?.take('*') ?? 0);
+  // Only a call the client's own bucket admits counts against the global one, so
+  // a client hammering past its 429s does not use up everyone else's slots.
+  const own = limiter.take(clientKey);
+  const retryMs = own > 0 ? own : globalLimiter?.take('*') ?? 0;
   if (retryMs > 0) {
     return {
       status: 429,
