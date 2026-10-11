@@ -6,7 +6,7 @@ import { useState } from "react";
 import { ExternalLink } from "lucide-react";
 import { api } from "@/lib/api";
 import type { ScoreResult } from "@/lib/types";
-import { clearSession, encodeSharePayload, loadSession, saveResult } from "@/lib/session-store";
+import { LOCAL_SHARE_PATH, clearSession, encodeSharePayload, loadSession, saveResult } from "@/lib/session-store";
 import { copyText, isAppleTouch, shareOrCopy } from "@/lib/copy-text";
 import { useReadingLevel } from "@/components/reading-level";
 import { cleanModelName, friendlyCategory, friendlyMetric, friendlyWorkload, metricHelp, productHomepage } from "@/lib/friendly";
@@ -139,10 +139,11 @@ export function ResultsView({
   }
 
   async function share() {
-    let path = sessionId ? `/share/${sessionId}` : "/share/profile";
+    // Never put the session id in a share URL: it is the delete/export capability.
+    let path: string | null = null;
     let durable = false;
     try {
-      const created = await api.publishShare(current);
+      const created = await api.publishShare(current, sessionId);
       path = created.path;
       durable = Boolean(created.durable);
     } catch {
@@ -156,10 +157,13 @@ export function ResultsView({
         }
       }
     }
-    const encoded = await encodeSharePayload(current);
-    const url = durable
-      ? `${window.location.origin}${path}`
-      : `${window.location.origin}${path}#${encoded}`;
+    let url: string;
+    if (durable && path) {
+      url = `${window.location.origin}${path}`;
+    } else {
+      const encoded = await encodeSharePayload(current);
+      url = `${window.location.origin}${path ?? LOCAL_SHARE_PATH}#${encoded}`;
+    }
     setShareUrl(url);
     const outcome = await shareOrCopy(url, workstyle?.label ?? current.persona.label);
     if (outcome === "fallback") setFallback({ text: url, label: "share link" });

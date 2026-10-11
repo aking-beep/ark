@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import type { ScoreResult } from "@/lib/types";
-import { decodeSharePayload } from "@/lib/session-store";
+import { LOCAL_SHARE_ID, decodeSharePayload } from "@/lib/session-store";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ResultsView } from "@/components/results-view";
@@ -26,6 +26,10 @@ export default function SharePage() {
             setResult(decoded);
             return;
           }
+        }
+        if (params.shareId === LOCAL_SHARE_ID) {
+          // A local share lives only in the URL hash; there is nothing to fetch.
+          throw new Error("This share link is incomplete. Ask for the full link, including everything after #.");
         }
         const snapshot = await api.getShare(params.shareId);
         if (!cancelled) setResult(snapshot);
