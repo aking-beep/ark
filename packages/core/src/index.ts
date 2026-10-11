@@ -13,6 +13,7 @@ export * from './fixtures.js';
 export * from './ingest/schema.js';
 export * from './ingest/sensitive.js';
 export * from './ingest/evidence.js';
+export * from './ingest/limits.js';
 export * from './golden/set.js';
 export * from './ops/budget-enforcement.js';
 export * from './agents/manifest.js';

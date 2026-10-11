@@ -92,8 +92,13 @@ export function isUncalibrated(estimates: Estimate<unknown>[]): boolean {
   return estimates.every((e) => BASIS_RANK[e.basis] <= 1);
 }
 
-/** The weakest link. A report is only as trustworthy as its softest input. */
+/**
+ * The weakest link. A report is only as trustworthy as its softest input.
+ * A report with no inputs has nothing behind it, so it is `heuristic` — the
+ * same answer `isUncalibrated([])` gives — and never `measured`.
+ */
 export function weakestBasis(estimates: Estimate<unknown>[]): Basis {
+  if (estimates.length === 0) return 'heuristic';
   return estimates.reduce<Basis>(
     (worst, e) => (BASIS_RANK[e.basis] < BASIS_RANK[worst] ? e.basis : worst),
     'measured',

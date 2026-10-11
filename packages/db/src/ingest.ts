@@ -61,7 +61,7 @@ const s = (v: unknown) => String(v ?? '');
  */
 export async function applyIngest(body: IngestBody, opts: ApplyIngestOpts): Promise<IngestResult> {
   const c = opts.client ?? raw();
-  const { orgId, events, traces, actions, qualitySamples, evidence } = body;
+  const { orgId = 'org_demo', events, traces, actions, qualitySamples, evidence } = body; // C1 stopgap: preserves the old schema default until applyIngest takes the authenticated org explicitly
   const qualityMin = opts.qualityMinSamples ?? 20;
   const alerts: IngestAlert[] = [];
   const breakers: CircuitBreak[] = [];

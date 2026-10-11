@@ -14,6 +14,11 @@ import { CalibrationSet } from './priors.js';
  */
 export async function fetchCalibration(opts: {
   baseUrl?: string | undefined;
+  /**
+   * Ignored, and kept only so existing callers still compile. Control derives
+   * the org from the bearer token; a query parameter naming one was never
+   * honoured, and sending it suggested it might be.
+   */
   orgId?: string | undefined;
   days?: number | undefined;
   timeoutMs?: number | undefined;
@@ -23,7 +28,6 @@ export async function fetchCalibration(opts: {
   if (!base) return null;
 
   const url = new URL('/api/v1/calibration', base);
-  if (opts.orgId) url.searchParams.set('org', opts.orgId);
   url.searchParams.set('days', String(opts.days ?? 30));
 
   const headers: Record<string, string> = { accept: 'application/json' };
