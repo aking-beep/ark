@@ -152,7 +152,7 @@ describe('the class vocabulary — what is safe to keep', () => {
   // A key name is caller text and can itself be the sensitive value. Anything
   // that outlives the request reports the class instead, so the vocabulary has
   // to be closed.
-  const VOCABULARY = ['payload_name', 'non_scalar', 'email', 'us_ssn', 'credit_card', 'us_phone', 'api_key', 'iban'];
+  const VOCABULARY = ['payload_name', 'non_scalar', 'invalid_key', 'over_limit', 'email', 'us_ssn', 'credit_card', 'us_phone', 'api_key', 'iban'];
 
   test('says why, not which, for each of the three reasons', () => {
     const e = EvidenceInput.parse({

@@ -81,3 +81,25 @@ describe('a2uiEvidence', () => {
     assert.ok(EvidenceInput.safeParse({ ...e, id: 'pe_cap' }).success);
   });
 });
+
+describe('component vocabulary is trimmed before it is judged', () => {
+  test('a padded interactive type still raises risk', () => {
+    const e = a2uiEvidence({ operation: 'updateComponents', components: [' Button ', 'Text'] });
+    assert.equal(e.risk, 'medium');
+    assert.equal(e.metadata.componentTypes, 'Button,Text');
+  });
+
+  test('only accepted components are counted', () => {
+    const e = a2uiEvidence({
+      operation: 'updateComponents',
+      components: ['Card', 'bob@example.com', 'Please confirm your address', 'Text'],
+    });
+    assert.equal(e.metadata.componentCount, 2);
+    assert.equal(e.metadata.componentsRejected, 2);
+  });
+
+  test('an explicit componentCount from the observer still wins', () => {
+    const e = a2uiEvidence({ operation: 'updateComponents', components: ['Card'], componentCount: 7 });
+    assert.equal(e.metadata.componentCount, 7);
+  });
+});

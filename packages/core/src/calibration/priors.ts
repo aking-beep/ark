@@ -140,6 +140,9 @@ export function buildCalibration(
       pattern,
       turnsPerOutcome: mean(rs.map((r) => r.turns)),
       contextGrowthPerTurn: growth.length ? mean(growth) : 0,
+      // Fraction of *units of work* that failed, and the retries those failed
+      // units burned beyond their first attempt — exactly the f and r that
+      // `attemptsPerSuccess` in economics/tokens.ts expects.
       failureRate: n ? (n - successes.length) / n : 0,
       retriesPerFailure: (() => {
         const failed = rs.filter((r) => !r.succeeded);

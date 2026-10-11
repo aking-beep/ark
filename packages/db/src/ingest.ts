@@ -371,6 +371,8 @@ const REDACTION_CLASS_LABELS: Record<string, string> = {
   us_phone: 'a phone number',
   api_key: 'an API key',
   iban: 'a bank account number',
+  invalid_key: 'a metadata key that is not a plain identifier',
+  over_limit: 'metadata beyond the field limit',
 };
 
 /**

@@ -39,7 +39,10 @@ export function costOfCall(model: ModelEntry, shape: CallShape): number {
 export interface OutcomeShape extends CallShape {
   /** Fraction of attempts that fail and are retried, 0..1. */
   failureRate?: number;
-  /** Mean retries per failure. */
+  /**
+   * Mean retries a failed unit of work made beyond its first attempt. The
+   * failed attempt itself is always counted; see `attemptsPerSuccess`.
+   */
   retriesPerFailure?: number;
   /** Model turns per unit of work. 1 for single-shot; higher for agents. */
   turnsPerOutcome?: number;
@@ -67,16 +70,31 @@ export function costPerAttempt(model: ModelEntry, s: OutcomeShape): number {
   return total;
 }
 
+/** Above this the formula below diverges; nothing honest fails 96% of the time. */
+export const MAX_FAILURE_RATE = 0.95;
+
+/**
+ * Expected paid attempts per successful outcome.
+ *
+ *   attemptsPerSuccess = 1 + (f / (1 − f)) · (1 + r)
+ *
+ * where f is the fraction of units of work that fail (clamped to
+ * [0, MAX_FAILURE_RATE]) and r is the mean number of *additional* retries a
+ * failed unit burned before it was given up on — `retriesPerFailure` as
+ * Control measures it (see `buildCalibration`). Each success is preceded on
+ * average by f / (1 − f) failures (geometric), and every one of those failures
+ * cost the failed attempt itself plus its r retries. With r = 0 this is the
+ * plain geometric 1 / (1 − f).
+ */
+export function attemptsPerSuccess(failureRate: number, retriesPerFailure = 0): number {
+  const f = Math.min(MAX_FAILURE_RATE, clamp01(Number.isFinite(failureRate) ? failureRate : 0));
+  const r = Math.max(0, Number.isFinite(retriesPerFailure) ? retriesPerFailure : 0);
+  return 1 + (f / (1 - f)) * (1 + r);
+}
+
 /** Cost per SUCCESSFUL outcome — retries and dead-end attempts included. */
 export function costPerSuccessfulOutcome(model: ModelEntry, s: OutcomeShape): number {
-  const fail = clamp01(s.failureRate ?? 0);
-  const retries = s.retriesPerFailure ?? 1;
-  const attempt = costPerAttempt(model, s);
-
-  // Expected attempts to land one success, plus the paid-for failures.
-  const successRate = Math.max(1e-6, 1 - fail);
-  const attemptsPerSuccess = 1 + fail * retries / successRate;
-  return attempt * attemptsPerSuccess;
+  return costPerAttempt(model, s) * attemptsPerSuccess(s.failureRate ?? 0, s.retriesPerFailure ?? 0);
 }
 
 export interface MonthlyCost {
