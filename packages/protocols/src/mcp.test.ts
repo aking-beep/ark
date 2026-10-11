@@ -103,3 +103,49 @@ describe('mcpEvidence', () => {
     assert.equal(mcpOperation('tools/call', 'github.search'), 'tools/call:github.search');
   });
 });
+
+describe('tasks methods shared by legacy core and the tasks extension', () => {
+  test('tasks/get and tasks/cancel are legacy unless the extension was on the request', () => {
+    for (const method of ['tasks/get', 'tasks/cancel']) {
+      assert.equal(mcpEvidence({ method }).protocolVersion, MCP_LEGACY_SPEC_VERSION, method);
+      assert.equal(mcpEvidence({ method, taskExtension: true }).protocolVersion, MCP_SPEC_VERSION, method);
+      assert.equal(
+        mcpEvidence({ method, extensions: ['io.modelcontextprotocol/tasks'] }).protocolVersion,
+        MCP_SPEC_VERSION,
+        method,
+      );
+      assert.equal(mcpEvidence({ method, extensions: ['io.example/other'] }).protocolVersion, MCP_LEGACY_SPEC_VERSION);
+    }
+  });
+
+  test('extension-only methods are current, legacy-only methods are legacy', () => {
+    assert.equal(mcpEvidence({ method: 'tasks/update' }).protocolVersion, MCP_SPEC_VERSION);
+    assert.equal(mcpEvidence({ method: 'tasks/list' }).protocolVersion, MCP_LEGACY_SPEC_VERSION);
+    assert.equal(mcpEvidence({ method: 'tasks/result', taskExtension: true }).protocolVersion, MCP_LEGACY_SPEC_VERSION);
+  });
+});
+
+describe('identifiers that carry personal data', () => {
+  test('a resource URI and a client name are redacted in place, not stored', () => {
+    const e = mcpEvidence({
+      method: 'resources/read',
+      name: 'file:///home/bob@example.com/ssn-123-45-6789.txt',
+      client: 'alice@corp.com',
+      server: 'srv',
+    });
+    const s = JSON.stringify(e);
+    assert.ok(!s.includes('bob@example.com'));
+    assert.ok(!s.includes('alice@corp.com'));
+    assert.ok(!s.includes('123-45-6789'));
+    assert.ok(e.operation.startsWith('resources/read:file:///home/[redacted:email]'));
+    assert.equal(e.actor, '[redacted:email]');
+    assert.equal(e.target, 'srv');
+    assert.equal(EvidenceInput.safeParse({ ...e, id: 'pe_1' }).success, true);
+  });
+
+  test('an email straddling the length cap is still caught', () => {
+    const e = mcpEvidence({ method: 'resources/read', name: `${'x'.repeat(180)} bob@example.com` });
+    assert.ok(!e.operation.includes('bob@'));
+    assert.ok(e.operation.length <= 200);
+  });
+});
