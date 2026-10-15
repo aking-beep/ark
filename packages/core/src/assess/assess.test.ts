@@ -155,3 +155,12 @@ describe('the AI path keeps its model, golden set and controls', () => {
     assert.equal(m.cost.perUnit.basis, 'calibrated');
   });
 });
+
+test('a tiny spend-per-dollar ratio stays non-zero', async () => {
+  const { valueModel } = await import('../economics/value.js');
+  const { estimate } = await import('../schema/provenance.js');
+  const { SUPPORT_TRIAGE } = await import('../fixtures.js');
+  const w = { ...SUPPORT_TRIAGE, current: { minutesPerUnit: 6, fullyLoadedHourlyUsd: 62 } };
+  const v = valueModel(w, estimate(0.000045, 'heuristic', 'test'), 10_000, 0.6);
+  assert.ok(v.spendPerDollarOfValue && v.spendPerDollarOfValue.value > 0);
+});

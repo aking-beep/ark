@@ -102,7 +102,7 @@ export default async function Protocols() {
         subtitle="One row per normalised observation. Nothing here is a payload — every field is a name, a reference, a count or an amount."
         right={<span className="font-mono">{fmt.int(evidence.length)} shown</span>}
       >
-        <Table head={['Protocol', 'Operation', 'Actor → Target', 'Outcome', 'Approval', 'Value', 'Time']}>
+        <Table head={['Protocol', 'Operation', 'Actor → Target', 'Outcome', 'Approval', 'Value', 'Time']} align={['left', 'left', 'left', 'right', 'right', 'right', 'right']}>
           {evidence.map((e) => (
             <EvidenceTr key={e.id} e={e} />
           ))}
@@ -122,10 +122,10 @@ function ProtocolCard({ protocol, rollup }: { protocol: keyof typeof PROTOCOL_LA
       <div className="rounded-xl border border-dashed border-ink-700 bg-ink-850/40 px-5 py-4">
         <div className="flex items-baseline justify-between gap-2">
           <span className="font-mono text-sm font-semibold text-ink-400">{label}</span>
-          <span className="text-2xs text-ink-600">silent</span>
+          <span className="text-2xs text-ink-500">silent</span>
         </div>
         <p className="mt-1.5 text-xs leading-relaxed text-ink-500">{description}</p>
-        <p className="mt-2.5 border-t border-ink-800 pt-2.5 font-mono text-2xs text-ink-600">
+        <p className="mt-2.5 border-t border-ink-800 pt-2.5 font-mono text-2xs text-ink-500">
           adapter built against spec {builtAgainst}
         </p>
       </div>
@@ -157,10 +157,17 @@ function ProtocolCard({ protocol, rollup }: { protocol: keyof typeof PROTOCOL_LA
         <Cell term="Pending" value={fmt.int(rollup.pending)} />
       </dl>
 
-      <p className="mt-2.5 border-t border-ink-800 pt-2.5 font-mono text-2xs text-ink-600">
+      <p className="mt-2.5 border-t border-ink-800 pt-2.5 font-mono text-2xs text-ink-500">
         {rollup.protocolVersion ? `observed ${rollup.protocolVersion}` : 'version not declared'} &middot; adapter{' '}
         {builtAgainst} &middot; last {fmt.when(rollup.lastSeen)}
       </p>
+      <div className="mt-2">
+        <BasisTag
+          basis="measured"
+          source="Counted from protocol evidence. Amounts are as the protocol reported them; ARK prices none of them."
+          sampleSize={rollup.events}
+        />
+      </div>
     </div>
   );
 }
@@ -192,28 +199,28 @@ function EvidenceTr({ e }: { e: EvidenceRow }) {
     <tr className="hover:bg-ink-800/40">
       <Td align="left">
         <span className="font-mono text-2xs text-ink-300">{label}</span>
-        <span className="ml-2 text-2xs text-ink-600">{e.kind}</span>
+        <span className="ml-2 text-2xs text-ink-500">{e.kind}</span>
       </Td>
       <Td align="left">
         <span className="font-mono text-xs text-ink-100">{e.operation}</span>
-        {e.evidenceRef && <span className="ml-2 font-mono text-2xs text-ink-600">{e.evidenceRef}</span>}
+        {e.evidenceRef && <span className="ml-2 font-mono text-2xs text-ink-500">{e.evidenceRef}</span>}
       </Td>
       <Td align="left">
         {e.actor || e.target ? (
           <span className="font-mono text-2xs text-ink-300">
-            {e.actor ?? '—'} <span className="text-ink-600">→</span> {e.target ?? '—'}
+            {e.actor ?? '—'} <span className="text-ink-500">→</span> {e.target ?? '—'}
           </span>
         ) : (
-          <span className="text-2xs text-ink-600">—</span>
+          <span className="text-2xs text-ink-500">—</span>
         )}
       </Td>
       <Td>
         <Badge tone={OUTCOME_TONE[e.outcome] ?? 'neutral'}>{e.outcome}</Badge>
-        {e.latencyMs != null && <span className="ml-2 font-mono text-2xs text-ink-600">{fmt.int(e.latencyMs)}ms</span>}
+        {e.latencyMs != null && <span className="ml-2 font-mono text-2xs text-ink-500">{fmt.int(e.latencyMs)}ms</span>}
       </Td>
       <Td>
         {!e.requiredApproval ? (
-          <span className="text-2xs text-ink-600">not required</span>
+          <span className="text-2xs text-ink-500">not required</span>
         ) : missing ? (
           <Badge tone="danger">missing</Badge>
         ) : e.approvedBy ? (
@@ -231,7 +238,7 @@ function EvidenceTr({ e }: { e: EvidenceRow }) {
             {e.currency}
           </span>
         ) : (
-          <span className="text-ink-600">—</span>
+          <span className="text-ink-500">—</span>
         )}
       </Td>
       <Td mono className="text-ink-500">

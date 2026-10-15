@@ -13,7 +13,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --experimental-strip-types --test src/tone.test.ts"
+    "test": "node --experimental-strip-types --test src/tone.test.ts src/format.test.ts"
   },
   "peerDependencies": { "react": "^18.3.1" },
   "devDependencies": {

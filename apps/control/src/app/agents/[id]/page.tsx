@@ -42,7 +42,7 @@ export default async function AgentDetail({ params }: { params: Promise<{ id: st
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <Link href="/agents" className="text-2xs text-ink-500 hover:text-ink-300">
+          <Link href="/agents" className="inline-flex min-h-10 items-center text-xs text-ink-400 hover:text-ink-200">
             ← Agents
           </Link>
           <h1 className="mt-1 text-xl font-semibold text-ink-100">{agent.name}</h1>
@@ -59,7 +59,7 @@ export default async function AgentDetail({ params }: { params: Promise<{ id: st
           </Badge>
           <form action={runAssuranceAction}>
             <input type="hidden" name="agentId" value={agent.id} />
-            <button type="submit" className="rounded-md bg-signal px-3 py-1.5 text-xs font-medium text-ink-950">
+            <button type="submit" className="min-h-10 rounded-md bg-signal px-4 text-xs font-medium text-ink-950">
               Run Assurance
             </button>
           </form>
@@ -71,7 +71,7 @@ export default async function AgentDetail({ params }: { params: Promise<{ id: st
       </Panel>
 
       <Grid cols={4}>
-        <Stat label="Owner" value={agent.owner ?? 'unknown'} hint="Unknown until someone records it." />
+        <Stat label="Owner" value={agent.owner ?? 'unknown'} hint={agent.owner ? 'Recorded at registration.' : 'Unknown until someone records it.'} />
         <Stat label="Models" value={fmt.int(m.models.length)} />
         <Stat label="Tools / MCP" value={`${fmt.int(m.tools.length)} / ${fmt.int(m.mcpServers.length)}`} />
         <Stat
@@ -285,6 +285,10 @@ export default async function AgentDetail({ params }: { params: Promise<{ id: st
             <code className="font-mono text-signal">ArkIngest.run()</code>.
           </p>
         ) : (
+          <>
+          <p className="mt-3 flex flex-wrap items-center gap-2 text-2xs text-ink-400">
+            Per-call cost: <Basis claim={dollarBasis(obs.traces, provenance)} />
+          </p>
           <Table head={['Time', 'Model', 'Status', 'Cost', 'Trace']} align={['left', 'left', 'left', 'right', 'right']}>
             {obs.recentCalls.map((e) => (
               <tr key={e.id}>
@@ -296,6 +300,7 @@ export default async function AgentDetail({ params }: { params: Promise<{ id: st
               </tr>
             ))}
           </Table>
+          </>
         )}
       </Section>
     </div>

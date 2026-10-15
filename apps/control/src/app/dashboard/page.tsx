@@ -159,7 +159,7 @@ export default async function Dashboard() {
                         <span className="ml-1 text-ink-500">n={q.sampleSize}</span>
                       </span>
                     ) : (
-                      <span className="text-ink-600">unsampled</span>
+                      <span className="text-ink-500">unsampled</span>
                     )}
                   </Td>
                 </tr>

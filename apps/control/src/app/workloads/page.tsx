@@ -83,7 +83,7 @@ export default async function Workloads() {
                       </div>
                     </>
                   ) : (
-                    <span className="text-ink-600">unsampled</span>
+                    <span className="text-ink-500">unsampled</span>
                   )}
                 </Td>
               </tr>

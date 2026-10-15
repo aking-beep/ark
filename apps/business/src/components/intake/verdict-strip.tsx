@@ -7,7 +7,7 @@ import type { ProvisionalVerdict } from '@/lib/intake-verdict';
  *
  * Neutral colours on purpose: this is a statement about the shape of the work,
  * not a figure, and it must not look like a result the later sections earned.
- * The only decided case offers the report straight away; "Continue anyway"
+ * The only decided case offers the report straight away; "Continue the full assessment"
  * shrinks the strip but never hides it, because the verdict does not change.
  */
 export function VerdictStrip({
@@ -58,7 +58,7 @@ export function VerdictStrip({
               onClick={onContinue}
               className="inline-flex min-h-10 items-center px-1 text-sm text-ink-300 transition hover:text-ink-100"
             >
-              Continue anyway
+              Continue the full assessment
             </button>
           )}
           {!canShortCircuit && (

@@ -20,7 +20,7 @@ export default async function Start() {
       </header>
 
       <Step n="1" title="Wrap the SDK you already have">
-        <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+        <div className="grid gap-4 lg:grid-cols-2 lg:items-start [&>*]:min-w-0">
           <p>
             <code className="font-mono text-signal">run()</code> is one unit of business work.{' '}
             <code className="font-mono text-signal">instrumentFetch</code> records each OpenAI{' '}
@@ -32,7 +32,7 @@ export default async function Start() {
         </div>
       </Step>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         <Step n="2" title="Or send one sample from AI Fit Teams">
           <p>
             A report on port 3001 can <code className="font-mono text-signal">POST /api/measure</code> — one
@@ -84,7 +84,7 @@ export default async function Start() {
 
 function Step({ n, title, children }: { n: string; title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-xl border border-ink-700 bg-ink-850 p-5 shadow-panel">
+    <section className="min-w-0 rounded-xl border border-ink-700 bg-ink-850 p-5 shadow-panel">
       <p className="font-mono text-2xs uppercase tracking-widest text-ink-500">Step {n}</p>
       <h2 className="mt-1 text-sm font-semibold text-ink-100">{title}</h2>
       <div className="mt-3 space-y-2 text-xs leading-relaxed text-ink-400">{children}</div>

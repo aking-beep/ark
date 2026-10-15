@@ -78,8 +78,8 @@ export default async function Optimize() {
       <Callout tone="warn" title="Read this before acting on any row">
         Model substitution is the easiest lever and the one most likely to quietly degrade output. Run the
         workload&apos;s eval set against the proposed model before switching, and keep sampling accuracy for two
-        weeks after. A substitution that saves {fmt.usd(headline, 0)}/mo and drops accuracy three points is
-        usually a loss, because the rework lands on a human.
+        weeks after. A substitution that saves {fmt.usd(headline, 0)}/mo — the calibrated total of the rows
+        below — and drops accuracy three points is usually a loss, because the rework lands on a human.
       </Callout>
 
       <Panel title="Substitution opportunities" subtitle="Ordered by monthly saving.">
@@ -102,7 +102,7 @@ export default async function Optimize() {
                       </Link>
                       <p className="mt-1 flex flex-wrap items-center gap-2 font-mono text-xs text-ink-400">
                         <span>{from?.displayName ?? o.fromModelId}</span>
-                        <span className="text-ink-600">→</span>
+                        <span className="text-ink-500">→</span>
                         <span className="text-signal">{to?.displayName ?? o.toModelId}</span>
                         {to?.tier && <Badge tone="neutral">{to.tier}</Badge>}
                       </p>
@@ -137,7 +137,7 @@ export default async function Optimize() {
         subtitle={`Last ${WINDOW_DAYS} days.`}
         right={spend.traces > 0 ? <Basis claim={dollars} /> : undefined}
       >
-        <Table head={['Category', 'Cost', 'Share of spend', 'Lever']}>
+        <Table head={['Category', 'Cost', 'Share of spend', 'Lever']} align={['left', 'right', 'right', 'left']}>
           <WasteRow label="Failed outcomes" usd={waste.failedUsd} total={spend.totalUsd} lever="Eval and prompt work, or a stronger model on the hard slice only." />
           <WasteRow label="Escalated to a human" usd={waste.escalatedUsd} total={spend.totalUsd} lever="Not always waste — escalation can be the correct design. Compare against the human-only baseline." />
           <WasteRow label="Abandoned" usd={waste.abandonedUsd} total={spend.totalUsd} lever="Usually timeouts or user drop-off. Check latency before touching cost." />

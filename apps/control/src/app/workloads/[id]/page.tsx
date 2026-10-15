@@ -242,7 +242,7 @@ function TraceStoryPanel({ story }: { story: TraceStory }) {
           >
             {e.actor || e.target ? (
               <span className="font-mono">
-                {e.actor ?? '—'} <span className="text-ink-600">→</span> {e.target ?? '—'}
+                {e.actor ?? '—'} <span className="text-ink-500">→</span> {e.target ?? '—'}
               </span>
             ) : null}
             {e.valueUsd != null && <> &middot; <span className="font-mono text-ink-200">{fmt.usd(e.valueUsd, 2)}</span></>}
@@ -259,7 +259,7 @@ function TraceStoryPanel({ story }: { story: TraceStory }) {
                 )}
               </>
             )}
-            {e.latencyMs != null && <span className="ml-2 font-mono text-ink-600">{fmt.int(e.latencyMs)}ms</span>}
+            {e.latencyMs != null && <span className="ml-2 font-mono text-ink-500">{fmt.int(e.latencyMs)}ms</span>}
           </StoryStep>
         ))}
 

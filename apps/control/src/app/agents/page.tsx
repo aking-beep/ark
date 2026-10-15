@@ -78,7 +78,7 @@ export default async function AgentsPage() {
                     </Link>
                     <p className="mt-0.5 font-mono text-2xs text-ink-500">{a.id}</p>
                   </Td>
-                  <Td align="left">{a.owner ?? <span className="text-ink-600">unknown</span>}</Td>
+                  <Td align="left">{a.owner ?? <span className="text-ink-500">unknown</span>}</Td>
                   <Td align="left">{a.environment}</Td>
                   <Td align="left">
                     <Badge tone={STATUS_TONE[a.status] ?? 'neutral'}>{a.status}</Badge>
@@ -91,11 +91,11 @@ export default async function AgentsPage() {
                     {ass ? (
                       <Badge tone={STATUS_TONE[ass.status] ?? 'neutral'}>{ass.status}</Badge>
                     ) : (
-                      <span className="text-ink-600">not run</span>
+                      <span className="text-ink-500">not run</span>
                     )}
                   </Td>
                   <Td mono>
-                    {obs && obs.calls > 0 ? `${fmt.int(obs.calls)} calls` : <span className="text-ink-600">none</span>}
+                    {obs && obs.calls > 0 ? `${fmt.int(obs.calls)} calls` : <span className="text-ink-500">none</span>}
                   </Td>
                 </tr>
               );
