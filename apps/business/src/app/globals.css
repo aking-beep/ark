@@ -9,6 +9,11 @@
   body {
     @apply bg-ink-950 text-ink-200 antialiased;
   }
+  /* One visible keyboard focus ring for every control. Nothing in this app
+     removes it; inputs also get a signal border on any focus. */
+  :focus-visible {
+    @apply outline outline-2 outline-offset-2 outline-signal;
+  }
   ::selection {
     @apply bg-signal/30 text-ink-100;
   }

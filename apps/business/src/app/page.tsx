@@ -4,7 +4,7 @@ const LOOP = [
   {
     n: '1',
     title: 'Assess',
-    body: 'Thirty questions about one repeating job. Verdict, architecture, model, controls, eval plan, cost, roadmap — every figure labelled.',
+    body: 'Eight short sections about one repeating job. A verdict after the first; after the last, architecture, model, controls, eval plan, cost and roadmap — every figure labelled.',
   },
   {
     n: '2',
@@ -38,10 +38,10 @@ export default function Landing() {
           Should your team build this, and what happens when it runs?
         </h1>
         <p className="mt-5 text-base leading-relaxed text-ink-300">
-          Describe one repeating job — not a strategy, a job. In about fifteen minutes you get a document
-          a planning meeting can argue with. It is built to be able to say no. Roughly a quarter of the
-          workloads people bring here should be a query and a scheduled job, and the report will say so
-          instead of proposing an agent.
+          Describe one repeating job — not a strategy, a job. You get a verdict after the first step, and
+          after eight short sections a planning document a meeting can argue with. It is built to be able to
+          say no. Roughly a quarter of the workloads people bring here should be a query and a scheduled job,
+          and the report will say so instead of proposing an agent.
         </p>
         <div className="mt-7 flex flex-wrap items-center gap-4">
           <Link
@@ -50,7 +50,7 @@ export default function Landing() {
           >
             Assess a workload
           </Link>
-          <Link href="/methodology" className="text-sm text-ink-400 transition hover:text-ink-200">
+          <Link href="/methodology" className="inline-flex min-h-10 items-center text-sm text-ink-300 transition hover:text-ink-100">
             How the scoring works &rarr;
           </Link>
         </div>
@@ -68,7 +68,7 @@ export default function Landing() {
         <ol className="mt-5 grid gap-4 md:grid-cols-3">
           {LOOP.map((step) => (
             <li key={step.n} className="rounded-xl border border-ink-800 bg-ink-850 p-5">
-              <p className="font-mono text-2xs uppercase tracking-widest text-ink-500">Step {step.n}</p>
+              <p className="font-mono text-2xs uppercase tracking-widest text-ink-400">Step {step.n}</p>
               <h3 className="mt-1 text-sm font-medium text-ink-100">{step.title}</h3>
               <p className="mt-2 text-xs leading-relaxed text-ink-400">{step.body}</p>
             </li>
