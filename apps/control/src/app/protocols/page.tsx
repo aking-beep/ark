@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { protocolSummary, recentEvidence, type ProtocolRollup, type EvidenceRow } from '@ark/db';
 import { PROTOCOL_LABELS, PROTOCOL_DESCRIPTIONS, PROTOCOL_SPEC_VERSIONS } from '@ark/protocols';
-import { Panel, Grid, Stat, Badge, Table, Td, Callout, fmt, type Tone } from '@ark/ui';
+import { Panel, Grid, Stat, Badge, BasisTag, Table, Td, Callout, fmt, type Tone } from '@ark/ui';
 import { requireOrg, WINDOW_DAYS } from '@/lib/org';
 
 export const dynamic = 'force-dynamic';
@@ -20,6 +20,10 @@ export default async function Protocols() {
   if (summary.total === 0) return <Empty />;
 
   const byProtocol = new Map(summary.byProtocol.map((p) => [p.protocol, p]));
+  // Everything on this page is counted from observations as they arrived,
+  // including the money: an amount is what the protocol carried, not a price
+  // ARK computed. So all four headlines are measured.
+  const observed = (source: string, n: number) => <BasisTag basis="measured" source={source} sampleSize={n} />;
 
   return (
     <div className="space-y-6">
@@ -44,18 +48,21 @@ export default async function Protocols() {
           label="Protocol events"
           value={fmt.int(summary.total)}
           hint={`${byProtocol.size === ORDER.length ? 'All six' : `${byProtocol.size} of six`} protocols active. Each observation is one thing an agent did over a protocol.`}
+          footer={observed('Protocol observations ingested in the window.', summary.total)}
         />
         <Stat
           label="Blocked or denied"
           value={fmt.int(summary.blockedOrDenied)}
           tone={summary.blockedOrDenied > 0 ? 'warn' : 'good'}
           hint="Operations a policy, a peer or a human refused. These are the control plane working, not failing."
+          footer={observed('Observations whose outcome was blocked or denied.', summary.total)}
         />
         <Stat
           label="Missing approvals"
           value={fmt.int(summary.missingApprovals)}
           tone={summary.missingApprovals > 0 ? 'danger' : 'good'}
           hint={`Of ${fmt.int(summary.approvalsRequired)} operations that required a human signature, this many completed without one.`}
+          footer={observed('Operations that required approval, as observed.', summary.approvalsRequired)}
         />
         <Stat
           label="Value acted on"
@@ -67,6 +74,7 @@ export default async function Protocols() {
               ? ` USD only — ${fmt.int(summary.nonUsdEvents)} ${summary.nonUsdEvents === 1 ? 'observation was' : 'observations were'} in another currency and ${summary.nonUsdEvents === 1 ? 'is' : 'are'} excluded rather than converted at a rate nobody chose.`
               : '')
           }
+          footer={observed('Amounts as the protocol reported them, USD only. ARK priced none of it.', summary.total)}
         />
       </Grid>
 

@@ -8,6 +8,9 @@ import {
 } from '@ark/db';
 import { Panel, Grid, Stat, Badge, Table, Td, Callout, fmt, type Tone } from '@ark/ui';
 import { requireOrg, WINDOW_DAYS } from '@/lib/org';
+import { dollarBasis, telemetryBasis } from '@/lib/basis';
+import { costProvenance } from '@/lib/queries';
+import { Basis } from '@/components/basis';
 import { runAssuranceAction } from '../../discover/actions';
 import { AgentGraph } from './graph';
 
@@ -27,9 +30,10 @@ export default async function AgentDetail({ params }: { params: Promise<{ id: st
   const { orgId } = await requireOrg();
   const agent = await getAgent(orgId, decodeURIComponent(id));
   if (!agent) notFound();
-  const [assurance, obs] = await Promise.all([
+  const [assurance, obs, provenance] = await Promise.all([
     latestAssuranceForAgent(orgId, agent.id),
     agentObservations(orgId, agent.id, WINDOW_DAYS),
+    costProvenance(orgId, WINDOW_DAYS),
   ]);
   const m = agent.manifest;
   const report = assurance?.report;
@@ -257,8 +261,17 @@ export default async function AgentDetail({ params }: { params: Promise<{ id: st
         <Grid cols={4}>
           <Stat label="Calls" value={fmt.int(obs.calls)} />
           <Stat label="Traces" value={fmt.int(obs.traces)} />
-          <Stat label="Spend" value={fmt.usd(obs.spendUsd, 2)} />
-          <Stat label="Errors" value={fmt.int(obs.errors)} tone={obs.errors ? 'warn' : 'good'} />
+          <Stat
+            label="Spend"
+            value={fmt.usd(obs.spendUsd, 2)}
+            footer={obs.traces > 0 ? <Basis claim={dollarBasis(obs.traces, provenance)} /> : undefined}
+          />
+          <Stat
+            label="Errors"
+            value={fmt.int(obs.errors)}
+            tone={obs.errors ? 'warn' : 'good'}
+            footer={obs.traces > 0 ? <Basis claim={telemetryBasis(obs.traces)} /> : undefined}
+          />
         </Grid>
         <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
           <KV k="Actions on those traces" v={fmt.int(obs.actions)} />

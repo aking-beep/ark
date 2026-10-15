@@ -20,5 +20,6 @@ export * from './agents/manifest.js';
 export * from './discovery/scan.js';
 export * from './discovery/github.js';
 export * from './discovery/materialize.js';
+export * from './discovery/sample-repository.js';
 export * from './assurance/index.js';
 export * from './governance/policy.js';
