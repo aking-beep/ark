@@ -56,7 +56,7 @@ A prior is promoted only above that floor. Below it, the number stays `heuristic
 
 ## The engine can say no
 
-`Verdict = 'not-ai'` is a real outcome, not a courtesy. A workload whose task shapes are only `calculate` and `lookup` gets routed to a query and a scheduled job, with the LLM alternative explicitly rejected and the reason written down. Roughly a quarter of what people bring to a tool like this should not go near a language model. An assessment tool that always finds a way to recommend AI is a lead-generation form.
+`Verdict = 'not-ai'` is a real outcome, not a courtesy. A workload whose task shapes are only `calculate` and `lookup` gets routed to a query and a scheduled job, with the LLM alternative explicitly rejected and the reason written down. An assessment tool that always finds a way to recommend AI is a lead-generation form.
 
 ## Quick start
 

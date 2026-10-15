@@ -27,7 +27,7 @@
     "dev:control": "npm run dev --workspace @ark/control",
     "build": "npm run build:packages && npm run build --workspace @ark/consumer && npm run build --workspace @ark/business && npm run build --workspace @ark/control",
     "typecheck": "npm run build:packages && npm run typecheck --workspaces --if-present && npm run typecheck:scripts",
-    "test": "npm run test --workspace @ark/core && npm run test --workspace @ark/protocols && npm run test --workspace @ark/db && npm run test --workspace @ark/sdk && npm run test --workspace @ark/providers && npm run test --workspace @ark/evals && npm run test --workspace @ark/runtime && npm run test:control && node --test deploy/runtime.test.mjs && npm run test --workspace @ark/consumer && node --experimental-strip-types --test apps/business/src/lib/measure.test.ts",
+    "test": "npm run test --workspace @ark/core && npm run test --workspace @ark/protocols && npm run test --workspace @ark/db && npm run test --workspace @ark/sdk && npm run test --workspace @ark/providers && npm run test --workspace @ark/evals && npm run test --workspace @ark/runtime && npm run test:control && node --test deploy/runtime.test.mjs && npm run test --workspace @ark/consumer && node --experimental-strip-types --test apps/business/src/lib/measure.test.ts apps/business/src/lib/intake-verdict.test.ts apps/business/src/lib/intake-state.test.ts",
     "smoke:runtime": "npm run smoke --workspace @ark/runtime",
     "test:my-ai": "cd my-ai && python3 -m pytest",
     "refresh:models": "node --experimental-strip-types scripts/refresh-models.ts",

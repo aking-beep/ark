@@ -40,8 +40,8 @@ export default function Landing() {
         <p className="mt-5 text-base leading-relaxed text-ink-300">
           Describe one repeating job — not a strategy, a job. You get a verdict after the first step, and
           after eight short sections a planning document a meeting can argue with. It is built to be able to
-          say no. Roughly a quarter of the workloads people bring here should be a query and a scheduled job,
-          and the report will say so instead of proposing an agent.
+          say no. When a workload should be a query and a scheduled job, the report says so instead of
+          proposing an agent.
         </p>
         <div className="mt-7 flex flex-wrap items-center gap-4">
           <Link
