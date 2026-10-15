@@ -7,7 +7,7 @@ This is the map. The thesis is [why](00-thesis.md). The architecture is [how it 
 **AI Fit**, **AI Fit Teams**, and **ARK Control** are three products. They share a thesis — a guess and a measurement never look the same on screen — and they do not share a homepage, a login, or a funnel.
 
 - **AI Fit** (`:3000`) is a personal fit quiz. Five minutes. You walk away with `CLAUDE.md`, Cursor rules, and `AGENTS.md`. It talks only to its own Python API.
-- **AI Fit Teams** (`:3001`) is a workload estimator. Thirty questions about one repeating job. It can say `not-ai`. It talks only to Control.
+- **AI Fit Teams** (`:3001`) is a workload estimator for one repeating job. It can say `not-ai`, and says it after the first section. It talks only to Control.
 - **ARK Control** (`:3002`) is production measurement. Traces, protocol evidence, spend per outcome, drift. It does not sit in the request path.
 
 A person who finishes the quiz is not invited to assess a workload. A team that finishes an assessment is not invited to take the quiz. Control does not deep-link either of them as a next step. That is a product decision, not an omission. See [`specs/three-product-runtime.md`](../specs/three-product-runtime.md).
@@ -38,7 +38,7 @@ The rest of this page is how they flow together **when they do talk** — which 
 | Name | Port | Job | Talks to |
 |---|---|---|---|
 | **AI Fit** | 3000 | Five minutes. A personal AI style and paste-ready `CLAUDE.md`, Cursor rules, `AGENTS.md`. | Only the Python AI Fit API on 8472. |
-| **AI Fit Teams** | 3001 | Thirty questions about one workload. Verdict, architecture, cost, controls. | Control, over HTTP, and only Control. |
+| **AI Fit Teams** | 3001 | One workload: a verdict after the first section, then architecture, cost and controls. | Control, over HTTP, and only Control. |
 | **ARK Control** | 3002 | Discover, register and assure agents; measure what production cost, did, and was allowed to do. | Ingest from anyone with a bearer. Calibration out to teams. GitHub API for Discover (server-side). |
 | **`@ark/runtime`** | — | Policy → router → provider → eval → ingest. | Imported. Not an app. |
 | **`@ark/protocols`** | — | MCP, A2A, AG-UI, A2UI, UCP, AP2 → one evidence grain. | Imported. Executes nothing. |
