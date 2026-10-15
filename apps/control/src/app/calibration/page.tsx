@@ -1,6 +1,9 @@
 import { calibration } from '@ark/db';
 import { Panel, Table, Td, Badge, BasisTag, Callout, fmt } from '@ark/ui';
 import { requireOrg, WINDOW_DAYS } from '@/lib/org';
+import { dollarBasis } from '@/lib/basis';
+import { costProvenance } from '@/lib/queries';
+import { Basis } from '@/components/basis';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,8 +11,13 @@ const MIN_SAMPLE = 30;
 
 export default async function Calibration() {
   const { orgId } = await requireOrg();
-  const set = await calibration(orgId, WINDOW_DAYS);
+  const [set, provenance] = await Promise.all([calibration(orgId, WINDOW_DAYS), costProvenance(orgId, WINDOW_DAYS)]);
   const usable = set.patterns.filter((p) => p.sampleSize >= MIN_SAMPLE);
+  const traces = set.patterns.reduce((s, p) => s + p.sampleSize, 0);
+  // The set's basis covers turns, failure, retries and cache — counted. The
+  // cost column is priced from those tokens, so it carries the dollar rule.
+  // Pooled priors are other orgs' events, whose cost provenance is not ours to read.
+  const dollars = dollarBasis(traces, set.basis === 'measured' ? provenance : { events: 0, reportedCostEvents: null });
 
   return (
     <div className="space-y-6">
@@ -41,7 +49,13 @@ export default async function Calibration() {
       <Panel
         title="Observed priors by architecture pattern"
         subtitle={`Window: ${set.windowDays} days · generated ${new Date(set.generatedAt).toLocaleString()}`}
-        right={<BasisTag basis={set.basis} source={`org ${set.orgId ?? orgId}`} />}
+        right={
+          <BasisTag
+            basis={set.basis}
+            source={set.basis === 'measured' ? "This org's own traces" : "Other organisations' traces, pooled"}
+            sampleSize={traces}
+          />
+        }
       >
         <Table head={['Pattern', 'Turns', 'p95 turns', 'Ctx growth', 'Failure', 'Retries', 'Cache', 'Cost/outcome', 'n']}>
           {set.patterns.map((p) => {
@@ -70,6 +84,10 @@ export default async function Calibration() {
             );
           })}
         </Table>
+        <p className="mt-3 flex flex-wrap items-center gap-2 text-xs leading-relaxed text-ink-400">
+          <span>Cost/outcome is priced, not invoiced:</span>
+          <Basis claim={dollars} />
+        </p>
         <p className="mt-3 text-2xs leading-relaxed text-ink-500">
           The p95 column exists so AI Fit Teams can show a range rather than a false point estimate. The gap between
           the mean and the p95 turn count is where agent budgets go to die.

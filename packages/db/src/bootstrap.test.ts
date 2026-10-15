@@ -81,3 +81,58 @@ describe('bootstrap', () => {
     );
   });
 });
+
+describe('bootstrap with the real seed', () => {
+  // The seed binds its own client (and queries.ts its lazy one) from
+  // ARK_DATABASE_URL at import, so point both at this file before bootstrap
+  // first imports seed.js. ~20s: it writes the full demo telemetry.
+  const file = path.join(dir, 'real-seed.db');
+  process.env.ARK_DATABASE_URL = `file:${file}`;
+  const client = createClient({ url: `file:${file}` });
+  const rows = async (sql: string) => (await client.execute(sql)).rows;
+  const count = async (sql: string) => Number((await rows(sql))[0]!.n);
+
+  test('a fresh database seeds, and Demo Co can walk Discover → Register → Assure', async () => {
+    assert.equal(await bootstrap({ client, env: {}, log: quiet }), 'seeded');
+
+    const runs = await rows(`SELECT repository, status, result FROM discovery_runs WHERE org_id='org_demo'`);
+    assert.equal(runs.length, 1, 'one completed discovery run');
+    assert.equal(runs[0]!.status, 'complete');
+    assert.equal(runs[0]!.repository, 'ark-sample://support-desk');
+    const result = JSON.parse(String(runs[0]!.result)) as { candidates: { id: string }[] };
+    assert.deepEqual(result.candidates.map((c) => c.id).sort(), ['refund-agent', 'support-agent']);
+
+    const agents = await rows(`SELECT id, owner, environment, source_repository FROM agents WHERE org_id='org_demo' ORDER BY id`);
+    assert.deepEqual(agents.map((a) => a.id), ['refund-agent', 'support-agent']);
+    for (const a of agents) {
+      assert.equal(a.environment, 'production');
+      assert.ok(a.owner, 'registered with an owner');
+      assert.equal(a.source_repository, 'ark-sample://support-desk');
+    }
+
+    const assurance = await rows(`SELECT agent_id FROM assurance_runs WHERE org_id='org_demo'`);
+    assert.deepEqual(assurance.map((r) => r.agent_id), ['support-agent']);
+
+    const { agentInfrastructureSummary } = await import('./agents.js');
+    const summary = await agentInfrastructureSummary('org_demo', client);
+    assert.equal(summary.registered, 2);
+    assert.equal(summary.observedInRuntime, 2, 'both registered agents have events carrying their id');
+    assert.ok(summary.recentCriticalFindings.length > 0, 'the stored assurance run has findings to show');
+  });
+
+  test('procurement-agent is observed but never registered — the shadow-agent case', async () => {
+    assert.ok(await count(`SELECT COUNT(*) n FROM protocol_evidence WHERE org_id='org_demo' AND actor='procurement-agent'`) > 0);
+    assert.equal(await count(`SELECT COUNT(*) n FROM agents WHERE org_id='org_demo' AND id='procurement-agent'`), 0);
+  });
+
+  test('Northwind stays empty of agents, runs and telemetry', async () => {
+    for (const t of ['agents', 'discovery_runs', 'assurance_runs', 'events', 'traces']) {
+      assert.equal(await count(`SELECT COUNT(*) n FROM ${t} WHERE org_id='org_northwind'`), 0, t);
+    }
+  });
+
+  test('a second boot never re-seeds', async () => {
+    assert.equal(await bootstrap({ client, env: {}, log: quiet }), 'already-seeded');
+    assert.equal(await count(`SELECT COUNT(*) n FROM discovery_runs`), 1);
+  });
+});

@@ -1,7 +1,10 @@
 import Link from 'next/link';
 import { listWorkloads, spendSummary, qualityByWorkload } from '@ark/db';
-import { Panel, Table, Td, Badge, fmt, type Tone } from '@ark/ui';
+import { Panel, Table, Td, Badge, BasisTag, fmt, type Tone } from '@ark/ui';
 import { requireOrg, WINDOW_DAYS } from '@/lib/org';
+import { dollarBasis } from '@/lib/basis';
+import { costProvenance } from '@/lib/queries';
+import { Basis } from '@/components/basis';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,10 +18,11 @@ const STATUS_TONE: Record<string, Tone> = {
 
 export default async function Workloads() {
   const { orgId } = await requireOrg();
-  const [workloads, spend, quality] = await Promise.all([
+  const [workloads, spend, quality, provenance] = await Promise.all([
     listWorkloads(orgId),
     spendSummary(orgId, WINDOW_DAYS),
     qualityByWorkload(orgId, WINDOW_DAYS),
+    costProvenance(orgId, WINDOW_DAYS),
   ]);
 
   const spendBy = new Map(spend.byWorkload.map((w) => [w.workloadId, w]));
@@ -33,7 +37,10 @@ export default async function Workloads() {
         </p>
       </header>
 
-      <Panel>
+      <Panel
+        title={`Last ${WINDOW_DAYS} days`}
+        subtitle="Each figure carries its own sample: a workload's dollars rest on its traces, its accuracy on its human-judged samples."
+      >
         <Table head={['Workload', 'Pattern', 'Status', 'Spend', 'Per outcome', 'Accuracy']}>
           {workloads.map((w) => {
             const s = spendBy.get(w.id);
@@ -55,8 +62,30 @@ export default async function Workloads() {
                   <Badge tone={STATUS_TONE[w.status] ?? 'neutral'}>{w.status}</Badge>
                 </Td>
                 <Td mono>{s ? fmt.usd(s.costUsd, 2) : '—'}</Td>
-                <Td mono className="text-ink-100">{s ? fmt.usd(s.costPerOutcome) : '—'}</Td>
-                <Td mono>{q ? fmt.pct(q.accuracy * 100, 1) : <span className="text-ink-600">unsampled</span>}</Td>
+                <Td mono className="text-ink-100">
+                  {s ? (
+                    <>
+                      {fmt.usd(s.costPerOutcome)}
+                      <div className="mt-1">
+                        <Basis claim={dollarBasis(s.traces, provenance)} />
+                      </div>
+                    </>
+                  ) : (
+                    '—'
+                  )}
+                </Td>
+                <Td mono>
+                  {q ? (
+                    <>
+                      {fmt.pct(q.accuracy * 100, 1)}
+                      <div className="mt-1">
+                        <BasisTag basis="measured" source={`${fmt.int(q.sampleSize)} human-judged samples`} sampleSize={q.sampleSize} />
+                      </div>
+                    </>
+                  ) : (
+                    <span className="text-ink-600">unsampled</span>
+                  )}
+                </Td>
               </tr>
             );
           })}

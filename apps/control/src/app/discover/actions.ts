@@ -8,6 +8,8 @@ import {
   materializeAgentManifests,
   runAssurance,
   AgentEnvironment,
+  sampleRepositorySnapshot,
+  isSampleRepository,
 } from '@ark/core';
 import {
   createDiscoveryRun,
@@ -68,6 +70,23 @@ export async function discoverRepo(formData: FormData) {
   redirect(`/discover?run=${encodeURIComponent(runId)}`);
 }
 
+/**
+ * The bundled sample repository through the same scanner a GitHub snapshot
+ * goes through. No network, no token, works on any org — so the walk from
+ * Discover to Assurance never dead-ends on GitHub being unreachable.
+ */
+export async function discoverSample() {
+  const { orgId } = await requireOrg();
+  const snap = sampleRepositorySnapshot();
+  const run = await createDiscoveryRun(orgId, {
+    repository: snap.repository,
+    branch: snap.branch,
+    status: 'complete',
+    result: discoverRepository(snap),
+  });
+  redirect(`/discover?run=${encodeURIComponent(run.id)}`);
+}
+
 export async function registerCandidate(formData: FormData) {
   const { orgId } = await requireOrg();
   const runId = String(formData.get('runId') ?? '');
@@ -80,7 +99,9 @@ export async function registerCandidate(formData: FormData) {
   const run = await getDiscoveryRun(orgId, runId);
   if (!run?.result) fail('run_not_found');
 
-  const candidates = materializeAgentManifests(run.result, { discoveryMethod: 'github' });
+  const candidates = materializeAgentManifests(run.result, {
+    discoveryMethod: isSampleRepository(run.repository) ? 'snapshot' : 'github',
+  });
   const hit = candidates.find((c) => c.manifest.id === candidateId);
   if (!hit) fail('candidate_not_found', runId);
 

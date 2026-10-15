@@ -1,6 +1,8 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { discoverRepository } from './scan.js';
+import { materializeAgentManifests } from './materialize.js';
+import { sampleRepositorySnapshot, isSampleRepository, SAMPLE_REPOSITORY_NAME } from './sample-repository.js';
 
 describe('discoverRepository', () => {
   test('finds LangGraph, OpenAI, tools and MCP with evidence paths', () => {
@@ -91,5 +93,46 @@ describe('discoverRepository', () => {
         files: Array.from({ length: 41 }, (_, i) => ({ path: `f${i}.ts`, content: 'x' })),
       }),
     );
+  });
+});
+
+describe('bundled sample repository', () => {
+  const result = discoverRepository(sampleRepositorySnapshot());
+
+  test('the real scanner finds exactly the two checked-in agents', () => {
+    assert.deepEqual(result.candidates.map((c) => c.id).sort(), ['refund-agent', 'support-agent']);
+    // The procurement agent in the seeded telemetry is not in the repository.
+    // That gap is the shadow-agent case, so the fixture must never grow one.
+    assert.equal(result.candidates.some((c) => c.id.includes('procurement')), false);
+  });
+
+  test('inventory matches the telemetry it stands behind', () => {
+    assert.ok(result.models.some((m) => m.provider === 'anthropic' && m.modelId === 'claude-sonnet-5'));
+    assert.ok(result.mcpServers.some((s) => s.name === 'crm-mcp' && s.transport === 'streamable-http'));
+    assert.ok(result.tools.some((t) => t.name === 'search_customer'));
+    assert.ok(result.tools.some((t) => t.name === 'issue_refund'));
+    assert.ok(result.integrations.some((i) => i.name === 'salesforce'));
+    for (const f of ['langgraph', 'mcp', 'a2a']) assert.ok(result.frameworks.includes(f), f);
+    assert.equal(result.repository, SAMPLE_REPOSITORY_NAME);
+    assert.ok(result.confidence > 0.5);
+  });
+
+  test('env names only, no warnings, and materialises without inventing an owner', () => {
+    assert.ok(result.envVarRefs.includes('ANTHROPIC_API_KEY'));
+    assert.equal(result.warnings.length, 0);
+    const candidates = materializeAgentManifests(result, { discoveryMethod: 'snapshot' });
+    assert.equal(candidates.length, 2);
+    for (const c of candidates) {
+      assert.equal(c.manifest.owner, undefined);
+      assert.equal(c.manifest.source?.discoveryMethod, 'snapshot');
+    }
+  });
+
+  test('each call returns a fresh snapshot', () => {
+    const a = sampleRepositorySnapshot();
+    a.files.length = 0;
+    assert.ok(sampleRepositorySnapshot().files.length > 0);
+    assert.equal(isSampleRepository(SAMPLE_REPOSITORY_NAME), true);
+    assert.equal(isSampleRepository('https://github.com/acme/support-desk'), false);
   });
 });

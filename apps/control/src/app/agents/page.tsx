@@ -7,6 +7,7 @@ import {
 } from '@ark/db';
 import { Panel, Table, Td, Badge, fmt, type Tone } from '@ark/ui';
 import { requireOrg, WINDOW_DAYS } from '@/lib/org';
+import { shadowAgents } from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,10 +25,11 @@ const STATUS_TONE: Record<string, Tone> = {
 
 export default async function AgentsPage() {
   const { orgId } = await requireOrg();
-  const [agents, assurance, summary] = await Promise.all([
+  const [agents, assurance, summary, shadows] = await Promise.all([
     listAgents(orgId),
     latestAssuranceByAgent(orgId),
     agentInfrastructureSummary(orgId),
+    shadowAgents(orgId, WINDOW_DAYS),
   ]);
 
   const observations = await Promise.all(
@@ -60,7 +62,7 @@ export default async function AgentsPage() {
         {agents.length === 0 ? (
           <p className="text-sm text-ink-400">
             No agents registered yet. {summary.registered === 0
-              ? 'Start from a GitHub repository on Discover.'
+              ? 'Start from a GitHub repository, or the bundled sample, on Discover.'
               : null}
           </p>
         ) : (
@@ -99,6 +101,38 @@ export default async function AgentsPage() {
               );
             })}
           </Table>
+        )}
+      </Panel>
+
+      <Panel
+        title="Observed, not registered"
+        subtitle={`Seen acting in the last ${WINDOW_DAYS} days — on a model call or as the actor on a protocol observation — with no manifest. A repository scan cannot find these; runtime can.`}
+      >
+        {shadows.length === 0 ? (
+          <p className="text-sm text-ink-400">
+            Every agent seen in runtime is registered.
+          </p>
+        ) : (
+          <Table head={['Agent id', 'Model calls', 'Protocol observations', 'Last seen']}>
+            {shadows.map((x) => (
+              <tr key={x.agentId}>
+                <Td align="left">
+                  <span className="font-mono text-ink-100">{x.agentId}</span>
+                  <Badge tone="warn" className="ml-2">unregistered</Badge>
+                </Td>
+                <Td mono>{fmt.int(x.calls)}</Td>
+                <Td mono>{fmt.int(x.protocolEvents)}</Td>
+                <Td mono>{fmt.when(x.lastSeen)}</Td>
+              </tr>
+            ))}
+          </Table>
+        )}
+        {shadows.length > 0 && (
+          <p className="mt-3 text-2xs leading-relaxed text-ink-400">
+            Nobody owns these, so nothing checks them. Find the repository and register it from{' '}
+            <Link href="/discover" className="text-signal underline underline-offset-2">Discover</Link>, or
+            find out who is running it.
+          </p>
         )}
       </Panel>
     </div>
