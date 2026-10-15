@@ -335,7 +335,7 @@ export function Table({
               <th
                 key={i}
                 className={cx(
-                  'whitespace-nowrap pb-2 text-2xs font-medium uppercase tracking-wider text-ink-400',
+                  'whitespace-nowrap px-3 pb-2 text-2xs font-medium uppercase tracking-wider text-ink-400 first:pl-0 last:pr-0',
                   (align?.[i] ?? (i === 0 ? 'left' : 'right')) === 'left' ? 'text-left' : 'text-right',
                 )}
               >
@@ -364,7 +364,8 @@ export function Td({
   return (
     <td
       className={cx(
-        'py-2.5 align-top text-ink-200',
+        // Horizontal padding so two left-aligned columns never run into each other.
+        'px-3 py-2.5 align-top text-ink-200 first:pl-0 last:pr-0',
         align === 'left' ? 'text-left' : 'text-right',
         mono && 'font-mono tabular-nums',
         className,

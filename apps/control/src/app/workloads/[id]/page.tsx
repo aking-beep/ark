@@ -156,7 +156,7 @@ export default async function WorkloadDetail({ params }: { params: Promise<{ id:
 
           <Panel title="Actions taken" subtitle="What the system was allowed to do in the real world.">
             {actions.length ? (
-              <Table head={['Action', 'System', 'Count', 'Unapproved']}>
+              <Table head={['Action', 'System', 'Count', 'Unapproved']} align={['left', 'left', 'right', 'right']}>
                 {actions.map((x) => (
                   <tr key={`${x.name}-${x.system}`}>
                     <Td align="left">
@@ -185,7 +185,7 @@ export default async function WorkloadDetail({ params }: { params: Promise<{ id:
           title="Security controls"
           subtitle="Each control names how Control verifies it at runtime. A control nobody can verify is a paragraph."
         >
-          <Table head={['ID', 'Requirement', 'Verified by', 'Blocking']}>
+          <Table head={['ID', 'Requirement', 'Verified by', 'Blocking']} align={['left', 'left', 'left', 'right']}>
             {a.security.controls.map((c: any) => (
               <tr key={c.id}>
                 <Td align="left"><span className="font-mono text-2xs text-ink-300">{c.id}</span></Td>

@@ -66,7 +66,7 @@ export default async function AgentsPage() {
               : null}
           </p>
         ) : (
-          <Table head={['Agent', 'Owner', 'Environment', 'Status', 'Risk', 'Models', 'Tools', 'MCP', 'Latest assurance', 'Observed']}>
+          <Table head={['Agent', 'Owner', 'Environment', 'Status', 'Risk', 'Models', 'Tools', 'MCP', 'Latest assurance', 'Observed']} align={['left', 'left', 'left', 'left', 'left', 'right', 'right', 'right', 'left', 'right']}>
             {agents.map((a) => {
               const ass = assurance.get(a.id);
               const obs = obsBy.get(a.id);

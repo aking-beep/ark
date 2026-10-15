@@ -260,7 +260,7 @@ function DiscoveryView({
       )}
 
       <Panel title="Evidence paths" subtitle="Every finding traces to a file. Nothing here is a payload.">
-        <Table head={['Path', 'Kind', 'Detail']}>
+        <Table head={['Path', 'Kind', 'Detail']} align={['left', 'left', 'left']}>
           {result.evidence.slice(0, 80).map((e, i) => (
             <tr key={`${e.path}-${e.kind}-${i}`}>
               <Td align="left" mono>{e.path}</Td>

@@ -52,7 +52,7 @@ export default async function AssurancePage() {
       </Grid>
 
       <Panel title="Agents" subtitle="Latest run per agent. Re-run from the agent page or here.">
-        <Table head={['Agent', 'Environment', 'Latest status', 'Pass', 'Warn', 'Fail', 'Unknown', '']}>
+        <Table head={['Agent', 'Environment', 'Latest status', 'Pass', 'Warn', 'Fail', 'Unknown', '']} align={['left', 'left', 'left', 'right', 'right', 'right', 'right', 'right']}>
           {agents.map((a) => {
             const r = latest.get(a.id);
             return (
@@ -97,10 +97,10 @@ export default async function AssurancePage() {
         {findings.length === 0 ? (
           <p className="text-sm text-ink-500">No findings yet.</p>
         ) : (
-          <Table head={['When', 'Agent', 'Severity', 'Finding']}>
+          <Table head={['When', 'Agent', 'Severity', 'Finding']} align={['left', 'left', 'left', 'left']}>
             {findings.slice(0, 40).map((f, i) => (
               <tr key={`${f.agentId}-${f.checkId}-${i}`}>
-                <Td mono>{fmt.when(f.createdAt)}</Td>
+                <Td mono align="left" className="whitespace-nowrap pr-4">{fmt.when(f.createdAt)}</Td>
                 <Td align="left">
                   <Link href={`/agents/${f.agentId}`} className="hover:text-signal">
                     {f.agentId}

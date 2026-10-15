@@ -104,7 +104,7 @@ export default async function Budgets() {
             />
           }
         >
-          <Table head={['Action', 'System', 'Blast radius', 'Executed', 'Unapproved', 'Value moved']}>
+          <Table head={['Action', 'System', 'Blast radius', 'Executed', 'Unapproved', 'Value moved']} align={['left', 'left', 'left', 'right', 'right', 'right']}>
             {unapproved.map((a) => (
               <tr key={`${a.name}-${a.system}`}>
                 <Td align="left" className="text-ink-100">{a.name}</Td>
@@ -124,7 +124,7 @@ export default async function Budgets() {
       )}
 
       <Panel title="Alert log" subtitle={`${alerts.length} most recent.`}>
-        <Table head={['When', 'Kind', 'Severity', 'Workload', 'Message']}>
+        <Table head={['When', 'Kind', 'Severity', 'Workload', 'Message']} align={['left', 'left', 'left', 'left', 'left']}>
           {alerts.map((a) => (
             <tr key={a.id}>
               <Td align="left"><span className="whitespace-nowrap font-mono text-2xs text-ink-500">{fmt.when(a.ts)}</span></Td>

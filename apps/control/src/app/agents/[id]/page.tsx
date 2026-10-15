@@ -103,7 +103,7 @@ export default async function AgentDetail({ params }: { params: Promise<{ id: st
         {m.models.length === 0 ? (
           <Unknown>No models recorded.</Unknown>
         ) : (
-          <Table head={['Provider', 'Model', 'Purpose']}>
+          <Table head={['Provider', 'Model', 'Purpose']} align={['left', 'left', 'left']}>
             {m.models.map((x) => (
               <tr key={`${x.provider}:${x.modelId}`}>
                 <Td align="left">{x.provider}</Td>
@@ -119,7 +119,7 @@ export default async function AgentDetail({ params }: { params: Promise<{ id: st
         {m.tools.length === 0 ? (
           <Unknown>No tools recorded.</Unknown>
         ) : (
-          <Table head={['Name', 'Type', 'Risk']}>
+          <Table head={['Name', 'Type', 'Risk']} align={['left', 'left', 'left']}>
             {m.tools.map((t) => (
               <tr key={t.name}>
                 <Td align="left">{t.name}</Td>
@@ -135,7 +135,7 @@ export default async function AgentDetail({ params }: { params: Promise<{ id: st
         {m.mcpServers.length === 0 ? (
           <Unknown>No MCP servers recorded.</Unknown>
         ) : (
-          <Table head={['Name', 'Transport', 'Source']}>
+          <Table head={['Name', 'Transport', 'Source']} align={['left', 'left', 'left']}>
             {m.mcpServers.map((s) => (
               <tr key={s.name}>
                 <Td align="left">{s.name}</Td>
@@ -151,7 +151,7 @@ export default async function AgentDetail({ params }: { params: Promise<{ id: st
         {m.integrations.length === 0 ? (
           <Unknown>No integrations recorded.</Unknown>
         ) : (
-          <Table head={['Name', 'Type', 'System', 'Direction']}>
+          <Table head={['Name', 'Type', 'System', 'Direction']} align={['left', 'left', 'left', 'left']}>
             {m.integrations.map((i) => (
               <tr key={i.name}>
                 <Td align="left">{i.name}</Td>
@@ -230,7 +230,7 @@ export default async function AgentDetail({ params }: { params: Promise<{ id: st
               {fmt.int(report.summary.pass)} pass · {fmt.int(report.summary.warn)} warn ·{' '}
               {fmt.int(report.summary.fail)} fail · {fmt.int(report.summary.unknown)} unknown. No numeric score.
             </p>
-            <Table head={['Check', 'Group', 'Status', 'Detail']}>
+            <Table head={['Check', 'Group', 'Status', 'Detail']} align={['left', 'left', 'left', 'left']}>
               {report.checks.map((c) => (
                 <tr key={c.id}>
                   <Td align="left">{c.title}</Td>
@@ -285,10 +285,10 @@ export default async function AgentDetail({ params }: { params: Promise<{ id: st
             <code className="font-mono text-signal">ArkIngest.run()</code>.
           </p>
         ) : (
-          <Table head={['Time', 'Model', 'Status', 'Cost', 'Trace']}>
+          <Table head={['Time', 'Model', 'Status', 'Cost', 'Trace']} align={['left', 'left', 'left', 'right', 'right']}>
             {obs.recentCalls.map((e) => (
               <tr key={e.id}>
-                <Td mono>{fmt.when(e.ts)}</Td>
+                <Td mono align="left" className="whitespace-nowrap">{fmt.when(e.ts)}</Td>
                 <Td align="left" mono>{e.modelId}</Td>
                 <Td align="left">{e.status}</Td>
                 <Td mono>{fmt.usd(e.costUsd, 4)}</Td>

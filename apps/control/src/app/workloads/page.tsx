@@ -41,7 +41,7 @@ export default async function Workloads() {
         title={`Last ${WINDOW_DAYS} days`}
         subtitle="Each figure carries its own sample: a workload's dollars rest on its traces, its accuracy on its human-judged samples."
       >
-        <Table head={['Workload', 'Pattern', 'Status', 'Spend', 'Per outcome', 'Accuracy']}>
+        <Table head={['Workload', 'Pattern', 'Status', 'Spend', 'Per outcome', 'Accuracy']} align={['left', 'left', 'left', 'right', 'right', 'right']}>
           {workloads.map((w) => {
             const s = spendBy.get(w.id);
             const q = qualityBy.get(w.id);
