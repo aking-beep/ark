@@ -170,7 +170,7 @@ describe('model catalog and routing', () => {
 
   test('on-prem residency eliminates hosted providers', () => {
     const r = assess({ ...CONTENT_DRAFTING, dataResidency: 'on_prem' });
-    assert.equal(r.model.primary.provider, 'local');
+    assert.equal(r.model?.primary.provider, 'local');
   });
 
   test('vision requirement filters to vision-capable models', () => {

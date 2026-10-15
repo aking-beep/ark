@@ -16,8 +16,10 @@ module.exports = {
           800: '#171b24',
           700: '#222836',
           600: '#333b4d',
-          500: '#4a5468',
-          400: '#6b7689',
+          // 500 and 400 carry small hint text, so both clear WCAG AA (4.5:1)
+          // on every dark surface down to ink-800. 500 was 2.6:1 before.
+          500: '#7a8599',
+          400: '#8791a4',
           300: '#96a0b2',
           200: '#c3cad6',
           100: '#e6eaf0',

@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
-import { Workload, assess, fetchCalibration } from '@ark/core';
-import { MAX_BODY_BYTES, readJsonBody } from '@/lib/request-guard';
+import { Workload, assess, fetchCalibration, ASSESS_API_LIMITS } from '@ark/core';
+import { readJsonBody } from '@/lib/request-guard';
 
 export const dynamic = 'force-dynamic';
 
 /** Batch cap. Each workload is a full assessment; a CI backlog fits in a few calls. */
-const MAX_WORKLOADS = 20;
+const MAX_WORKLOADS = ASSESS_API_LIMITS.maxWorkloads;
+/** Same number the methodology page documents. */
+const MAX_BODY_BYTES = ASSESS_API_LIMITS.maxBodyBytes;
 
 /**
  * Programmatic assessment.
@@ -17,7 +19,7 @@ const MAX_WORKLOADS = 20;
  * therefore can still log, what that verdict rests on.
  */
 export async function POST(req: Request) {
-  const read = await readJsonBody(req);
+  const read = await readJsonBody(req, MAX_BODY_BYTES);
   if (!read.ok) {
     return NextResponse.json({ error: read.error }, { status: read.status });
   }
@@ -55,7 +57,8 @@ export async function POST(req: Request) {
       headline: a.suitability.headline,
       blockers: a.suitability.blockers,
       pattern: a.architecture.pattern,
-      modelId: a.model.primary.id,
+      // Null when the verdict is not-ai: no model is recommended.
+      modelId: a.model?.primary.id ?? null,
       costPerUnit: a.cost.perUnit,
       costPerMonth: a.cost.perMonth,
       buildCost: a.buildCost,
@@ -74,8 +77,11 @@ export async function POST(req: Request) {
 export async function GET() {
   return NextResponse.json({
     endpoint: 'POST /api/assess',
-    accepts: `A Workload object, or an array of at most ${MAX_WORKLOADS}. Body at most ${MAX_BODY_BYTES} bytes.`,
+    accepts: `A Workload object, or an array of up to ${ASSESS_API_LIMITS.maxWorkloads}. Body at most ${ASSESS_API_LIMITS.maxBodyBytes / 1024} KB; larger is 413.`,
     returns: 'The full Assessment, including the provenance basis of every figure.',
+    notAi:
+      'When the verdict is not-ai, modelId and assessment.model are null, cost is zero with a deterministic source, and assessment.evaluation.kind is "deterministic" (no golden set).',
+    limits: ASSESS_API_LIMITS,
     note:
       'Calibration is fetched from ARK_CONTROL_URL when set. When it is not, the assessment still runs and every cost figure is labelled heuristic rather than silently downgraded. POST /api/measure sends one Runtime sample to Control for the same Workload.',
     calibrated: Boolean(process.env.ARK_CONTROL_URL),

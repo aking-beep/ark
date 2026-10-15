@@ -13,6 +13,9 @@ import {
 } from './measure.ts';
 import { MEASURE_CLIENT_TIMEOUT_MS, MEASURE_TIMEOUT_MS as CLIENT_COPY_MS } from './measure-timeout.ts';
 import { RateLimiter, clientIp, readJsonBody } from './request-guard.ts';
+import {
+  describeClientFailure, describeMeasureFailure, describeTelemetry, measureFailureKind,
+} from './measure-errors.ts';
 
 function fakeLocal(complete: ProviderAdapter['complete']): ProviderAdapter {
   return {
@@ -370,5 +373,61 @@ describe('readJsonBody', () => {
     const out = await readJsonBody(new Request('http://x/', { method: 'POST', body: '{nope' }));
     assert.equal(out.ok, false);
     if (!out.ok) assert.equal(out.status, 400);
+  });
+});
+
+describe('measure failures in plain language', () => {
+  const ADAPTER_DIALECT = /eligible adapter|after policy|PolicyError|runtime execution failed/i;
+
+  test('every API reason maps to a line and an operator step', () => {
+    const cases: [string, string][] = [
+      ['no_provider', 'no_provider'],
+      ['disabled', 'disabled'],
+      ['rate_limited', 'rate_limited'],
+      ['timeout', 'timeout'],
+      ['not-ai', 'not-ai'],
+      ['not_ai', 'not-ai'],
+      ['unsuitable', 'not-ai'],
+      ['execution_failed', 'execution_failed'],
+      ['something_new', 'unknown'],
+    ];
+    for (const [reason, kind] of cases) {
+      assert.equal(measureFailureKind(reason), kind, reason);
+      const m = describeMeasureFailure(reason);
+      assert.ok(m.line.length > 20 && m.recovery.length > 10, reason);
+      assert.doesNotMatch(`${m.line} ${m.recovery}`, ADAPTER_DIALECT);
+    }
+  });
+
+  test('no reason falls back to the HTTP status', () => {
+    assert.equal(measureFailureKind(undefined, 429), 'rate_limited');
+    assert.equal(measureFailureKind(undefined, 422), 'invalid_workload');
+    assert.equal(measureFailureKind(undefined, 504), 'timeout');
+    assert.equal(measureFailureKind(undefined, 500), 'unknown');
+  });
+
+  test('no_provider tells the operator which env to set', () => {
+    assert.match(describeMeasureFailure('no_provider').recovery, /ARK_OLLAMA_MODEL/);
+  });
+
+  test('client-side timeout and network failures are covered', () => {
+    assert.equal(describeClientFailure('timeout'), describeMeasureFailure('timeout'));
+    assert.match(describeClientFailure('network').line, /could not reach/);
+  });
+
+  test('telemetry failures are reported even when the sample ran', () => {
+    assert.equal(describeTelemetry({ attempted: true, ok: true }), null);
+    assert.match(describeTelemetry({ attempted: false, ok: false })!.recovery, /ARK_CONTROL_URL/);
+    assert.match(describeTelemetry(undefined)!.line, /not connected/);
+    assert.match(describeTelemetry({ attempted: true, ok: false })!.line, /did not accept/);
+  });
+
+  test('the real no-provider failure renders without adapter dialect', async () => {
+    const out = await measureWorkload(SUPPORT_TRIAGE, { adapters: [] });
+    assert.equal(out.ok, false);
+    if (!out.ok) {
+      const m = describeMeasureFailure(out.reason);
+      assert.doesNotMatch(`${m.line} ${m.recovery}`, ADAPTER_DIALECT);
+    }
   });
 });
