@@ -64,8 +64,7 @@ Requires Node ≥ 22.6 and Python ≥ 3.12.
 
 ```bash
 npm install
-pip install -e 'my-ai/[dev]'   # consumer AI Fit API (Python)
-npm run setup                # build ARK packages, push schema, seed Control
+npm run setup                # AI Fit API into my-ai/.venv, build ARK packages, push schema, seed Control
 npm run dev                  # AI Fit API + consumer + business + control
 ```
 
@@ -74,6 +73,8 @@ Then:
 - http://localhost:3000 — AI Fit (consumer)
 - http://localhost:3001 — AI Fit Teams
 - http://localhost:3002 — ARK Control (sign in; see demo accounts below)
+
+If AI Fit says it can't reach its scoring service, the Python API on port 8472 did not start: look for the `[my-ai-api]` lines in the `npm run dev` output, run `npm run setup:my-ai`, and start again. Setup installs into `my-ai/.venv` rather than the system Python, because Homebrew and recent Linux Pythons refuse system-wide installs ("externally-managed-environment").
 
 AI Fit (consumer) uses Next 16 nested under `apps/consumer`. Business and Control stay on Next 15 / React 18. After a consumer install, restart those two apps so they are not left on a stale `.next` from a previous `next dev`. `npm run dev:ark` starts only those two.
 

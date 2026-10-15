@@ -8,7 +8,7 @@
     "start": "next start --hostname 0.0.0.0 --port 3000",
     "typecheck": "next typegen && tsc --noEmit",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test src/lib/my-ai-proxy.test.ts src/lib/session-store.test.ts",
+    "test": "node --experimental-strip-types --test src/lib/my-ai-proxy.test.ts src/lib/session-store.test.ts src/lib/api-errors.test.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {
