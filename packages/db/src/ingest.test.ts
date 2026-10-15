@@ -160,3 +160,23 @@ describe('applyIngest', () => {
     assert.ok(!cols.rows.some((c) => String(c.name) === 'sample'));
   });
 });
+
+describe('cost source', () => {
+  test('records whether the caller reported the cost or ARK priced it', async () => {
+    await applyIngest('org_demo', IngestBody.parse({
+      events: [
+        { id: 'cs_rep', traceId: 'tr_cs', workloadId: 'wl_test', provider: 'anthropic', modelId: 'claude-haiku-4.5',
+          inputTokens: 100, outputTokens: 10, costUsd: 0.0004 },
+        { id: 'cs_cat', traceId: 'tr_cs', workloadId: 'wl_test', provider: 'anthropic', modelId: 'claude-haiku-4.5',
+          turn: 1, inputTokens: 100, outputTokens: 10 },
+        { id: 'cs_none', traceId: 'tr_cs', workloadId: 'wl_test', provider: 'anthropic', modelId: 'no-such-model',
+          turn: 2, inputTokens: 100, outputTokens: 10 },
+      ],
+    }), opts);
+    const r = await client.execute(`SELECT id, cost_source FROM events WHERE id LIKE 'cs_%' ORDER BY id`);
+    assert.deepEqual(
+      r.rows.map((x) => [String(x.id), String(x.cost_source)]),
+      [['cs_cat', 'catalog'], ['cs_none', 'unpriced'], ['cs_rep', 'reported']],
+    );
+  });
+});

@@ -112,7 +112,7 @@ export async function applyIngest(orgId: string, body: IngestBody, opts: ApplyIn
     }
 
     const ts = e.ts ?? now;
-    const { costUsd, priced: wasPriced } = priceEvent(e);
+    const { costUsd, priced: wasPriced, source: costSource } = priceEvent(e);
     const matches = sensitiveLabels(e);
     const offAllowlist = !opts.allowlist.includes(e.provider);
 
@@ -120,15 +120,15 @@ export async function applyIngest(orgId: string, body: IngestBody, opts: ApplyIn
       sql: `INSERT OR IGNORE INTO events
               (id, org_id, trace_id, workload_id, ts, provider, model_id, turn,
                input_tokens, output_tokens, cached_input_tokens, cost_usd, latency_ms,
-               status, error_kind, sensitive_matches, off_allowlist, user_id, application, agent_id)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+               status, error_kind, sensitive_matches, off_allowlist, user_id, application, agent_id, cost_source)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       args: [
         e.id, orgId, e.traceId, e.workloadId, ts, e.provider, e.modelId, e.turn,
         e.inputTokens, e.outputTokens, e.cachedInputTokens, costUsd, e.latencyMs,
         e.status, e.errorKind ?? null,
         matches.length ? JSON.stringify(matches) : null,
         offAllowlist ? 1 : 0,
-        e.userId ?? null, e.application ?? null, e.agentId ?? null,
+        e.userId ?? null, e.application ?? null, e.agentId ?? null, costSource,
       ],
     });
     if (!inserted(ins)) {

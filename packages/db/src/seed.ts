@@ -115,13 +115,13 @@ async function run() {
           await client.execute({
             sql: `INSERT INTO events (id,org_id,trace_id,workload_id,ts,provider,model_id,turn,
                   input_tokens,output_tokens,cached_input_tokens,cost_usd,latency_ms,status,error_kind,
-                  sensitive_matches,off_allowlist,user_id,application,agent_id)
-                  VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                  sensitive_matches,off_allowlist,user_id,application,agent_id,cost_source)
+                  VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
             args: [`ev_${++evSeq}`, ORG, traceId, def.w.id, startedAt + t * 1200,
                    model.provider, model.id, t, inputTokens, outputTokens, cached,
                    cost, Math.round(400 + rnd() * 2600), status, status === 'ok' ? null : 'upstream',
                    sensitive ? JSON.stringify(['email', 'order_id']) : null, off ? 1 : 0,
-                   `user_${1 + Math.floor(rnd() * 40)}`, def.w.name, agentId],
+                   `user_${1 + Math.floor(rnd() * 40)}`, def.w.name, agentId, 'catalog'],
           });
 
           if (off) {

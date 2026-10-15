@@ -38,6 +38,7 @@ export const DDL: string[] = [
   latency_ms INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'ok', error_kind TEXT,
   sensitive_matches TEXT, off_allowlist INTEGER NOT NULL DEFAULT 0,
   user_id TEXT, application TEXT, agent_id TEXT,
+  cost_source TEXT,
   PRIMARY KEY (org_id, id))`,
 `CREATE INDEX IF NOT EXISTS events_trace_idx ON events(org_id, trace_id)`,
 `CREATE INDEX IF NOT EXISTS events_ts_idx ON events(org_id, ts)`,
@@ -136,6 +137,9 @@ export const DDL: string[] = [
 export const MIGRATIONS: string[] = [
   `ALTER TABLE events ADD COLUMN agent_id TEXT`,
   `CREATE INDEX IF NOT EXISTS events_agent_idx ON events(org_id, agent_id)`,
+  // 'reported' | 'catalog' | 'unpriced'. NULL on rows ingested before it existed,
+  // which Control reads as "not shown to be reported".
+  `ALTER TABLE events ADD COLUMN cost_source TEXT`,
 ];
 
 /**

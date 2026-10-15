@@ -10,20 +10,19 @@ const n = (v: unknown) => Number(v ?? 0);
 const s = (v: unknown) => String(v ?? '');
 
 /**
- * How the dollars in the window were priced.
- *
- * `reportedCostEvents` is null because the events table has no cost-source
- * column: ingest's priceEvent() returns `priced: true` both for a cost the
- * caller sent and for one ARK computed from the catalog, and stores only the
- * number. Until ingest records which, no event can be shown to carry a
- * caller-reported cost, so every dollar figure stays `calibrated`.
+ * How the dollars in the window were priced. Ingest records `cost_source` per
+ * event: 'reported' when the caller sent what the provider charged, 'catalog'
+ * when ARK priced observed tokens at a list rate. Rows from before the column
+ * existed are NULL and count as not reported, so a figure is only `measured`
+ * when every event in the window is shown to carry a reported cost.
  */
 export async function costProvenance(orgId: string, days: number): Promise<CostProvenance> {
   const r = await raw().execute({
-    sql: `SELECT COUNT(*) n FROM events WHERE org_id=? AND ts>=?`,
+    sql: `SELECT COUNT(*) n, SUM(CASE WHEN cost_source='reported' THEN 1 ELSE 0 END) reported
+          FROM events WHERE org_id=? AND ts>=?`,
     args: [orgId, Date.now() - days * 864e5],
   });
-  return { events: n(r.rows[0]?.n), reportedCostEvents: null };
+  return { events: n(r.rows[0]?.n), reportedCostEvents: n(r.rows[0]?.reported) };
 }
 
 export interface DiscoveryRunRow {

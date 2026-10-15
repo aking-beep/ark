@@ -88,6 +88,8 @@ export const events = sqliteTable('events', {
   application: text('application'),
   /** Registered Agent Manifest id. Optional — events without it still ingest. */
   agentId: text('agent_id'),
+  /** Where cost_usd came from: 'reported' by the caller, 'catalog' list price, or 'unpriced'. */
+  costSource: text('cost_source'),
 }, (t) => ({
   pk: primaryKey({ columns: [t.orgId, t.id] }),
   byTrace: index('events_trace_idx').on(t.orgId, t.traceId),

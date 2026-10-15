@@ -142,17 +142,24 @@ export type IngestBody = z.infer<typeof IngestBody>;
  * model is unknown, which is itself a finding — you cannot govern spend on a
  * model you do not have a rate card for.
  */
-export function priceEvent(e: EventInput): { costUsd: number; priced: boolean } {
-  if (e.costUsd != null) return { costUsd: e.costUsd, priced: true };
+export type CostSource = 'reported' | 'catalog' | 'unpriced';
+
+/**
+ * `source` records where the dollars came from, because the two are not the
+ * same claim: a caller-reported cost is what the provider charged (`measured`),
+ * while a catalog price is observed tokens times a list rate (`calibrated`).
+ */
+export function priceEvent(e: EventInput): { costUsd: number; priced: boolean; source: CostSource } {
+  if (e.costUsd != null) return { costUsd: e.costUsd, priced: true, source: 'reported' };
   const model = byId(e.modelId);
-  if (!model) return { costUsd: 0, priced: false };
+  if (!model) return { costUsd: 0, priced: false, source: 'unpriced' };
   const total = e.inputTokens + e.cachedInputTokens;
   const cost = costOfCall(model, {
     inputTokens: total,
     outputTokens: e.outputTokens,
     cacheHitRate: total > 0 ? e.cachedInputTokens / total : 0,
   });
-  return { costUsd: cost, priced: true };
+  return { costUsd: cost, priced: true, source: 'catalog' };
 }
 
 /**
