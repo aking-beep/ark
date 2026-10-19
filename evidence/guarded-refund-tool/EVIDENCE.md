@@ -49,7 +49,7 @@ is the only line that changes.
 
 ## Before / after
 
-| | Before (`1507543`) | After (`2b8c55f`) |
+| | Before (`1507543`) | After (`ec786f1`, review round 1 fixes) |
 |---|---|---|
 | Artefact | `before.txt` | `after.txt`, `after-test.txt` |
 | $75 | executed | `executed`, allow, 1 call |
@@ -64,12 +64,24 @@ is the only line that changes.
 | Receipts | 0 | 8 |
 | Telemetry | — | 1 POST attempt to a transport that always fails. Flush rejected; no outcome changed |
 | `npm run demo:guard` | exit 1 `Missing script` | exit 0 |
-| Guard + receipt-store tests | — | 44 (`@ark/guard`) + 9 (`action-receipts.test.js`), 0 failures |
-| `npm test` (repo) | 633 (per the action-decision-kernel evidence) | exit 0. 686 tests, 0 failures across 13 suite runs |
+| Guard + receipt-store tests | — | 68 (`@ark/guard`: 44 + 24 in `guard-hardening.test.ts`) + 9 (`action-receipts.test.js`), 0 failures |
+| `npm test` (repo) | 633 (per the action-decision-kernel evidence) | exit 0. 710 tests, 0 failures across 13 suite runs |
 | `npm run typecheck` | — | exit 0 (includes `@ark/guard`) |
 | `npm run build` (packages + consumer, business, control) | — | exit 0 |
 
-`captures.tsv` has one `before` and one `after` row, both `dirty=0`.
+`captures.tsv` has one `before` row and two `after` rows, all `dirty=0`. Only
+the last `after` row (`ec786f1`) is current. The first (`2b8c55f`) predates the
+round-1 review and security fixes. Its `after.txt` was overwritten. Against
+`ec786f1`, every decision, decision id, digest, execution status and handler
+count is the same. Two things changed:
+
+- every `key_hash`, because the demo now derives the key from the order
+  (`refund:<orderId>`, security M2);
+- the receipt count line, which now reads the receipts back through
+  `ActionReceiptStore.get`.
+
+The `after.txt` header now takes its timestamp from `captures.tsv`, so the two
+share one clock read (a review note).
 
 **The tests can fail.** I ran two source mutations and reverted both:
 
@@ -77,6 +89,68 @@ is the only line that changes.
   were all four race tests (in-memory and libSQL with two connections, each
   with one clock tick and with distinct ticks) and both scenario tables.
 - Disabling the sender-approval strip failed 3 tests.
+- Round 1: mapping a replay back to telemetry `ok` failed 4 tests.
+- Round 1: dropping the neutralisation of a rejected sink promise failed the
+  async-sink test with an `unhandledRejection`.
+
+## Review round 1 and security review fixes (`ec786f1`)
+
+Each fix has a test in `packages/guard/src/guard-hardening.test.ts`.
+
+- **Blocking, criterion 4 / security L4: replay telemetry.**
+  - A replay is reported as `blocked`, with `replay: true`, the original's
+    status and the original's decision id in metadata. It is never `ok`.
+  - Only an executed call emits `ok`, so one refund replayed three times is one
+    completed observation.
+  - The replay of an `outcome_unknown`, `failed` or still-`attempted` call is
+    asserted to fall outside `COMPLETED_OUTCOMES`.
+- **M1: async telemetry sink.**
+  - The observation is built from the final result and handed to the sink with
+    `setImmediate`, inside its own `try`, after the result is returned.
+  - A returned thenable gets a no-op rejection handler. A `then` getter that
+    throws is caught.
+  - Tested with an async rejecting sink while an allowed call is in flight:
+    0 unhandled rejections, the handler completes, the receipt reads
+    `completed`.
+  - A 200 ms synchronous sink no longer delays the result.
+- **M2: caller-chosen keys.**
+  - The demo derives the key on the server side (`refund:${orderId}`), and the
+    README recommends this pattern.
+  - The README's Known limits now say that idempotency stops accidental retries
+    only and that per-call thresholds are not cumulative.
+  - A test documents the limit: three caller-chosen keys on one order execute
+    three times.
+  - **Follow-up, not built here:** cumulative / per-resource limits
+    (sum-per-resource, velocity) in the decision kernel, before real payments.
+- **L1: handler arguments.** Parsed arguments are `structuredClone`d to plain
+  data and frozen before `toRequest`, and the handler gets that same copy.
+  - An own getter is read exactly once, and the handler sees the decided
+    value.
+  - A class-instance prototype getter is never run.
+  - Arguments that cannot be cloned (a function) are `invalid_arguments`.
+  - The JSDoc and README say to act on `request`.
+- **L2: approval fields.**
+  - A recursive, bounded, getter-free scan flags any key that starts with
+    `approv` once lower-cased with non-alphanumerics stripped. That covers
+    `approved-by`, `approvalToken`, `approverId`, a zero-width-space suffix,
+    and nested or array placements.
+  - Top-level matches are removed before validation.
+  - Look-alikes (`approximateTotal`, `approach`) are not flagged.
+- **L3: malformed store answers.**
+  - Only `claimed === true` executes.
+  - `claimed: false` needs `existing` to be `null` or a well-formed receipt.
+  - Any other answer (`undefined`, `null`, `{}`, `'yes'`, `1`, a malformed
+    `existing`), a synchronous throw or a missing method resolves to `blocked`
+    `receipt_store_failed`. It never rejects.
+- **Non-blocking notes taken:**
+  - Store timeouts: every receipt-store call is bounded by `timeouts.storeMs`
+    (default 2 s), with tests. A hang before execution blocks. After execution,
+    the result carries the true outcome plus `receipt_update_failed`, and the
+    row stays `attempted`.
+  - A comment on `sameRequest` records its dependency on kernel normalization.
+  - PII warnings are on `TrustedContext.principal`, `GuardedAction.toRequest`
+    and the receipt type.
+  - `demo/run.ts` reads receipts through `ActionReceiptStore.get`.
 
 ## What this does not prove
 
@@ -95,10 +169,14 @@ is the only line that changes.
 - **Trusted context is assumed, not verified.** The guard believes whatever
   `resolveContext()` returns. It cannot detect a resolver that reads identity
   from the request.
-- **Sender-approval detection is top-level only.** Keys matching
-  `approved_?by|approver|approval|approvals|approved` (case-insensitive) are
-  removed. A nested `{ meta: { approvedBy } }` is not detected. It is still
-  never read for authorization, but it is not flagged either.
+- **Approval detection is a name heuristic.** It flags keys that start with
+  `approv` after normalisation, up to depth 8 and 2,000 keys. It does not catch
+  a field named something else (`signedOffBy`). Nothing in the guard ever reads
+  an approval from the arguments, so a miss only under-reports the flag.
+- **Idempotency is not a limit.** A caller-chosen key that changes is a new
+  action, and policy thresholds are per call. The demo's derived key allows one
+  refund per order, but nothing bounds refunds across orders. Cumulative limits
+  are a follow-up.
 - **Privacy is a property of the field list.** The test scans stored receipts
   for the raw key, an email, a card number, an API-key-shaped value and a
   prompt. It cannot stop a caller from using an email address as `resource_id`
@@ -110,8 +188,9 @@ is the only line that changes.
 - **Telemetry was not tested against a live Control.** It was exercised against
   a throwing sink, a recording sink, and an `@ark/sdk` `ArkIngest` whose
   transport always fails. No guard evidence was posted to a running Control.
-- **No security review yet.** The spec requires `agents/security-reviewer.md`
-  (focus: identity from arguments, replay, claim races). It has not run.
+- **Security review findings are fixed, not re-reviewed.** `SECURITY.md`
+  approved with notes (2 medium, 4 low). The fixes above have not yet been
+  re-reviewed by the security reviewer.
 - **Latency was measured on one machine.** The figures are in `latency.txt`.
   Load and contention were not tested.
 
@@ -196,8 +275,15 @@ is the only line that changes.
    - A decision is fresh only while `decision.now <= clock() < expiresAt`. It is
      checked before the claim and again after it. A clock that runs backwards
      counts as stale (`decision_expired`).
-   - Default timeouts: context 1 s, policy 1 s, handler 10 s. Each is
-     configurable.
+   - Default timeouts: context 1 s, policy 1 s, handler 10 s, receipt store
+     2 s. Each is configurable.
+   - A store that fails or times out after the handler ran: the security note
+     suggested recording `outcome_unknown` best-effort. I did not, because the
+     guard knows the true outcome then. The result reports it, with
+     `receipt_update_failed`, and the row keeps `attempted`, which the schema
+     already defines as "possibly executed". A second write could also race a
+     late-landing first write; `finish` moves a row out of `attempted` only
+     once, so whichever lands first would win.
    - Telemetry uses `TraceHandle.evidence` (protocol `mcp`, kind `tool`,
      `evidenceRef` = decision id), not `TraceHandle.action`. Control counts
      action rows as actions taken, which would be wrong for blocked attempts.
@@ -213,8 +299,8 @@ is the only line that changes.
   or one insert and one update (executed). Measured with
   `node evidence/guarded-refund-tool/latency.mjs`, n=500 each, on one machine
   (`latency.txt`):
-  - in-memory store: 0.26 ms per allow, 0.18 ms per deny;
-  - temp libSQL file: 4.9 ms per allow, 2.5 ms per deny.
+  - in-memory store: 0.30 ms per allow, 0.21 ms per deny;
+  - temp libSQL file: 3.9 ms per allow, 2.4 ms per deny.
   Cloud cost: none.
 - **Observability for new failure modes:** every failure mode has its own
   `reason_code` or `execution_status` on the receipt: policy source down or
