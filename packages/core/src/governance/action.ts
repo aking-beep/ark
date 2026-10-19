@@ -61,7 +61,8 @@ export type ActionAttributes = z.infer<typeof ActionAttributes>;
  * One protected action, built only from trusted server context. `orgId` and
  * `agentId` must already be verified by the caller. There is deliberately no
  * `role` or `permissions` field: anything not listed here is never read, so it
- * cannot reach the digest or the decision.
+ * cannot reach the digest or the decision. Note the schema itself is strict:
+ * `ActionRequest.parse` rejects extra keys, while `decideAction` ignores them.
  */
 export const ActionRequest = z
   .object({
@@ -168,7 +169,11 @@ export interface ActionDecision {
 }
 
 export interface DecideActionOptions {
-  /** When supplied, every governing policy must be at exactly this version. */
+  /**
+   * When supplied, every governing policy must be at exactly this version. Pass
+   * only the version in force: several versions of one policy id together are a
+   * `policy_conflict` even when pinned.
+   */
   expectedPolicyVersion?: number;
 }
 
@@ -219,28 +224,61 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
   return proto === Object.prototype || proto === null;
 }
 
-/** Own data property, or `undefined` if absent. An accessor property is unreadable. */
-function ownData(obj: object, key: string): unknown {
-  const d = Object.getOwnPropertyDescriptor(obj, key);
-  if (d === undefined) return undefined;
-  if (!('value' in d)) throw new Unreadable(key);
-  return d.value;
+/** Input bounds, enforced while copying and before any schema validation. */
+const MAX_KEYS = 64;
+const MAX_ARRAY = 64; // matches `ActionPolicy.rules.max(64)`
+const MAX_POLICIES = 256;
+const MAX_DEPTH = 8;
+const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+/**
+ * Every own property of `obj`, each descriptor read exactly once. Unreadable
+ * (throws) on: more than `maxKeys` keys, a symbol key, a `__proto__` /
+ * `constructor` / `prototype` key, an accessor, or a non-enumerable property
+ * (an array's own `length` excepted). Nothing that a later copy or schema would
+ * silently ignore or reinterpret survives this.
+ */
+function ownEntries(obj: object, maxKeys: number, isArray = false): Map<string, unknown> {
+  const keys = Reflect.ownKeys(obj);
+  if (keys.length > maxKeys) throw new Unreadable('too many keys');
+  const out = new Map<string, unknown>();
+  for (const k of keys) {
+    if (typeof k === 'symbol') throw new Unreadable('symbol key');
+    if (FORBIDDEN_KEYS.has(k)) throw new Unreadable(k);
+    const d = Object.getOwnPropertyDescriptor(obj, k);
+    if (d === undefined || !('value' in d)) throw new Unreadable(k);
+    if (!d.enumerable && !(isArray && k === 'length')) throw new Unreadable(k);
+    out.set(k, d.value);
+  }
+  return out;
 }
 
-/** Deep copy of plain JSON-shaped data (own data properties only); anything else is unreadable. */
-function plainCopy(v: unknown, depth = 0): unknown {
-  if (depth > 8) throw new Unreadable('too deep');
-  if (v === null || typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') return v;
-  if (Array.isArray(v)) {
-    if (Object.getPrototypeOf(v) !== Array.prototype) throw new Unreadable('array');
-    const len = ownData(v, 'length') as number;
-    const out: unknown[] = [];
-    for (let i = 0; i < len; i++) out.push(plainCopy(ownData(v, String(i)), depth + 1));
-    return out;
+/** Elements of a plain array of at most `maxLength`, read once, with no holes or extra keys. */
+function arrayElements(arr: unknown[], maxLength: number): unknown[] {
+  if (Object.getPrototypeOf(arr) !== Array.prototype) throw new Unreadable('array');
+  // Check the length before listing keys, so a huge array costs nothing.
+  const lengthDesc = Object.getOwnPropertyDescriptor(arr, 'length');
+  const declared: unknown = lengthDesc && 'value' in lengthDesc ? lengthDesc.value : undefined;
+  if (typeof declared !== 'number' || declared > maxLength) throw new Unreadable('array length');
+  const entries = ownEntries(arr, maxLength + 1, true);
+  if (entries.get('length') !== declared || entries.size !== declared + 1) throw new Unreadable('array shape');
+  const out: unknown[] = [];
+  for (let i = 0; i < declared; i++) {
+    if (!entries.has(String(i))) throw new Unreadable('array hole');
+    out.push(entries.get(String(i)));
   }
+  return out;
+}
+
+/** Bounded deep copy of plain JSON-shaped data; anything else is unreadable. */
+function plainCopy(v: unknown, depth = 0): unknown {
+  if (depth > MAX_DEPTH) throw new Unreadable('too deep');
+  if (v === null || typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') return v;
+  if (Array.isArray(v)) return arrayElements(v, MAX_ARRAY).map((e) => plainCopy(e, depth + 1));
   if (isPlainObject(v)) {
+    // Forbidden keys are rejected in ownEntries, so assigning into `{}` cannot hit the `__proto__` setter.
     const out: Record<string, unknown> = {};
-    for (const k of Object.keys(v)) out[k] = plainCopy(ownData(v, k), depth + 1);
+    for (const [k, value] of ownEntries(v, MAX_KEYS)) out[k] = plainCopy(value, depth + 1);
     return out;
   }
   throw new Unreadable(typeof v);
@@ -261,25 +299,29 @@ interface RequestSnapshot {
 }
 
 /**
- * Read only the fields `ActionRequest` defines. Unknown fields (`role`,
- * `permissions`, extra attributes) are never touched. Returns `null` when the
- * request is not a plain object; throws `Unreadable` on an accessor property.
+ * Snapshot the fields `ActionRequest` defines, each property read once. Other
+ * string-keyed fields (`role`, `permissions`, extra attributes) are listed but
+ * their values are never used. Returns `null` when the request is not a plain
+ * object; throws `Unreadable` per `ownEntries` (accessor, symbol or
+ * non-enumerable key, `__proto__`, too many keys).
  */
 function snapshotRequest(raw: unknown): RequestSnapshot | null {
   if (!isPlainObject(raw)) return null;
-  const res = ownData(raw, 'resource');
-  const attrs = ownData(raw, 'attributes');
-  const a = isPlainObject(attrs) ? attrs : undefined;
+  const r = ownEntries(raw, MAX_KEYS);
+  const res = r.get('resource');
+  const attrs = r.get('attributes');
+  const rs = isPlainObject(res) ? ownEntries(res, MAX_KEYS) : undefined;
+  const a = isPlainObject(attrs) ? ownEntries(attrs, MAX_KEYS) : undefined;
   return {
-    orgId: ownData(raw, 'orgId'),
-    agentId: ownData(raw, 'agentId'),
-    principal: ownData(raw, 'principal'),
-    tool: ownData(raw, 'tool'),
-    action: ownData(raw, 'action'),
-    resource: isPlainObject(res) ? { type: ownData(res, 'type'), id: ownData(res, 'id') } : undefined,
-    amountMinor: a ? ownData(a, 'amountMinor') : undefined,
-    currency: a ? ownData(a, 'currency') : undefined,
-    now: ownData(raw, 'now'),
+    orgId: r.get('orgId'),
+    agentId: r.get('agentId'),
+    principal: r.get('principal'),
+    tool: r.get('tool'),
+    action: r.get('action'),
+    resource: rs ? { type: rs.get('type'), id: rs.get('id') } : undefined,
+    amountMinor: a?.get('amountMinor'),
+    currency: a?.get('currency'),
+    now: r.get('now'),
   };
 }
 
@@ -432,7 +474,7 @@ function decide(
   let expected: unknown;
   if (options !== undefined) {
     if (!isPlainObject(options)) throw new Unreadable('options');
-    expected = ownData(options, 'expectedPolicyVersion');
+    expected = ownEntries(options, MAX_KEYS).get('expectedPolicyVersion');
   }
 
   // 1 (cont). Validate the request, most specific reasons first.
@@ -450,6 +492,7 @@ function decide(
   const currency = CurrencyCode.safeParse(s.currency);
   if (!currency.success) return reject('invalid_currency');
   const id = identity.data;
+  // `x === 0 ? 0 : x` turns -0 into 0, so -0 and 0 give one normalized request and one digest.
   const attrs: ActionAttributes = { amountMinor: amount.data === 0 ? 0 : amount.data, currency: currency.data };
   const normalized: ActionRequest = deepFreeze({
     orgId: id.orgId,
@@ -470,18 +513,15 @@ function decide(
   ) => makeResult(requestDigest, normalized, decision, code, reported, governing, expiresAt);
 
   // 2-3. Find the policies that claim this org/tool/action. Wrong-org policies never match.
-  if (!Array.isArray(policies) || Object.getPrototypeOf(policies) !== Array.prototype) {
+  let rawPolicies: unknown[];
+  try {
+    if (!Array.isArray(policies)) throw new Unreadable('policies');
+    rawPolicies = arrayElements(policies, MAX_POLICIES).map((p) => plainCopy(p));
+  } catch {
     return result('unknown', 'policy_invalid');
   }
   const claiming: Governing[] = [];
-  const count = ownData(policies, 'length') as number;
-  for (let i = 0; i < count; i++) {
-    let raw: unknown;
-    try {
-      raw = plainCopy(ownData(policies, String(i)));
-    } catch {
-      return result('unknown', 'policy_invalid');
-    }
+  for (const raw of rawPolicies) {
     const parsed = ActionPolicy.safeParse(raw);
     if (parsed.success) {
       if (claims(parsed.data, id)) claiming.push({ policy: parsed.data, digest: sha256(canonicalJson(parsed.data as Json)) });
@@ -523,6 +563,7 @@ function decide(
   if (outcomes.some((o) => o.effect !== effect)) return result('deny', 'policy_conflict', first, governing);
   if (effect === 'deny') return result('deny', outcomes[0]!.reasonCode, first, governing);
   // allow / require_approval: the shortest TTL among agreeing policies bounds expiry.
-  const ttl = Math.min(...governing.map((g) => g.policy.decisionTtlMs));
+  let ttl = Number.POSITIVE_INFINITY;
+  for (const g of governing) if (g.policy.decisionTtlMs < ttl) ttl = g.policy.decisionTtlMs;
   return result(effect, outcomes[0]!.reasonCode, first, governing, id.now + ttl);
 }

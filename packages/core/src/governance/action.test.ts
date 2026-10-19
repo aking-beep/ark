@@ -481,3 +481,111 @@ describe('decideAction — review round 1 / security fixes', () => {
     assert.equal(decide(req(7_500), [DEMO_REFUND_POLICY, structuredClone(DEMO_REFUND_POLICY)]).decision, 'allow');
   });
 });
+
+describe('decideAction — security re-review (round 2) fixes', () => {
+  const FIVE_K = 500_000;
+  const demoJson = JSON.stringify(DEMO_REFUND_POLICY);
+  /** JSON text with an extra leading member, parsed by JSON.parse (own `__proto__` key). */
+  const withLeading = (json: string, member: string) => JSON.parse(`{${member},${json.slice(1)}`);
+
+  test('R-L1: a __proto__ / constructor / prototype key in a policy is policy_invalid', () => {
+    const bad: unknown[] = [
+      withLeading(demoJson, '"__proto__":"x"'),
+      withLeading(demoJson, '"constructor":{}'),
+      withLeading(demoJson, '"prototype":{}'),
+    ];
+    const { decisionTtlMs: _t, ...noTtl } = structuredClone(DEMO_REFUND_POLICY);
+    bad.push(withLeading(JSON.stringify(noTtl), '"__proto__":{"decisionTtlMs":86400000}'));
+    const rule = JSON.parse('{"__proto__":{"unless":1},"when":{},"effect":"allow"}');
+    bad.push({ ...structuredClone(DEMO_REFUND_POLICY), rules: [rule] });
+    for (const p of bad) {
+      const d = decide(req(7_500), [p]);
+      assert.equal(d.decision, 'unknown');
+      assert.equal(d.reasonCode, 'policy_invalid');
+    }
+  });
+
+  test('R-L1: a __proto__ key anywhere in the request is unknown invalid_request', () => {
+    const base = JSON.stringify(req(7_500));
+    const { now: _n, ...noNow } = req(7_500);
+    const cases = [
+      withLeading(base, '"__proto__":{"role":"admin"}'),
+      withLeading(JSON.stringify(noNow), `"__proto__":{"now":${NOW}}`),
+      { ...req(7_500), attributes: JSON.parse('{"__proto__":{},"amountMinor":7500,"currency":"USD"}') },
+      { ...req(7_500), resource: JSON.parse('{"__proto__":{},"type":"order","id":"o"}') },
+    ];
+    for (const c of cases) {
+      const d = decide(c);
+      assert.equal(d.decision, 'unknown');
+      assert.equal(d.reasonCode, 'invalid_request');
+    }
+  });
+
+  test('R-L2: symbol-keyed or non-enumerable properties are rejected, not ignored', () => {
+    const hiddenRule = { when: {}, effect: 'allow' };
+    Object.defineProperty(hiddenRule, 'unless', { value: { amountMinor: { gt: 10_000 } }, enumerable: false });
+    const symbolRule = { when: {}, effect: 'allow', [Symbol('unless')]: { amountMinor: { gt: 10_000 } } };
+    for (const rule of [hiddenRule, symbolRule]) {
+      const d = decide(req(FIVE_K), [{ ...structuredClone(DEMO_REFUND_POLICY), rules: [rule] }]);
+      assert.equal(d.decision, 'unknown');
+      assert.equal(d.reasonCode, 'policy_invalid');
+    }
+    const hiddenReq = { ...req(7_500) };
+    Object.defineProperty(hiddenReq, 'role', { value: 'admin', enumerable: false });
+    for (const r of [hiddenReq, { ...req(7_500), [Symbol('role')]: 'admin' }]) {
+      assert.equal(decide(r).decision, 'unknown');
+      assert.equal(decide(r).reasonCode, 'invalid_request');
+    }
+    const extraArrayKey = Object.assign([structuredClone(DEMO_REFUND_POLICY.rules[0])], { x: 1 });
+    assert.equal(decide(req(7_500), [{ ...structuredClone(DEMO_REFUND_POLICY), rules: extraArrayKey }]).reasonCode, 'policy_invalid');
+    // eslint-disable-next-line no-sparse-arrays
+    const sparse = [structuredClone(DEMO_REFUND_POLICY.rules[0]), , structuredClone(DEMO_REFUND_POLICY.rules[2])];
+    assert.equal(decide(req(7_500), [{ ...structuredClone(DEMO_REFUND_POLICY), rules: sparse }]).reasonCode, 'policy_invalid');
+  });
+
+  test('R-L3: over-limit inputs fail closed fast, before validation, and never throw', () => {
+    const rule = structuredClone(DEMO_REFUND_POLICY.rules[0]);
+    const huge = { ...structuredClone(DEMO_REFUND_POLICY), rules: new Array(1_000_000).fill(rule) };
+    const t0 = performance.now();
+    const d = decide(req(7_500), [huge]);
+    assert.ok(performance.now() - t0 < 500, 'a 1e6-rule policy is rejected without copying it');
+    assert.equal(d.reasonCode, 'policy_invalid');
+    assert.equal(decide(req(7_500), [{ ...structuredClone(DEMO_REFUND_POLICY), rules: new Array(65).fill(rule) }]).reasonCode, 'policy_invalid');
+    assert.equal(decide(req(7_500), [{ ...structuredClone(DEMO_REFUND_POLICY), rules: new Array(64).fill(rule) }]).decision, 'allow');
+    assert.equal(decide(req(7_500), new Array(257).fill(DEMO_REFUND_POLICY)).reasonCode, 'policy_invalid');
+    assert.equal(decide(req(7_500), new Array(256).fill(DEMO_REFUND_POLICY)).decision, 'allow');
+    const wide: Record<string, unknown> = { ...structuredClone(DEMO_REFUND_POLICY) };
+    for (let i = 0; i < 64; i++) wide[`k${i}`] = 1;
+    assert.equal(decide(req(7_500), [wide]).reasonCode, 'policy_invalid');
+    const wideReq: Record<string, unknown> = { ...req(7_500) };
+    for (let i = 0; i < 64; i++) wideReq[`k${i}`] = 1;
+    assert.equal(decide(wideReq).decision, 'unknown');
+    let deep: unknown = { amountMinor: { lte: 1 } };
+    for (let i = 0; i < 100_000; i++) deep = { when: deep };
+    assert.equal(decide(req(7_500), [{ ...structuredClone(DEMO_REFUND_POLICY), rules: [deep] }]).reasonCode, 'policy_invalid');
+  });
+
+  test('R-L3: the shortest TTL is found without spreading into Math.min', () => {
+    const many = Array.from({ length: 200 }, (_, i) => policy({ id: `pol_${String(i).padStart(3, '0')}`, decisionTtlMs: 1_000 + i }));
+    const d = decide(req(7_500), many);
+    assert.equal(d.decision, 'allow');
+    assert.equal(d.expiresAt, NOW + 1_000);
+  });
+
+  test('M3: through a Proxy, each request property descriptor is read exactly once', () => {
+    const reads = new Map<string, number>();
+    const counted = <T extends object>(target: T): T =>
+      new Proxy(target, {
+        getOwnPropertyDescriptor(t, k) {
+          reads.set(String(k), (reads.get(String(k)) ?? 0) + 1);
+          return Reflect.getOwnPropertyDescriptor(t, k);
+        },
+      });
+    const r = req(7_500);
+    const d = decide(counted({ ...r, resource: counted({ ...r.resource }), attributes: counted({ ...r.attributes }) }));
+    assert.equal(d.decision, 'allow');
+    for (const k of ['orgId', 'agentId', 'principal', 'tool', 'action', 'resource', 'attributes', 'now', 'type', 'id', 'amountMinor', 'currency']) {
+      assert.equal(reads.get(k), 1, k);
+    }
+  });
+});
