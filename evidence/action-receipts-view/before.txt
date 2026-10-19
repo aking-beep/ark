@@ -1,0 +1,7 @@
+phase=before base=http://localhost:3002 captured=2026-10-19T08:14:37.745Z
+org=demo route=/actions viewport=1280x900 status=404 h1="404" navActions=false receiptRows=0 scrollWidth=1280 clientWidth=1280 hScroll=false file=before-actions-demo-1280.png
+org=demo route=/budgets viewport=1280x900 status=200 h1="Budgets & alerts" navActions=false receiptRows=0 scrollWidth=1280 clientWidth=1280 hScroll=false file=before-budgets-demo-1280.png
+org=demo route=/actions viewport=390x844 status=404 h1="404" navActions=false receiptRows=0 scrollWidth=390 clientWidth=390 hScroll=false file=before-actions-demo-390.png
+org=demo route=/budgets viewport=390x844 status=200 h1="Budgets & alerts" navActions=false receiptRows=0 scrollWidth=390 clientWidth=390 hScroll=false file=before-budgets-demo-390.png
+org=northwind route=/actions viewport=1280x900 status=404 h1="404" navActions=false receiptRows=0 scrollWidth=1280 clientWidth=1280 hScroll=false file=before-actions-northwind-1280.png
+org=northwind route=/actions viewport=390x844 status=404 h1="404" navActions=false receiptRows=0 scrollWidth=390 clientWidth=390 hScroll=false file=before-actions-northwind-390.png
