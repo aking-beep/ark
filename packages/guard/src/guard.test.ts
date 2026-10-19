@@ -10,19 +10,23 @@ import { ArkIngest } from '@ark/sdk';
 import { openActionReceiptStore } from '@ark/db';
 import { guardTool, toolFailed, type GuardedAction, type GuardResult } from './guard.js';
 import { MemoryReceiptStore } from './memory-store.js';
-import { DEMO_CONTEXT, RefundArgs, RefundLedger, guardedRefundTool, refundAction, type RefundToolOptions } from './demo/refund.js';
+import { DEMO_CONTEXT, RefundArgs, RefundLedger, callerChosenKey, guardedRefundTool, refundAction, type RefundToolOptions } from './demo/refund.js';
 import { DEMO_EPOCH_MS, tickingClock } from './demo/scenarios.js';
 
 const T0 = DEMO_EPOCH_MS;
 const fixedClock = (t = T0) => () => t;
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
+/** Telemetry is handed to the sink on a later turn of the event loop. */
+const telemetryTurn = () => new Promise((resolve) => setImmediate(resolve));
 
 const r75 = { orderId: 'ord_1', amountMinor: 7_500, currency: 'USD', idempotencyKey: 'key-75' };
 
 function setup(over: Partial<RefundToolOptions> = {}) {
   const ledger = new RefundLedger();
   const receipts = (over.receipts ?? new MemoryReceiptStore()) as MemoryReceiptStore;
-  const tool = guardedRefundTool({ ledger, receipts, clock: tickingClock(), ...over });
+  // These tests exercise the guard's key mechanics, so they use the key the
+  // caller sends. The demo default (derived from the order) is tested below.
+  const tool = guardedRefundTool({ ledger, receipts, clock: tickingClock(), idempotencyKey: callerChosenKey, ...over });
   return { ledger, receipts, tool };
 }
 
@@ -82,7 +86,7 @@ describe('validation and the clock', () => {
   test('the idempotency key is required', async () => {
     const { tool, ledger } = setup();
     const res = await tool({ ...r75, idempotencyKey: undefined });
-    assert.equal(res.reasonCode, 'invalid_arguments');
+    assert.equal(res.reasonCode, 'idempotency_key_missing');
     // A schema without the key, and a key function that returns nothing or throws.
     for (const key of [() => '', () => { throw new Error('x'); }, () => 42 as unknown as string]) {
       const l = new RefundLedger();
@@ -468,10 +472,12 @@ describe('telemetry is best-effort', () => {
     const seen: EvidenceObservation[] = [];
     const baseline = await runAll();
     const withSink = await runAll({ evidence: (o) => { seen.push(o); return undefined as never; } });
+    await telemetryTurn();
     assert.deepEqual(withSink, baseline);
     assert.equal(seen.length, inputs.length);
     assert.ok(seen.every((o) => o.approvedBy === null));
-    assert.deepEqual(seen.map((o) => o.outcome), ['ok', 'pending', 'blocked', 'ok']);
+    // The replay of the completed $75 is not a second completed refund.
+    assert.deepEqual(seen.map((o) => o.outcome), ['ok', 'pending', 'blocked', 'blocked']);
   });
 
   test('via @ark/sdk: a failing transport rejects flush and leaves outcomes untouched', async () => {
@@ -481,6 +487,7 @@ describe('telemetry is best-effort', () => {
     const baseline = await runAll();
     const withSdk = await runAll(trace);
     assert.deepEqual(withSdk, baseline);
+    await telemetryTurn();
     await assert.rejects(trace.flush(), /down/);
     assert.equal(posts, 1);
   });

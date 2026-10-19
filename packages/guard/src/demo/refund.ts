@@ -16,7 +16,12 @@ export const RefundArgs = z.object({
   orderId: z.string().min(1).max(64),
   amountMinor: z.number().int().positive().max(100_000_000),
   currency: z.string().regex(/^[A-Z]{3}$/),
-  idempotencyKey: z.string().min(1).max(256),
+  /**
+   * A caller-chosen key. The demo ignores it by default and derives the key
+   * from the order instead (`refundKeyFromOrder`); it is accepted only so that
+   * `callerChosenKey` can show what a caller-chosen key does and does not stop.
+   */
+  idempotencyKey: z.string().min(1).max(256).optional(),
   /** Free text from the agent. Never stored in a receipt. */
   note: z.string().max(500).optional(),
 });
@@ -69,6 +74,16 @@ export class RefundLedger {
     });
 }
 
+/**
+ * The recommended pattern: derive the key on the server side from the
+ * resource, so one order has at most one refund, however many keys the agent
+ * invents. A caller-chosen key only stops accidental retries of the same key.
+ */
+export const refundKeyFromOrder = (a: Readonly<RefundArgs>): string => `refund:${a.orderId}`;
+
+/** The key the caller sent. Shown only to document the limit: a new key is a new refund. */
+export const callerChosenKey = (a: Readonly<RefundArgs>): string | undefined => a.idempotencyKey;
+
 export const DEMO_CONTEXT: TrustedContext = { orgId: 'org_demo', agentId: 'agent_support_bot', principal: 'user_ops_1' };
 
 export interface RefundToolOptions {
@@ -80,7 +95,9 @@ export interface RefundToolOptions {
   policies?: readonly unknown[] | (() => readonly unknown[] | Promise<readonly unknown[]>);
   clock?: () => number;
   telemetry?: GuardTelemetry;
-  timeouts?: { contextMs?: number; policyMs?: number; handlerMs?: number };
+  timeouts?: { contextMs?: number; policyMs?: number; handlerMs?: number; storeMs?: number };
+  /** Defaults to `refundKeyFromOrder`. */
+  idempotencyKey?: (a: Readonly<RefundArgs>) => string | undefined;
 }
 
 /** `refund_order` wrapped with `guardTool`. */
@@ -92,7 +109,7 @@ export function guardedRefundTool(o: RefundToolOptions) {
     handler: o.ledger.handler,
     policies: o.policies ?? [DEMO_REFUND_POLICY],
     resolveContext: typeof ctx === 'function' ? ctx : () => ctx,
-    idempotency: { key: (a) => a.idempotencyKey },
+    idempotency: { key: o.idempotencyKey ?? refundKeyFromOrder },
     receipts: o.receipts,
     ...(o.clock ? { clock: o.clock } : {}),
     ...(o.telemetry ? { telemetry: o.telemetry } : {}),

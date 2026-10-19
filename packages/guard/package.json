@@ -9,7 +9,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsc -p tsconfig.json && node --test dist/guard.test.js dist/memory-store.test.js dist/demo/refund.test.js",
+    "test": "tsc -p tsconfig.json && node --test dist/guard.test.js dist/guard-hardening.test.js dist/memory-store.test.js dist/demo/refund.test.js",
     "demo": "tsc -p tsconfig.json && node dist/demo/run.js"
   },
   "dependencies": {

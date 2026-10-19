@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import {
   decideAction,
+  EXECUTION_STATUSES,
   type ActionAttributes,
   type ActionDecision,
   type ActionDecisionValue,
@@ -9,6 +10,7 @@ import {
   type ActionReceiptStore,
   type ActionRequest,
   type ActionResource,
+  type EvidenceObservation,
   type ExecutionStatus,
   type FinalExecutionStatus,
   type ReceiptReasonCode,
@@ -22,23 +24,30 @@ import type { TraceHandle } from '@ark/sdk';
  *
  * 1. identity comes from `resolveContext()` (trusted, server side); nothing in
  *    the arguments is read for identity;
- * 2. arguments are stripped of sender-reported approval fields, validated with
- *    the tool's zod schema, frozen, and mapped to an `ActionRequest`;
+ * 2. sender-reported approval fields are flagged (at any depth) and removed (at
+ *    the top level); the arguments are validated with the tool's zod schema,
+ *    deep-copied to plain data, frozen, and mapped to an `ActionRequest`;
  * 3. policies are loaded (a throw or a timeout fails closed);
  * 4. `decideAction` runs on the guard's clock;
  * 5. only an unexpired `allow` with a required idempotency key reaches the
- *    atomic claim, and only a won claim reaches the handler;
+ *    atomic claim, and only a claim the store confirms with `claimed === true`
+ *    reaches the handler;
  * 6. the execution status is recorded separately from the decision, and a
  *    handler that throws or times out is `outcome_unknown` and never retried.
  *
  * Every attempt with a trusted org leaves a receipt (see `ActionReceipt`).
- * Telemetry is best-effort and is emitted after the outcome is final.
+ * Every store call has a timeout; one that fails or times out before the
+ * handler blocks the call. Telemetry is best-effort and is emitted after the
+ * outcome is final, on a later turn of the event loop.
  */
 
 export interface TrustedContext {
   orgId: string;
   agentId: string;
-  /** Authenticated delegating user id, when the agent acts for a person. */
+  /**
+   * Authenticated delegating user id, when the agent acts for a person. Stored
+   * in the receipt as given: use an opaque id, never an email address or a name.
+   */
   principal?: string;
   /** Correlates the receipt with an ARK trace. */
   traceId?: string;
@@ -48,12 +57,17 @@ export interface TrustedContext {
 export interface GuardedAction<A> {
   /** Kernel action name, e.g. `refund`. Policies are matched on `tool` + `name`. */
   name: string;
-  /** Validates and normalizes the arguments. Parsed output is frozen before use. */
+  /**
+   * Validates and normalizes the arguments. The parsed output is deep-copied to
+   * plain data (`structuredClone`) and frozen before `toRequest` and the handler
+   * see it; output that cannot be cloned (functions, symbols) is invalid.
+   */
   args: z.ZodType<A, z.ZodTypeDef, unknown>;
   /**
    * The resource and attributes the decision is made on. Pure: everything the
    * handler acts on that the policy should judge must be mapped here, because
-   * only these fields are bound by the request digest.
+   * only these fields are bound by the request digest. `resource.id` is stored
+   * in the receipt as given: map an opaque id (an order id), never PII.
    */
   toRequest(args: Readonly<A>): { resource: ActionResource; attributes: ActionAttributes };
 }
@@ -61,9 +75,12 @@ export interface GuardedAction<A> {
 export type PolicySource = () => readonly unknown[] | Promise<readonly unknown[]>;
 
 export interface HandlerInput<A> {
-  /** The validated, frozen arguments. */
+  /**
+   * The validated arguments: the same frozen plain-data copy `toRequest` read.
+   * Advisory. Act on `request`; never read an approval from `args`.
+   */
   args: Readonly<A>;
-  /** The exact request the decision was made on (`decision.normalizedRequest`). */
+  /** The exact request the decision was made on (`decision.normalizedRequest`). Act on this. */
   request: Readonly<ActionRequest>;
   decisionId: string;
   /** Aborted when the guard's handler timeout fires. */
@@ -95,14 +112,18 @@ export interface GuardToolOptions<A, R> {
   policies: readonly unknown[] | PolicySource;
   /** Trusted identity from the server side: the authenticated session, never the arguments. */
   resolveContext: () => TrustedContext | Promise<TrustedContext>;
-  /** Required. The key the caller supplied for this side effect, from the validated arguments. */
-  idempotency: { key: (args: Readonly<A>) => string };
+  /**
+   * Required: a call whose key is missing is blocked. Prefer a key derived from
+   * the resource on the server side (`refund:${orderId}`) over one the caller
+   * chooses: a caller that mints a new key is a new action (see README).
+   */
+  idempotency: { key: (args: Readonly<A>) => string | undefined };
   receipts: ActionReceiptStore;
   /** The guard's clock. Defaults to `Date.now`. `now` never comes from the request. */
   clock?: () => number;
   /** Pin the policy version in force; any other version is `unknown`. */
   expectedPolicyVersion?: number;
-  timeouts?: { contextMs?: number; policyMs?: number; handlerMs?: number };
+  timeouts?: { contextMs?: number; policyMs?: number; handlerMs?: number; storeMs?: number };
   /** Best-effort. A failure here never changes a decision or an execution. */
   telemetry?: GuardTelemetry;
 }
@@ -110,7 +131,7 @@ export interface GuardToolOptions<A, R> {
 export type GuardOutcome = 'executed' | 'execution_failed' | 'blocked' | 'pending_approval' | 'replayed';
 
 export type GuardNote =
-  /** An `approvedBy`/`approval` field was in the arguments. It was removed and ignored. */
+  /** An approval-like field was in the arguments. It was ignored (and removed if top-level). */
   | 'sender_reported_approval_ignored'
   /** The receipt could not be written. The outcome stands; the call was not executed unless it says so. */
   | 'receipt_write_failed'
@@ -144,7 +165,7 @@ export type GuardResult<R> =
 
 export type GuardedHandler<R> = (rawArgs: unknown) => Promise<GuardResult<R>>;
 
-const DEFAULT_TIMEOUTS = { contextMs: 1_000, policyMs: 1_000, handlerMs: 10_000 };
+const DEFAULT_TIMEOUTS = { contextMs: 1_000, policyMs: 1_000, handlerMs: 10_000, storeMs: 2_000 };
 
 const Id = z.string().min(1).max(128);
 const ContextSchema = z.object({
@@ -155,11 +176,69 @@ const ContextSchema = z.object({
 });
 const IdempotencyKey = z.string().min(1).max(256);
 
+// ---------------------------------------------------------------------------
+// Sender-reported approval.
+
 /**
- * Top-level argument keys that claim an approval. The sender cannot approve its
- * own action: these are removed before validation and only recorded as present.
+ * A key claims an approval when, lower-cased with every non-alphanumeric
+ * removed, it starts with `approv`: `approvedBy`, `approved_by`, `approved-by`,
+ * `APPROVAL`, `approvalToken`, `approverId`, `approvedBy` with a zero-width
+ * space. The sender cannot approve its own action.
  */
-const SENDER_APPROVAL_KEY = /^(approved_?by|approver|approval|approvals|approved)$/i;
+function isApprovalKey(key: string): boolean {
+  return /^approv/.test(key.toLowerCase().replace(/[^a-z0-9]/g, ''));
+}
+
+const APPROVAL_SCAN_MAX_DEPTH = 8;
+const APPROVAL_SCAN_MAX_KEYS = 2_000;
+
+/**
+ * Is there an approval-like key anywhere in `v`? Reads own data properties
+ * only (never invokes a getter), bounded in depth and in keys visited. A value
+ * that cannot be inspected (a Proxy whose trap throws) counts as no flag; it is
+ * still never read for authorization.
+ */
+function containsApprovalKey(v: unknown): boolean {
+  let visited = 0;
+  const walk = (x: unknown, depth: number): boolean => {
+    if (typeof x !== 'object' || x === null || depth > APPROVAL_SCAN_MAX_DEPTH) return false;
+    for (const k of Reflect.ownKeys(x)) {
+      if (++visited > APPROVAL_SCAN_MAX_KEYS) return false;
+      if (typeof k !== 'string') continue;
+      if (isApprovalKey(k)) return true;
+      const d = Object.getOwnPropertyDescriptor(x, k);
+      if (d && 'value' in d && walk(d.value, depth + 1)) return true;
+    }
+    return false;
+  };
+  try {
+    return walk(v, 0);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Flag approval-like keys at any depth, and remove the top-level ones so a
+ * strict schema turns a forged approval into "ignored" rather than "invalid".
+ * Nested ones are left for the schema (usually stripped); they are never read
+ * for authorization either way.
+ */
+function stripSenderApproval(raw: unknown): { args: unknown; senderApproval: boolean } {
+  const senderApproval = containsApprovalKey(raw);
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return { args: raw, senderApproval };
+  const proto = Object.getPrototypeOf(raw);
+  if (proto !== Object.prototype && proto !== null) return { args: raw, senderApproval };
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (isApprovalKey(k)) continue;
+    Object.defineProperty(out, k, { value: v, enumerable: true, writable: true, configurable: true });
+  }
+  return { args: out, senderApproval };
+}
+
+// ---------------------------------------------------------------------------
+// Helpers.
 
 class Timeout extends Error {}
 
@@ -190,21 +269,20 @@ function sha256Hex(s: string): string {
   return createHash('sha256').update(s, 'utf8').digest('hex');
 }
 
-/** Copy the own enumerable keys of a plain-object argument bag, minus approval claims. */
-function stripSenderApproval(raw: unknown): { args: unknown; senderApproval: boolean } {
-  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return { args: raw, senderApproval: false };
-  const proto = Object.getPrototypeOf(raw);
-  if (proto !== Object.prototype && proto !== null) return { args: raw, senderApproval: false };
-  const out: Record<string, unknown> = {};
-  let senderApproval = false;
-  for (const [k, v] of Object.entries(raw)) {
-    if (SENDER_APPROVAL_KEY.test(k)) {
-      senderApproval = true;
-      continue;
-    }
-    Object.defineProperty(out, k, { value: v, enumerable: true, writable: true, configurable: true });
-  }
-  return { args: out, senderApproval };
+const STATUSES: ReadonlySet<string> = new Set(EXECUTION_STATUSES);
+
+/** Enough of a receipt to compare against and report. Anything else from a store is malformed. */
+function isReceipt(v: unknown): v is ActionReceipt {
+  if (typeof v !== 'object' || v === null) return false;
+  const r = v as Record<string, unknown>;
+  return (
+    typeof r.orgId === 'string' &&
+    typeof r.id === 'string' &&
+    typeof r.requestDigest === 'string' &&
+    Number.isSafeInteger(r.createdAt) &&
+    typeof r.executionStatus === 'string' &&
+    STATUSES.has(r.executionStatus)
+  );
 }
 
 /**
@@ -213,9 +291,36 @@ function stripSenderApproval(raw: unknown): { args: unknown; senderApproval: boo
  * request's fields at the claim's own `now` (`createdAt`, which the guard sets
  * to the decision time). Same org, agent, principal, tool, action, resource and
  * attributes give the same digest; anything else does not.
+ *
+ * This depends on two kernel properties: `requestDigest` does not depend on
+ * the policy list (so `[]` is fine here), and the kernel's normalization of a
+ * request is stable across versions. If a future kernel changes how it
+ * normalizes or digests a request, replays of claims stored before the change
+ * become `idempotency_conflict` — which blocks, so it fails closed, but a kernel
+ * author changing the digest should know that this is the cost.
  */
 function sameRequest(claim: ActionReceipt, request: Readonly<ActionRequest>): boolean {
   return decideAction({ ...request, now: claim.createdAt }, []).requestDigest === claim.requestDigest;
+}
+
+/**
+ * The evidence outcome for telemetry. Only an attempt whose handler completed
+ * is `ok` (a member of `COMPLETED_OUTCOMES`). A replay executed nothing, so it
+ * is `blocked` whatever the first attempt's status — it must neither read as a
+ * second completed refund nor turn an `outcome_unknown` into a success.
+ */
+function evidenceOutcome(result: GuardResultBase): EvidenceObservation['outcome'] {
+  switch (result.outcome) {
+    case 'executed':
+      return 'ok';
+    case 'pending_approval':
+      return 'pending';
+    case 'execution_failed':
+      return 'error';
+    case 'replayed':
+    case 'blocked':
+      return 'blocked';
+  }
 }
 
 export function guardTool<A, R>(opts: GuardToolOptions<A, R>): GuardedHandler<R> {
@@ -224,22 +329,26 @@ export function guardTool<A, R>(opts: GuardToolOptions<A, R>): GuardedHandler<R>
   const store = opts.receipts;
   const loadPolicies: PolicySource =
     typeof opts.policies === 'function' ? (opts.policies as PolicySource) : () => opts.policies as readonly unknown[];
+  /** Every store call is bounded: a hung store must not hang the guarded call. */
+  const storeCall = <T>(run: () => Promise<T>) => withTimeout(run, timeouts.storeMs);
 
-  function emit(result: GuardResultBase, ctx: TrustedContext | null): void {
+  /**
+   * Best-effort telemetry. The observation is built now, from the final result,
+   * and handed to the sink on a later turn of the event loop, so the result is
+   * returned first. A sink that throws, returns a rejected promise or is slow
+   * can neither change the result nor surface an unhandled rejection.
+   */
+  function emit(result: GuardResult<unknown>, ctx: TrustedContext | null): void {
     const sink = opts.telemetry;
     if (!sink) return;
+    let observation: EvidenceObservation;
     try {
-      const outcome =
-        result.outcome === 'executed' ? 'ok'
-        : result.outcome === 'pending_approval' ? 'pending'
-        : result.outcome === 'execution_failed' ? 'error'
-        : result.outcome === 'replayed' ? 'ok'
-        : 'blocked';
-      sink.evidence({
+      const replay = result.outcome === 'replayed';
+      observation = {
         protocol: 'mcp',
         kind: 'tool',
         operation: `tools/call:${opts.tool}.${opts.action.name}`,
-        outcome,
+        outcome: evidenceOutcome(result),
         risk: 'high',
         requiredApproval: result.decision === 'require_approval',
         // The guard has no approval service; a sender's claim is never forwarded as one.
@@ -250,13 +359,27 @@ export function guardTool<A, R>(opts: GuardToolOptions<A, R>): GuardedHandler<R>
           guardOutcome: result.outcome,
           decision: result.decision ?? 'none',
           reasonCode: result.reasonCode,
-          executionStatus: result.executionStatus,
+          // This attempt's own status: a replay executed nothing.
+          executionStatus: replay ? 'not_attempted' : result.executionStatus,
+          ...(replay
+            ? { replay: true, originalExecutionStatus: result.original.executionStatus, originalDecisionId: result.original.id }
+            : {}),
         },
-      });
+      };
     } catch {
-      // Best-effort by contract (spec criterion 5): telemetry is reported after
-      // the outcome is final and its failure is not an outcome.
+      return;
     }
+    setImmediate(() => {
+      try {
+        const ret: unknown = sink.evidence(observation);
+        if (ret !== null && (typeof ret === 'object' || typeof ret === 'function')) {
+          const then = (ret as { then?: unknown }).then;
+          if (typeof then === 'function') then.call(ret, undefined, () => {});
+        }
+      } catch {
+        // Best-effort by contract (spec criterion 5): a telemetry failure is not an outcome.
+      }
+    });
   }
 
   return async function guarded(rawArgs: unknown): Promise<GuardResult<R>> {
@@ -275,8 +398,11 @@ export function guardTool<A, R>(opts: GuardToolOptions<A, R>): GuardedHandler<R>
       return result;
     }
 
-    // 2. Validate. Sender-reported approval is removed first, so a strict schema
-    //    cannot turn a forged approval into anything but "ignored".
+    // 2. Validate. Sender-reported approval is flagged and removed first, so a
+    //    strict schema cannot turn a forged approval into anything but "ignored".
+    //    The parsed output is cloned to plain data, so `toRequest` and the
+    //    handler read the same values and no getter or retained reference can
+    //    change between the decision and the side effect.
     const { args: stripped, senderApproval } = stripSenderApproval(rawArgs);
     if (senderApproval) notes.push('sender_reported_approval_ignored');
     let guardReason: ReceiptReasonCode | null = null;
@@ -286,7 +412,7 @@ export function guardTool<A, R>(opts: GuardToolOptions<A, R>): GuardedHandler<R>
     try {
       const parsed = opts.action.args.safeParse(stripped);
       if (!parsed.success) throw new Error('invalid');
-      args = deepFreeze(parsed.data);
+      args = deepFreeze(structuredClone(parsed.data));
       mapped = opts.action.toRequest(args);
     } catch {
       guardReason = 'invalid_arguments';
@@ -371,7 +497,9 @@ export function guardTool<A, R>(opts: GuardToolOptions<A, R>): GuardedHandler<R>
       const r: ActionReceipt = { ...receipt, reasonCode, executionStatus: 'not_attempted' };
       try {
         // A duplicate (org_id, id) is an identical decision already on record.
-        return (await store.record(r)) ? r : await store.get(r.orgId, r.id);
+        if ((await storeCall(() => store.record(r))) === true) return r;
+        const existing = await storeCall(() => store.get(r.orgId, r.id));
+        return isReceipt(existing) ? existing : null;
       } catch {
         notes.push('receipt_write_failed');
         return null;
@@ -386,6 +514,14 @@ export function guardTool<A, R>(opts: GuardToolOptions<A, R>): GuardedHandler<R>
       done({
         ...base, outcome, reasonCode, executionStatus: 'not_attempted', receipt: await recordNotAttempted(reasonCode),
       });
+
+    /** The store failed, timed out or answered nonsense before execution: block, nothing runs. */
+    const storeFailed = (): GuardResult<R> => {
+      notes.push('receipt_write_failed');
+      return done({
+        ...base, outcome: 'blocked', reasonCode: 'receipt_store_failed', executionStatus: 'not_attempted', receipt: null,
+      });
+    };
 
     if (guardReason !== null) return stop('blocked', guardReason);
     if (decision.decision === 'require_approval') return stop('pending_approval', decision.reasonCode);
@@ -402,25 +538,33 @@ export function guardTool<A, R>(opts: GuardToolOptions<A, R>): GuardedHandler<R>
     };
     if (!fresh()) return stop('blocked', 'decision_expired');
 
-    let claim;
     const claimed: ActionReceipt = { ...receipt, executionStatus: 'attempted' };
+    let claim: unknown;
     try {
-      claim = await store.claim(claimed);
+      claim = await storeCall(() => store.claim(claimed));
     } catch {
-      notes.push('receipt_write_failed');
-      return done({
-        ...base, outcome: 'blocked', reasonCode: 'receipt_store_failed', executionStatus: 'not_attempted', receipt: null,
-      });
+      return storeFailed();
     }
+    const claimedField = typeof claim === 'object' && claim !== null ? (claim as Record<string, unknown>).claimed : undefined;
 
-    if (!claim.claimed) {
-      const owner = claim.existing;
+    if (claimedField !== true) {
+      // Only a strict `claimed: false` with `existing` null or a well-formed
+      // receipt is understood. Anything else is a misbehaving store: block.
+      if (claimedField !== false) return storeFailed();
+      const owner = (claim as Record<string, unknown>).existing;
       // No owner of the key: the insert collided on (org_id, id) alone. No
       // receipt of our own can be stored, so nothing executes.
       if (owner === null) return stop('blocked', 'receipt_conflict');
+      if (!isReceipt(owner)) return storeFailed();
       if (!sameRequest(owner, n)) return stop('blocked', 'idempotency_conflict');
       const own = await recordNotAttempted('idempotency_replay');
-      const original = (await store.get(owner.orgId, owner.id).catch(() => null)) ?? owner;
+      let original: ActionReceipt = owner;
+      try {
+        const fetched = await storeCall(() => store.get(owner.orgId, owner.id));
+        if (isReceipt(fetched)) original = fetched;
+      } catch {
+        // The owner returned by the claim is still the first attempt's receipt.
+      }
       return done({
         ...base,
         outcome: 'replayed',
@@ -433,11 +577,13 @@ export function guardTool<A, R>(opts: GuardToolOptions<A, R>): GuardedHandler<R>
     }
 
     // The claim is ours and reads `attempted`. Re-check expiry: the claim was I/O.
+    // If the final status cannot be written (store error or timeout), the row
+    // keeps `attempted` — "possibly executed" — and the result says so in notes.
     const finish = async (status: FinalExecutionStatus): Promise<ActionReceipt> => {
       const at = clock();
       const updatedAt = Number.isSafeInteger(at) && at >= now ? at : now;
       try {
-        await store.finish(claimed.orgId, claimed.id, status, updatedAt);
+        await storeCall(() => store.finish(claimed.orgId, claimed.id, status, updatedAt));
       } catch {
         notes.push('receipt_update_failed');
         return claimed;

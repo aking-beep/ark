@@ -19,9 +19,17 @@ leaves a privacy-safe receipt. See [ADR-0009](../../docs/adr/0009-action-account
 - **This is a simulation, not an approval workflow.** There is no approval
   service, inbox or UI in this package. `require_approval` returns
   `pending_approval` and executes nothing; there is no way, in this release, to
-  turn a pending request into an approved one. Any `approvedBy` / `approval`
-  field the sender puts in the arguments is removed, ignored and recorded as
-  `sender_reported_approval_ignored`.
+  turn a pending request into an approved one. Any approval-like field the
+  sender puts in the arguments (`approvedBy`, `approved_by`, `approved-by`,
+  `approvalToken`, `approverId`, … at any depth) is ignored and recorded as
+  `sender_reported_approval_ignored`; top-level ones are also removed before
+  validation. A handler must never read an approval from its `args`.
+- **Idempotency stops accidental retries, not a determined caller.** If the key
+  is chosen by the caller, a caller that mints a new key gets a new action, and
+  the policy's per-call thresholds are not cumulative: fifty $100 refunds of one
+  order are fifty `allow`s. Derive the key on the server side from the resource
+  when the business allows one action per resource (see Usage), and see Known
+  limits.
 - **The demo is synthetic.** `src/demo/refund.ts` moves no money and calls no
   network. `DEMO_REFUND_POLICY`'s thresholds (≤ $100 allow, ≤ $1,000 approval,
   above that deny) are illustrative, not production defaults.
@@ -42,10 +50,13 @@ const refund = guardTool({
       attributes: { amountMinor: a.amountMinor, currency: a.currency },
     }),
   },
+  // Act on `request` (what was decided), not on `args`.
   handler: ({ request }) => payments.refund(request.resource.id, request.attributes.amountMinor),
   policies: () => loadOrgPolicies(),             // throws or hangs -> unknown, blocked
   resolveContext: () => sessionIdentity(),       // trusted: orgId, agentId, principal
-  idempotency: { key: (a) => a.idempotencyKey }, // required
+  // Required. Recommended: derive it on the server side from the resource, so
+  // one order gets at most one refund however many keys the agent invents.
+  idempotency: { key: (a) => `refund:${a.orderId}` },
   receipts: new LibsqlActionReceiptStore(client),
   // clock: () => Date.now(),  // the default; `now` never comes from the request
   // telemetry: trace,         // an @ark/sdk TraceHandle; best-effort
@@ -61,8 +72,9 @@ const result = await refund(toolCallArguments);
    Identity fields in the arguments are never read. If it throws, hangs or
    returns a malformed context, the call is blocked (`context_unavailable`) and
    no receipt is stored, because there is no trusted org to store it under.
-2. **Validation.** Sender-reported approval fields are removed; the rest is
-   parsed by the zod schema and frozen. `toRequest` maps it to the kernel's
+2. **Validation.** Sender-reported approval fields are flagged (any depth) and
+   removed (top level); the rest is parsed by the zod schema, deep-copied to
+   plain data and frozen, so `toRequest` and the handler read the same values. `toRequest` maps it to the kernel's
    `resource` and `attributes`. Invalid arguments are blocked
    (`invalid_arguments`); a missing key is blocked (`idempotency_key_missing`).
 3. **Policies.** Loaded with a timeout. A throw or timeout leaves no policies,
@@ -103,9 +115,25 @@ handler's return value. Two caveats:
 - `resource_id` and `principal` are stored as given. Use opaque ids (an order
   id, a user id), not an email address.
 - The key hash is unsalted SHA-256. It hides a random key; it does not hide a
-  guessable one (an order number). Use random idempotency keys.
+  guessable one. A key derived from the resource (`refund:<orderId>`) reveals
+  nothing the receipt's `resource_id` does not already hold.
 
 ## Known limits
+
+- **Idempotency is not a limit.** The key prevents re-executing one action
+  (an accidental retry, a replayed message). It does not stop a caller that
+  sends a new key, and `DEMO_REFUND_POLICY`'s thresholds apply per call, not
+  per order or per day. Deriving the key from the resource (as the demo does)
+  bounds refunds to one per order; it does not bound refunds across orders.
+  **Follow-up, not in this release:** cumulative / per-resource limits
+  (sum-per-resource, velocity) belong in the decision kernel, before real
+  payments.
+- **Store calls are bounded.** Every receipt-store call has a timeout
+  (`timeouts.storeMs`, default 2 s). A store that fails, times out or answers
+  something other than `claimed: true` before the handler blocks the call
+  (`receipt_store_failed`). If the final status cannot be written after the
+  handler ran, the result carries the true outcome plus `receipt_update_failed`,
+  and the row keeps `attempted` ("possibly executed").
 
 - **One decision, one receipt id.** The receipt id is the kernel's decision id,
   a content hash of the request including the guard's `now` in milliseconds.
@@ -120,9 +148,13 @@ handler's return value. Two caveats:
   `not_attempted`, and the key stays spent.
 - **The in-memory store protects one process only.** Use the libSQL store
   (or another store with an atomic conditional insert) across processes.
-- **Telemetry is best-effort.** It is emitted after the outcome is final; a
-  failing sink is ignored and never changes a decision or an execution, and a
-  sender's approval is never reported as `approvedBy`.
+- **Telemetry is best-effort.** It is handed to the sink on a later turn of the
+  event loop, after the result is returned. A sink that throws, rejects or is
+  slow never changes a decision or an execution. A sender's approval is never
+  reported as `approvedBy`. Only an executed call is reported as `ok`; a replay
+  executed nothing and is reported as `blocked` with `replay: true` and the
+  first attempt's status, so one refund is never counted twice and an
+  `outcome_unknown` is never reported as a success.
 
 ## Demo and tests
 

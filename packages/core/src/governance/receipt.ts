@@ -61,10 +61,12 @@ export interface ActionReceipt {
   id: string;
   traceId: string | null;
   agentId: string;
+  /** Stored as given by the trusted context. Must be an opaque id, never PII (an email, a name). */
   principal: string | null;
   tool: string;
   action: string;
   resourceType: string | null;
+  /** Stored as given by the tool's `toRequest`. Must be an opaque id, never PII. */
   resourceId: string | null;
   policyId: string | null;
   policyVersion: number | null;

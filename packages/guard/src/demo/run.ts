@@ -59,6 +59,8 @@ for (const { name, expected, result, calls } of rows) {
   }
 }
 
+// Telemetry is handed to the sink on a later turn of the event loop; let it run.
+await new Promise((resolve) => setImmediate(resolve));
 let telemetry = 'flushed';
 try {
   await trace.flush();
@@ -66,7 +68,11 @@ try {
   telemetry = `flush failed (${(err as Error).message}) — no decision or execution changed`;
 }
 
-const stored = [...(await store.list('org_demo')), ...(await store.list('org_other'))];
+// Read every receipt back through the ActionReceiptStore interface.
+let stored = 0;
+for (const { result } of rows) {
+  if (result.receipt && (await store.get(result.receipt.orgId, result.receipt.id))) stored += 1;
+}
 const refunded = ledger.entries.reduce((s, e) => s + e.amountMinor, 0);
 const pair = rows.filter((r) => r.name === '$75' || r.name.startsWith('$75 replayed')).reduce((s, r) => s + r.calls, 0);
 console.log('');
@@ -75,7 +81,7 @@ console.log(`ledger entries: ${ledger.entries.length}, refunded: ${usd(refunded)
 console.log(`$5,000 executed: ${ledger.entries.some((e) => e.orderId === 'ord_1003')}`);
 console.log(`forged approval executed: ${ledger.entries.some((e) => e.orderId === 'ord_1006')}`);
 console.log(`$75 + replay handler calls: ${pair}`);
-console.log(`receipts written: ${stored.length}`);
+console.log(`receipts written (read back via ActionReceiptStore.get): ${stored}`);
 console.log(`telemetry: ${telemetryPosts} post attempt(s), ${telemetry}`);
 console.log(`network calls outside telemetry: ${networkCalls}`);
 
