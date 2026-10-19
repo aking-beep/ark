@@ -1,0 +1,25 @@
+captured at revision 345afe8 (stamp in captures.tsv), 2026-10-19T06:39:16Z
+$ node --version
+v22.22.0
+$ node evidence/action-decision-kernel/decide-demo.mjs
+policy pol_demo_refund_synthetic v1 (SYNTHETIC demo policy, not a production default)
+
+case                                                decision          reasonCode                expiresAt      decisionId
+$75.00                                              allow             rule_matched              1760000300000  2e862b006e29b4cd
+$100.00                                             allow             rule_matched              1760000300000  f37306566041d309
+$100.01                                             require_approval  rule_matched              1760000300000  5200d472e2e659c1
+$750.00                                             require_approval  rule_matched              1760000300000  6778628426147f80
+$1,000.00                                           require_approval  rule_matched              1760000300000  10050a343f1c5546
+$1,000.01                                           deny              rule_matched              -              ab6c678d7847de91
+$5,000.00                                           deny              rule_matched              -              9c017bd021a941a2
+unknown tool ($75, tool=crm)                        unknown           no_matching_policy        -              b8e46d180581fc39
+another org's policy ($75, org_other)               unknown           no_matching_policy        -              d6abcde85324a314
+forged role ($5,000 + role=admin, permissions=[*])  deny              rule_matched              -              9c017bd021a941a2
+version mismatch ($75, expected v2)                 unknown           policy_version_mismatch   -              c1b25e465e18aedc
+malformed rule ($5,000, amountMinor beside when)    unknown           policy_invalid            -              c2522eb1bfa0c79e
+
+forged-role digest equals plain $5,000 digest: true
+same input, same decisionId: true
+allow decisions: 2 of 12
+network/model calls made: 0
+exit code: 0
