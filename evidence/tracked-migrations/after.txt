@@ -1,0 +1,7 @@
+$ node evidence/tracked-migrations/probe.mjs   # at commit 6ee592c, after npm run build:packages
+node v22.22.0; MIGRATIONS has 7 entries
+[broken migration] pushSchema REJECTED: migration 9999_broken_probe failed: SQLITE_ERROR: no such table: no_such_table
+[broken migration] schema_migrations rows: 7
+[fresh, push 1] schema_migrations rows: 7
+[fresh, push 2] schema_migrations rows: 7
+exit=0
