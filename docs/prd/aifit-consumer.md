@@ -44,7 +44,7 @@ Turn “which AI should I use?” into a named interaction profile, matched tool
 
 - `npm run dev:my-ai-api` + `npm run dev:consumer` → landing, assessment, and results work at http://localhost:3000.
 - `npm run test:my-ai` and consumer `npm run build` pass in CI.
-- Deploy matches the Vercel Services layout in `vercel.consumer.json` (web + API on one domain).
+- Deploy matches the Vercel Services layout in `vercel.json` (web + API on one domain).
 
 ## Explicit non-goal
 
