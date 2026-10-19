@@ -44,11 +44,19 @@ const rows = [
   ["another org's policy ($75, org_other)", request(7_500, { orgId: 'org_other' })],
   ['forged role ($5,000 + role=admin, permissions=[*])', { ...request(500_000), role: 'admin', permissions: ['*'] }],
   ['version mismatch ($75, expected v2)', request(7_500), { expectedPolicyVersion: 2 }],
+  // Added after security review H1: a rule with a key the schema does not know
+  // (a condition at the wrong level) must invalidate the policy, not match everything.
+  [
+    'malformed rule ($5,000, amountMinor beside when)',
+    request(500_000),
+    undefined,
+    [{ ...structuredClone(DEMO_REFUND_POLICY), rules: [{ when: {}, effect: 'allow', amountMinor: { lte: 10_000 } }] }],
+  ],
 ];
 
 const realNow = Date.now;
 const realRandom = Math.random;
-const results = rows.map(([label, req, opts]) => {
+const results = rows.map(([label, req, opts, policies = [DEMO_REFUND_POLICY]]) => {
   Date.now = () => {
     throw new Error('clock read inside decideAction');
   };
@@ -56,7 +64,7 @@ const results = rows.map(([label, req, opts]) => {
     throw new Error('randomness inside decideAction');
   };
   try {
-    return [label, decideAction(req, [DEMO_REFUND_POLICY], opts)];
+    return [label, decideAction(req, policies, opts)];
   } finally {
     Date.now = realNow;
     Math.random = realRandom;
