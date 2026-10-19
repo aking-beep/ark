@@ -1,5 +1,5 @@
 import type { Client } from '@libsql/client';
-import { AgentManifest, type AgentManifest as Manifest, type AssuranceReport, type DiscoveryResult } from '@ark/core';
+import { AgentManifest, DiscoveryResult, AssuranceReport, type AgentManifest as Manifest, type AssuranceReport as Report, type DiscoveryResult as Discovery } from '@ark/core';
 import { raw } from './queries.js';
 
 const n = (v: unknown) => Number(v ?? 0);
@@ -28,12 +28,23 @@ export interface StoredAgent {
   updatedAt: number;
 }
 
-function parseManifest(raw: unknown): Manifest {
-  const parsed = AgentManifest.safeParse(typeof raw === 'string' ? JSON.parse(raw) : raw);
-  if (!parsed.success) {
-    throw new Error('Stored agent manifest failed schema validation.');
+function parseJson<T>(
+  schema: { safeParse: (v: unknown) => { success: true; data: T } | { success: false } },
+  raw: unknown,
+): T | null {
+  try {
+    const value = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    const parsed = schema.safeParse(value);
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
   }
-  return parsed.data;
+}
+
+function parseManifest(raw: unknown): Manifest {
+  const m = parseJson<Manifest>(AgentManifest, raw);
+  if (!m) throw new Error('Stored agent manifest failed schema validation.');
+  return m;
 }
 
 function rowToAgent(x: Record<string, unknown>): StoredAgent {
@@ -131,7 +142,7 @@ export interface StoredDiscoveryRun {
   startedAt: number;
   completedAt: number | null;
   status: string;
-  result: DiscoveryResult | null;
+  result: Discovery | null;
 }
 
 export async function createDiscoveryRun(
@@ -141,7 +152,7 @@ export async function createDiscoveryRun(
     branch: string;
     commitSha?: string;
     status: string;
-    result?: DiscoveryResult;
+    result?: Discovery;
     startedAt?: number;
     completedAt?: number;
   },
@@ -185,7 +196,7 @@ export async function getDiscoveryRun(
     startedAt: n(x.started_at),
     completedAt: x.completed_at == null ? null : n(x.completed_at),
     status: s(x.status),
-    result: x.result ? (JSON.parse(s(x.result)) as DiscoveryResult) : null,
+    result: x.result ? parseJson<Discovery>(DiscoveryResult, s(x.result)) : null,
   };
 }
 
@@ -195,13 +206,13 @@ export interface StoredAssuranceRun {
   agentId: string;
   createdAt: number;
   status: string;
-  report: AssuranceReport;
+  report: Report;
 }
 
 export async function createAssuranceRun(
   orgId: string,
   agentId: string,
-  report: AssuranceReport,
+  report: Report,
   client?: Client,
 ): Promise<StoredAssuranceRun> {
   const id = nid('ar');
@@ -214,25 +225,33 @@ export async function createAssuranceRun(
   return { id, orgId, agentId, createdAt, status: report.overallStatus, report };
 }
 
-export async function latestAssuranceForAgent(
-  orgId: string,
-  agentId: string,
-  client?: Client,
-): Promise<StoredAssuranceRun | null> {
-  const r = await db(client).execute({
-    sql: `SELECT * FROM assurance_runs WHERE org_id=? AND agent_id=? ORDER BY created_at DESC LIMIT 1`,
-    args: [orgId, agentId],
-  });
-  const x = r.rows[0];
-  if (!x) return null;
+function rowToAssurance(x: Record<string, unknown>): StoredAssuranceRun | null {
+  const report = parseJson<Report>(AssuranceReport, x.report);
+  if (!report) return null;
   return {
     id: s(x.id),
     orgId: s(x.org_id),
     agentId: s(x.agent_id),
     createdAt: n(x.created_at),
     status: s(x.status),
-    report: JSON.parse(s(x.report)) as AssuranceReport,
+    report,
   };
+}
+
+export async function latestAssuranceForAgent(
+  orgId: string,
+  agentId: string,
+  client?: Client,
+): Promise<StoredAssuranceRun | null> {
+  const r = await db(client).execute({
+    sql: `SELECT * FROM assurance_runs WHERE org_id=? AND agent_id=? ORDER BY created_at DESC LIMIT 10`,
+    args: [orgId, agentId],
+  });
+  for (const x of r.rows) {
+    const row = rowToAssurance(x as Record<string, unknown>);
+    if (row) return row;
+  }
+  return null;
 }
 
 export async function listAssuranceRuns(orgId: string, client?: Client): Promise<StoredAssuranceRun[]> {
@@ -240,14 +259,12 @@ export async function listAssuranceRuns(orgId: string, client?: Client): Promise
     sql: `SELECT * FROM assurance_runs WHERE org_id=? ORDER BY created_at DESC LIMIT 100`,
     args: [orgId],
   });
-  return r.rows.map((x) => ({
-    id: s(x.id),
-    orgId: s(x.org_id),
-    agentId: s(x.agent_id),
-    createdAt: n(x.created_at),
-    status: s(x.status),
-    report: JSON.parse(s(x.report)) as AssuranceReport,
-  }));
+  const out: StoredAssuranceRun[] = [];
+  for (const x of r.rows) {
+    const row = rowToAssurance(x as Record<string, unknown>);
+    if (row) out.push(row);
+  }
+  return out;
 }
 
 export interface AgentObservations {
@@ -286,15 +303,25 @@ export async function agentObservations(
   });
   const actions = await c.execute({
     sql: `SELECT COUNT(*) cnt FROM actions
-          WHERE org_id=? AND ts>=? AND trace_id IN (
-            SELECT DISTINCT trace_id FROM events WHERE org_id=? AND agent_id=? AND trace_id IS NOT NULL)`,
-    args: [orgId, from, orgId, agentId],
+          WHERE org_id=? AND ts>=? AND (
+            agent_id=? OR (
+              agent_id IS NULL AND trace_id IN (
+                SELECT DISTINCT trace_id FROM events WHERE org_id=? AND agent_id=? AND trace_id IS NOT NULL
+              )
+            )
+          )`,
+    args: [orgId, from, agentId, orgId, agentId],
   });
   const proto = await c.execute({
     sql: `SELECT COUNT(*) cnt FROM protocol_evidence
-          WHERE org_id=? AND ts>=? AND trace_id IN (
-            SELECT DISTINCT trace_id FROM events WHERE org_id=? AND agent_id=? AND trace_id IS NOT NULL)`,
-    args: [orgId, from, orgId, agentId],
+          WHERE org_id=? AND ts>=? AND (
+            agent_id=? OR (
+              agent_id IS NULL AND trace_id IN (
+                SELECT DISTINCT trace_id FROM events WHERE org_id=? AND agent_id=? AND trace_id IS NOT NULL
+              )
+            )
+          )`,
+    args: [orgId, from, agentId, orgId, agentId],
   });
   const recent = await c.execute({
     sql: `SELECT id, ts, model_id, provider, status, cost_usd, trace_id
@@ -368,12 +395,8 @@ export async function agentInfrastructureSummary(
   });
   const recentCriticalFindings: AgentInfrastructureSummary['recentCriticalFindings'] = [];
   for (const row of findings.rows) {
-    let report: AssuranceReport | null = null;
-    try {
-      report = JSON.parse(s(row.report)) as AssuranceReport;
-    } catch {
-      continue;
-    }
+    const report = parseJson<Report>(AssuranceReport, row.report);
+    if (!report) continue;
     const hit = (report.findings ?? []).find((f) => f.severity === 'fail') ?? (report.findings ?? [])[0];
     if (!hit) continue;
     recentCriticalFindings.push({
@@ -408,14 +431,8 @@ export async function latestAssuranceByAgent(
   });
   const map = new Map<string, StoredAssuranceRun>();
   for (const x of r.rows) {
-    map.set(s(x.agent_id), {
-      id: s(x.id),
-      orgId: s(x.org_id),
-      agentId: s(x.agent_id),
-      createdAt: n(x.created_at),
-      status: s(x.status),
-      report: JSON.parse(s(x.report)) as AssuranceReport,
-    });
+    const row = rowToAssurance(x as Record<string, unknown>);
+    if (row) map.set(row.agentId, row);
   }
   return map;
 }

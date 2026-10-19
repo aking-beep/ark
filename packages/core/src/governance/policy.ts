@@ -56,8 +56,8 @@ function applies(when: PolicyCondition, agent: Manifest): boolean {
 }
 
 /**
- * Evaluate a policy against a manifest. Does not enforce at runtime.
- * Unmatched policies return status unknown (they did not apply).
+ * Evaluate a policy against a manifest. Unmatched policies return status
+ * unknown (they did not apply). Request-path blocking lives in `enforce.ts`.
  *
  * Definite failures are collected first and decide the status on their own:
  * a requirement that cannot be verified does not hide one that plainly fails.

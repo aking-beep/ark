@@ -14,7 +14,7 @@ The loop this plane is for:
 Discover → Register → Assure → Observe → Govern → Enforce
 ```
 
-v0.1 ships the first three. Observe is already present as telemetry, traces, actions and protocol evidence; this milestone joins that grain to a registered **Agent**. Govern is a policy schema and evaluator. Enforce is not in the request path yet.
+v0.1 shipped Discover → Register → Assure. Observe joins telemetry to a registered **Agent**. Govern is `AgentPolicy` + `evaluatePolicy`. Enforce sits on Runtime `execute()` when a manifest is attached — Control does not proxy provider HTTP.
 
 ## Grains
 
@@ -28,7 +28,7 @@ v0.1 ships the first three. Observe is already present as telemetry, traces, act
 | **Action** | One side effect | A model call |
 | **Protocol evidence** | One normalised observation (MCP, A2A, AG-UI, A2UI, UCP, AP2) | A payload |
 
-Events may carry an optional `agentId`. Omitting it is valid. Traces, actions and protocol evidence join to an agent through that id and the shared `traceId`.
+Events, actions and protocol evidence may each carry an optional `agentId`. Omitting it is valid. Agent observations count by that column, with a fallback join through `events.agent_id` + `traceId` for older rows.
 
 ## Discover
 
@@ -42,7 +42,9 @@ The server fetches a **bounded** snapshot via GitHub's API. It does not clone, d
 | Per-file bytes | 64,000 |
 | Total content bytes | 512,000 |
 | Tree entries listed | 400 |
-| Timeout | 8,000 ms |
+| Tree JSON bytes | 256,000 |
+| Truncated / oversized tree | fail closed — no files fetched |
+| Timeout | 8,000 ms per request, 20,000 ms overall |
 
 High-signal paths include `package.json`, `pyproject.toml`, `requirements.txt`, `README.md`, `CLAUDE.md`, `AGENTS.md`, agent/MCP/tool source, Docker and compose files. `.env` is skipped (`.env.example` is not). `node_modules` and build output are skipped.
 
@@ -66,17 +68,15 @@ Groups: identity, provenance, model, tools, permissions, data, production readin
 
 ## Observe
 
-`execute({ agentId, workloadId, messages })` and `ArkIngest.run(workloadId, fn, { agentId })` attach the registered id to ingested events. Agent detail reads calls, traces, spend, errors, actions and protocol activity for that id.
+`execute({ agentId, workloadId, messages }, { agent })` attaches the registered id to ingested events, actions and protocol evidence. When `agent` is passed, `enforceAgentPolicies` runs **before** the model call. Agent detail reads calls, traces, spend, errors, actions and protocol activity for that id.
 
-## Govern (foundation)
+## Govern
 
-`AgentPolicy` + `evaluatePolicy` in `@ark/core`. Conditions: environment, riskLevel, dataClasses includes, permission includes. Requirements: policy refs, evaluations, human escalation/approval, approved provider/model, logging (unverified → unknown).
-
-This is not production enforcement. Unmatched policies return `unknown`, not pass.
+`AgentPolicy` + `evaluatePolicy` + `enforceAgentPolicies` in `@ark/core`. Default production-PII / high-risk / financial / destructive policies. Unmatched policies return `unknown`, not pass. `fail` blocks `execute()`.
 
 ## Enforce
 
-Not in v0.1. Do not put complex runtime enforcement on the request path until these semantics have been used in anger.
+Runtime request path, opt-in: pass the Agent Manifest into `execute`. Control still does not proxy provider HTTP. Omitting `agent` is unchanged.
 
 ## Security
 
@@ -84,4 +84,4 @@ Not in v0.1. Do not put complex runtime enforcement on the request path until th
 - No storage of source secrets, raw credentials, or GitHub tokens.
 - Org isolation on every new table.
 - Protocol privacy controls (no payloads in `protocol_evidence`) are unchanged.
-- Control does not sit in the request path.
+- Control does not proxy provider HTTP. Runtime `execute` enforces attached agent policies before `complete()`.

@@ -12,7 +12,7 @@ const LINKS = [
   { href: '/workloads', label: 'Workloads' },
   { href: '/protocols', label: 'Protocols' },
   { href: '/optimize', label: 'Optimise' },
-  { href: '/budgets', label: 'Budgets & alerts' },
+  { href: '/budgets', label: 'Budgets' },
   { href: '/calibration', label: 'Calibration' },
 ];
 

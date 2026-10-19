@@ -205,11 +205,12 @@ export async function applyIngest(orgId: string, body: IngestBody, opts: ApplyIn
     const ts = a.ts ?? now;
     await c.execute({ sql: TRACE_INSERT, args: [a.traceId, orgId, a.workloadId ?? 'unknown', ts] });
     const ins = await c.execute({
-      sql: `INSERT OR IGNORE INTO actions (id, org_id, trace_id, ts, name, system, blast_radius, value_usd, approved_by, required_approval, credential_id)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+      sql: `INSERT OR IGNORE INTO actions (id, org_id, trace_id, ts, name, system, blast_radius, value_usd, approved_by, required_approval, credential_id, agent_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
       args: [
         a.id, orgId, a.traceId, ts, a.name, a.system, a.blastRadius,
         a.valueUsd ?? null, a.approvedBy ?? null, a.requiredApproval ? 1 : 0, a.credentialId ?? null,
+        a.agentId ?? null,
       ],
     });
     if (!inserted(ins)) {
@@ -272,8 +273,8 @@ export async function applyIngest(orgId: string, body: IngestBody, opts: ApplyIn
       sql: `INSERT OR IGNORE INTO protocol_evidence
               (id, org_id, trace_id, workload_id, ts, protocol, protocol_version, kind, operation,
                actor, target, outcome, latency_ms, value_usd, currency,
-               required_approval, approved_by, risk, evidence_ref, metadata)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+               required_approval, approved_by, risk, evidence_ref, metadata, agent_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       args: [
         e.id, orgId, e.traceId ?? null, e.workloadId ?? null, ts,
         e.protocol, e.protocolVersion ?? null, e.kind, e.operation,
@@ -281,6 +282,7 @@ export async function applyIngest(orgId: string, body: IngestBody, opts: ApplyIn
         e.valueUsd ?? null, e.currency ?? null,
         e.requiredApproval ? 1 : 0, e.approvedBy ?? null, e.risk, e.evidenceRef ?? null,
         Object.keys(e.metadata).length ? JSON.stringify(e.metadata) : null,
+        e.agentId ?? null,
       ],
     });
     if (!inserted(ins)) {

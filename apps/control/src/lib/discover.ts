@@ -10,6 +10,7 @@
  */
 export const DISCOVER_ERRORS = {
   bad_url: 'Use a github.com/owner/repo URL.',
+  bad_owner: 'Owner is invalid or too long.',
   not_found: 'Repository not found, or not visible to this server.',
   not_public:
     'This server only scans public repositories, and this one is private or does not exist. Private discovery is off unless the operator sets ARK_DISCOVER_ALLOW_PRIVATE=1.',

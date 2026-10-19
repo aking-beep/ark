@@ -23,3 +23,4 @@ export * from './discovery/materialize.js';
 export * from './discovery/sample-repository.js';
 export * from './assurance/index.js';
 export * from './governance/policy.js';
+export * from './governance/enforce.js';

@@ -48,7 +48,7 @@ export const DDL: string[] = [
 `CREATE TABLE IF NOT EXISTS actions (
   id TEXT NOT NULL, org_id TEXT NOT NULL, trace_id TEXT NOT NULL, ts INTEGER NOT NULL,
   name TEXT NOT NULL, system TEXT NOT NULL, blast_radius TEXT NOT NULL, value_usd REAL,
-  approved_by TEXT, required_approval INTEGER NOT NULL DEFAULT 0, credential_id TEXT,
+  approved_by TEXT, required_approval INTEGER NOT NULL DEFAULT 0, credential_id TEXT, agent_id TEXT,
   PRIMARY KEY (org_id, id))`,
 `CREATE INDEX IF NOT EXISTS actions_trace_idx ON actions(org_id, trace_id)`,
 
@@ -64,7 +64,7 @@ export const DDL: string[] = [
   value_usd REAL, currency TEXT,
   required_approval INTEGER NOT NULL DEFAULT 0, approved_by TEXT,
   risk TEXT NOT NULL DEFAULT 'low',
-  evidence_ref TEXT, metadata TEXT,
+  evidence_ref TEXT, metadata TEXT, agent_id TEXT,
   PRIMARY KEY (org_id, id))`,
 `CREATE INDEX IF NOT EXISTS protocol_evidence_ts_idx ON protocol_evidence(org_id, ts)`,
 `CREATE INDEX IF NOT EXISTS protocol_evidence_protocol_idx ON protocol_evidence(protocol, ts)`,
@@ -140,6 +140,10 @@ export const MIGRATIONS: string[] = [
   // 'reported' | 'catalog' | 'unpriced'. NULL on rows ingested before it existed,
   // which Control reads as "not shown to be reported".
   `ALTER TABLE events ADD COLUMN cost_source TEXT`,
+  `ALTER TABLE actions ADD COLUMN agent_id TEXT`,
+  `CREATE INDEX IF NOT EXISTS actions_agent_idx ON actions(org_id, agent_id)`,
+  `ALTER TABLE protocol_evidence ADD COLUMN agent_id TEXT`,
+  `CREATE INDEX IF NOT EXISTS protocol_evidence_agent_idx ON protocol_evidence(org_id, agent_id)`,
 ];
 
 /**
