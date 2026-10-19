@@ -43,8 +43,8 @@ cannot change it, because the kernel reads no state.
 |---|---|---|
 | Artefact | `before.txt` | `after.txt` |
 | Measurement | exit code 1: `SyntaxError: ... does not provide an export named 'DEMO_REFUND_POLICY'`. No kernel exists. | exit code 0. 12 cases, **2 `allow`** ($75, $100). $100.01 / $750 / $1,000 are `require_approval`. $1,000.01 / $5,000 are `deny`. Unknown tool and other-org are `unknown` `no_matching_policy`. Forged role is `deny`, with a digest identical to the plain $5,000 request. Version mismatch is `unknown` `policy_version_mismatch`. A malformed rule at $5,000 is `unknown` `policy_invalid` (before the H1 fix it was `allow`, per SECURITY.md). **0 network/model calls.** |
-| `@ark/core` tests | 166 | 212 (+43 `action.test.js`, +3 `sha256.test.js`) |
-| `npm test` (repo) | — | exit 0. 627 tests, 0 failures across 12 suite runs |
+| `@ark/core` tests | 166 | 218 (+49 `action.test.js`, +3 `sha256.test.js`) |
+| `npm test` (repo) | — | exit 0. 633 tests, 0 failures across 12 suite runs |
 | `npm run typecheck` | — | exit 0 |
 | `npm run build --workspace @ark/business` | — | exit 0 (see deviation 1) |
 | `npm run build --workspace @ark/control` | — | exit 0 |
@@ -58,7 +58,11 @@ cannot change it, because the kernel reads no state.
 - `7a91a43` switched to `@noble/hashes`. Its output was byte-identical to
   `22546e7` apart from the header line, so swapping the hash implementation did
   not change behaviour.
-- `345afe8` is current: the review round 1 and security fixes, `dirty=0`. Every
+- `345afe8` is current: the review round 1 and security fixes, `dirty=0`.
+  The round-2 security fixes (`4f6780c`) did not change the demo output: a fresh
+  run at `4f6780c` is byte-identical to `after.txt` below its header. So there
+  is no new capture row, and the `345afe8` artefact still describes current
+  behaviour. Every
   `decisionId` differs from `7a91a43`, as expected, because the preimage now
   binds policy digests and `expiresAt` (deviation 2). Every decision and reason
   code for the original 11 rows is unchanged.
@@ -149,6 +153,23 @@ cannot change it, because the kernel reads no state.
    different id; a different TTL gives a different id; a second agreeing policy
    gives a different id. The id is a content address, not a token (M2). That is
    documented in the module doc and ADR-0009.
+3. **Choices the spec left open, stated so they can be reviewed:**
+   - `expectedPolicyVersion` is a third `options` argument, not a request field.
+   - Policy `version` is a positive integer.
+   - A policy has one `currency`. Policies are selected by org, tool, action
+     and currency (see 4).
+   - `decisionTtlMs` (≤ 24 h) sets `expiresAt = now + ttl`. When governing
+     policies agree, the shortest TTL wins.
+   - A malformed `orgId`/`agentId`/`tool`/`action`/`now` gets `deny`
+     `invalid_request`. The spec lists no rule for that case, and the choice is
+     fail-closed.
+   - Request validation (resource → amount → currency) runs before policy
+     lookup, so those denies carry `policyId: null`.
+   - An invalid policy is ignored only if its `orgId`/`tool`/`action` are
+     strings that plainly name a different target. Otherwise the result is
+     `unknown` `policy_invalid`.
+   - Governing policies are sorted by id, so input order does not change the
+     decision or the id.
 4. **Review round 1 and security review fixes (`b5f9234`), each with a test:**
    - *H1:* `ActionRule` is `.strict()`, and so is every other object schema
      (`ActionRequest`, `ActionResource`, `ActionAttributes`, `AmountComparison`,
@@ -173,8 +194,9 @@ cannot change it, because the kernel reads no state.
      - The decision returns `normalizedRequest`. It is frozen and is the exact
        object the digest was computed from (asserted), or `null` when the
        request itself was rejected.
-     - A Proxy over a plain object passes the plain-object check. Its traps
-       are invoked once per field, and a throwing trap gives `unknown`.
+     - A Proxy over a plain object passes the plain-object check. A throwing
+       trap gives `unknown`. After round 2, a test also asserts that each request
+       property descriptor is read exactly once through a Proxy (see 5).
    - *L2:* the function never throws. `options` that is `null`, a non-object,
      or has a throwing getter gives `unknown` `invalid_request`, and so does any
      unexpected exception (the whole body is wrapped). Accessor or unreadable
@@ -193,23 +215,42 @@ cannot change it, because the kernel reads no state.
    - The dead `governing[0] ?? null` fallback is removed. `canonicalJson` moved
      to an internal `canonical-json.ts` and is no longer exported from
      `@ark/core`.
-3. **Choices the spec left open, stated so they can be reviewed:**
-   - `expectedPolicyVersion` is a third `options` argument, not a request field.
-   - Policy `version` is a positive integer.
-   - A policy has one `currency`. Policies are selected by org, tool, action
-     and currency (see 4).
-   - `decisionTtlMs` (≤ 24 h) sets `expiresAt = now + ttl`. When governing
-     policies agree, the shortest TTL wins.
-   - A malformed `orgId`/`agentId`/`tool`/`action`/`now` gets `deny`
-     `invalid_request`. The spec lists no rule for that case, and the choice is
-     fail-closed.
-   - Request validation (resource → amount → currency) runs before policy
-     lookup, so those denies carry `policyId: null`.
-   - An invalid policy is ignored only if its `orgId`/`tool`/`action` are
-     strings that plainly name a different target. Otherwise the result is
-     `unknown` `policy_invalid`.
-   - Governing policies are sorted by id, so input order does not change the
-     decision or the id.
+5. **Security re-review (round 2) fixes (`4f6780c`), each with a test.**
+   Every own property is now read through one helper (`ownEntries`). It calls
+   `Reflect.ownKeys` once and reads each descriptor once. That one pass applies
+   all of the rules below.
+   - *R-L1:* an own `__proto__`, `constructor` or `prototype` key anywhere is
+     rejected. In a policy that gives `unknown` `policy_invalid`. In the request,
+     its `resource` or its `attributes` it gives `unknown` `invalid_request`.
+     Tests build these keys with `JSON.parse`. The cases include the reviewer's
+     `"__proto__":"x"` (accepted in round 2) and a TTL supplied only through
+     `__proto__`. Because these keys are rejected first, the copy can no longer
+     hit the `__proto__` setter.
+   - *R-L2:* a symbol key or a non-enumerable property is rejected, never
+     ignored. An array's own `length` is the one exception. Arrays with extra
+     keys, and sparse arrays, are also rejected. The tests include a hidden
+     `unless` on a rule and a symbol `unless` (both `allow` before this fix, now
+     `policy_invalid`), and a non-enumerable or symbol `role` on the request
+     (`unknown`).
+   - *R-L3:* bounds are enforced while copying, before any schema check: 64
+     elements per array (the same as `rules.max(64)`), 256 policies, 64 keys
+     per object, and depth 8. An array's length is checked before its keys are
+     listed. A test asserts that a policy with 1e6 rules is rejected in under
+     500 ms (the reviewer measured 3.5 s before the fix). The other tests cover
+     65 rules, 257 policies, more than 64 keys on a policy or the request, and 100k
+     nesting levels, all fail-closed. The edge cases also pass: exactly 64 rules
+     and exactly 256 policies decide normally. The minimum TTL is now a loop
+     instead of a spread into `Math.min`; with 200 agreeing policies it gives
+     `allow` and the shortest TTL.
+   - *Doc notes from Round 2:* `-0` normalization now has a one-line why. The
+     `ActionRequest` doc notes the schema is strict while the kernel ignores
+     extra keys. `DecideActionOptions` notes that several versions of one id
+     are a `policy_conflict` even when pinned.
+   - *Not changed (Round 2 non-blocking notes):* the catch-all still reports
+     `invalid_request` and not a separate `internal_error`, and
+     `policy_conflict` still carries two decisions (`unknown` for the same id,
+     `deny` for disagreeing policies). Both fail closed, and the coordinator did
+     not ask for them. They are left for the guard work.
 
 Tests changed: in `action.test.ts`, the module-import assertion now also
 expects `./canonical-json.js`, and the canonical JSON test also checks that
@@ -233,7 +274,9 @@ the internal module split. No other test was changed. New test files are
   otherwise unchanged. README, `docs/00-thesis.md` and `docs/prd/ark-control.md`
   each have a one-line pointer to ADR-0009. The ADR labels `DEMO_REFUND_POLICY`
   synthetic.
-- **Security review:** It ran (`SECURITY.md`, verdict BLOCK on H1). Every
-  finding is addressed in deviation 4, or listed above as an accepted
-  constraint (L1, L5, L7). M2 is a documentation fix only. It still needs a
-  re-review; that is not the builder's step.
+- **Security review:** Round 1 (`SECURITY.md`) was BLOCK on H1. Every finding
+  is addressed in deviation 4, or listed above as an accepted constraint (L1,
+  L5, L7). The re-review (round 2, `9304b3e`) was **APPROVE WITH NOTES**, with
+  three new low findings (R-L1 to R-L3). All three are fixed with tests in
+  deviation 5 (`4f6780c`). The reviewers have not yet confirmed those three
+  fixes.
