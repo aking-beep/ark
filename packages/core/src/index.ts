@@ -24,3 +24,4 @@ export * from './discovery/sample-repository.js';
 export * from './assurance/index.js';
 export * from './governance/policy.js';
 export * from './governance/enforce.js';
+export * from './governance/action.js';
