@@ -31,7 +31,7 @@ or data set is involved.
 
 ## Before / after
 
-| | Before (`1a49e35`) | After (`b80dedf`) |
+| | Before (`1a49e35`) | After (`6ee592c`, round 2; identical output at `b80dedf`) |
 |---|---|---|
 | Artefact | `before.txt` | `after.txt` |
 | Broken migration appended | `pushSchema RESOLVED` — swallowed silently | `pushSchema REJECTED: migration 9999_broken_probe failed: SQLITE_ERROR: no such table: no_such_table` |
@@ -39,8 +39,18 @@ or data set is involved.
 | `schema_migrations` rows, fresh DB, push 2 | n/a (table does not exist) | 7 |
 
 Supporting test output: `after-test.txt` (`packages/db/src/migrations.test.ts`,
-10 tests, all pass). Full suite: `npm test` exit 0, 591 tests across all
-workspaces, 0 failures; `npm run typecheck` exit 0.
+11 tests, all pass, at `6ee592c`). Full suite at `6ee592c`: `npm test` exit 0,
+592 tests across all workspaces, 0 failures; `npm run typecheck` exit 0.
+
+**Round 2 (after review round 1).** The after state was re-captured at
+`6ee592c` because behaviour changed on one path the probe does not exercise:
+when a tolerated (benign) migration's history insert fails, the push now
+rejects with `migration <id> failed: <message>` (with `cause`) instead of a bare
+`SQLITE_…` message. That path is proved by the new test "a failure recording a
+tolerated migration names the migration", which uses a trigger on
+`schema_migrations` that `RAISE(ABORT)`s for `0003_events_cost_source` and
+asserts the id, the message, the cause, and that only 0001 and 0002 were
+recorded. The probe output is unchanged, as expected.
 
 Capture timestamps and commit SHAs are in `captures.tsv`, written by
 `scripts/factory-prove.sh` (both captures at `dirty=0`).
@@ -65,6 +75,18 @@ Capture timestamps and commit SHAs are in `captures.tsv`, written by
   but not executed.
 
 ## Deviations
+
+- Round 2: `packages/db/src/bootstrap.ts`'s CLI error handler now also prints
+  `caused by: <code> <message>` when the error has a `cause` (reviewer
+  non-blocking note, requested by the coordinator). This is error output only;
+  no seeding or bootstrap logic changed, which the spec puts out of scope.
+- Round 2: the "already exists" branch of `isBenignMigrationError` is kept
+  because the spec asks for it, but SQLite never raises it for
+  `CREATE INDEX IF NOT EXISTS` (checked: a plain `CREATE INDEX` on an existing
+  index gives `index i already exists`; `IF NOT EXISTS` naming a table gives
+  `there is already a table named t`, which is not tolerated and now has a
+  test). The fixture comment says so. The test temp directory is now removed
+  after the run.
 
 - `pushSchema` gained an optional second parameter
   `migrations: readonly Migration[] = MIGRATIONS`, used only by tests to inject
