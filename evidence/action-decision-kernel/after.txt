@@ -1,0 +1,24 @@
+captured at revision 22546e7 (stamp in captures.tsv), 2026-10-19T06:13:22Z
+$ node --version
+v22.22.0
+$ node evidence/action-decision-kernel/decide-demo.mjs
+policy pol_demo_refund_synthetic v1 (SYNTHETIC demo policy, not a production default)
+
+case                                                decision          reasonCode                expiresAt      decisionId
+$75.00                                              allow             rule_matched              1760000300000  431f2be0826656ba
+$100.00                                             allow             rule_matched              1760000300000  b5d2a5d9edc9ec40
+$100.01                                             require_approval  rule_matched              1760000300000  3f38565436f5cadc
+$750.00                                             require_approval  rule_matched              1760000300000  0dffe985c38dc986
+$1,000.00                                           require_approval  rule_matched              1760000300000  fa037bbc9c5e2fd8
+$1,000.01                                           deny              rule_matched              -              dff729b93c6a1cc7
+$5,000.00                                           deny              rule_matched              -              c0db8844a020ac35
+unknown tool ($75, tool=crm)                        unknown           no_matching_policy        -              ca11a8e92f9dfaa3
+another org's policy ($75, org_other)               unknown           no_matching_policy        -              d81a2f43f0867fc9
+forged role ($5,000 + role=admin, permissions=[*])  deny              rule_matched              -              c0db8844a020ac35
+version mismatch ($75, expected v2)                 unknown           policy_version_mismatch   -              88e6df981876f481
+
+forged-role digest equals plain $5,000 digest: true
+same input, same decisionId: true
+allow decisions: 2 of 11
+network/model calls made: 0
+exit code: 0
