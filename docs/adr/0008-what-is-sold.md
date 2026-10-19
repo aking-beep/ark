@@ -1,6 +1,6 @@
 # ADR-0008: The first invoice is Control's Observe loop
 
-**Status:** Accepted
+**Status:** Accepted. Superseded in part by [ADR-0009](0009-action-accountability-wedge.md) (§1 "What is sold" and §3 "why they pay"); §2 and §4 still bind.
 **Date:** 2026-10-15
 
 ## Context

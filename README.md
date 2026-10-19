@@ -29,6 +29,8 @@ Three products — not one suite with three tabs. Two libraries that are not pro
 
 What is sold is Control's Observe loop, with AI Fit Teams as the estimator it calibrates. AI Fit is not in the contract, and Assurance is not the wedge. The paying customer, the reason they pay, and the refusals that bind every pilot are in [ADR-0008](docs/adr/0008-what-is-sold.md).
 
+> **Superseded in part:** the wedge is now approval and accountability for consequential agent tool actions — see [ADR-0009](docs/adr/0009-action-accountability-wedge.md).
+
 The only runtime wire is teams → Control (`GET /api/v1/calibration`). If Control does not answer, the report still completes and every figure reads `heuristic`. The map, with a unit of work across four grains, is [`docs/08-how-ark-works.md`](docs/08-how-ark-works.md).
 
 ## Protocols are adapters, not products
