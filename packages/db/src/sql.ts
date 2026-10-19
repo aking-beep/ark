@@ -173,19 +173,25 @@ export function isBenignMigrationError(sql: string, message: string): boolean {
 
 /**
  * Run one migration, and record it in the same write when `record` is set. A
- * benign error still records it; any other error throws, naming the migration.
+ * benign error still records it; any other error, including one recording a
+ * tolerated statement, throws naming the migration.
  */
 async function applyMigration(client: Client, m: Migration, record: boolean): Promise<void> {
   // OR IGNORE: a replica booting against the same database may have recorded it first.
   const mark = { sql: 'INSERT OR IGNORE INTO schema_migrations (id, applied_at) VALUES (?, ?)', args: [m.id, Date.now()] };
+  const failed = (err: unknown, message: string) =>
+    new Error(`migration ${m.id} failed: ${message}`, { cause: err });
   try {
     await client.batch(record ? [m.sql, mark] : [m.sql], 'write');
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    if (!isBenignMigrationError(m.sql, message)) {
-      throw new Error(`migration ${m.id} failed: ${message}`, { cause: err });
+    if (!isBenignMigrationError(m.sql, message)) throw failed(err, message);
+    if (!record) return;
+    try {
+      await client.execute(mark);
+    } catch (markErr) {
+      throw failed(markErr, markErr instanceof Error ? markErr.message : String(markErr));
     }
-    if (record) await client.execute(mark);
   }
 }
 

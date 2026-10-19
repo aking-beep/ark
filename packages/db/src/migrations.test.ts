@@ -1,14 +1,22 @@
-import { test, describe } from 'node:test';
+import { test, describe, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createClient, type Client } from '@libsql/client';
 import { DDL, MIGRATIONS, isBenignMigrationError, pushSchema, type Migration } from './sql.js';
 
 const dir = mkdtempSync(path.join(tmpdir(), 'ark-migrations-'));
-let n = 0;
-const freshDb = (): Client => createClient({ url: `file:${path.join(dir, `m${n++}.db`)}` });
+const opened: Client[] = [];
+const freshDb = (): Client => {
+  const client = createClient({ url: `file:${path.join(dir, `m${opened.length}.db`)}` });
+  opened.push(client);
+  return client;
+};
+after(() => {
+  for (const client of opened) client.close();
+  rmSync(dir, { recursive: true, force: true });
+});
 
 async function recorded(client: Client): Promise<string[]> {
   const r = await client.execute('SELECT id FROM schema_migrations ORDER BY id');
@@ -82,6 +90,21 @@ describe('pushSchema migration tracking', () => {
     assert.ok(!(await recorded(db)).includes('9003_alter_missing_table'));
   });
 
+  test('a failure recording a tolerated migration names the migration', async () => {
+    const db = freshDb();
+    for (const stmt of DDL) await db.execute(stmt);
+    // On a fresh DB 0003 hits the benign duplicate-column error, so it is
+    // recorded by the separate insert. Make exactly that insert fail.
+    await db.execute(`CREATE TRIGGER refuse_0003 BEFORE INSERT ON schema_migrations
+      WHEN NEW.id = '0003_events_cost_source' BEGIN SELECT RAISE(ABORT, 'history write refused'); END`);
+    await assert.rejects(pushSchema(db), (err: Error) => {
+      assert.match(err.message, /^migration 0003_events_cost_source failed: .*history write refused/);
+      assert.ok(err.cause instanceof Error, 'underlying error kept as cause');
+      return true;
+    });
+    assert.deepEqual(await recorded(db), ['0001_events_agent_id', '0002_events_agent_idx'], 'nothing after it ran');
+  });
+
   test('the legacy rebuild pass uses the same tolerance rule', async () => {
     const db = freshDb();
     // A legacy single-id events table that already has agent_id (benign on re-add).
@@ -102,7 +125,12 @@ describe('pushSchema migration tracking', () => {
 
 describe('isBenignMigrationError', () => {
   const dup = 'SQLITE_ERROR: duplicate column name: agent_id';
+  // SQLite's real text for an index name clash (raised by a plain CREATE INDEX).
+  // With IF NOT EXISTS it does not raise this, so for MIGRATIONS this branch is
+  // a backstop the spec asks for; it should never be the path a push takes.
   const exists = 'SQLITE_ERROR: index events_agent_idx already exists';
+  // What CREATE INDEX IF NOT EXISTS raises when the name belongs to a table.
+  const tableClash = 'SQLITE_ERROR: there is already a table named events';
 
   test('tolerates duplicate column only on ALTER TABLE ... ADD COLUMN', () => {
     assert.equal(isBenignMigrationError('ALTER TABLE events ADD COLUMN agent_id TEXT', dup), true);
@@ -114,6 +142,7 @@ describe('isBenignMigrationError', () => {
     assert.equal(isBenignMigrationError('CREATE INDEX IF NOT EXISTS i ON events(a)', exists), true);
     assert.equal(isBenignMigrationError('ALTER TABLE events ADD COLUMN agent_id TEXT', exists), false);
     assert.equal(isBenignMigrationError('CREATE TABLE t (x TEXT)', exists), false);
+    assert.equal(isBenignMigrationError('CREATE INDEX IF NOT EXISTS events ON events(a)', tableClash), false);
   });
 
   test('anything else is a real failure', () => {
