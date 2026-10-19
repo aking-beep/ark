@@ -39,6 +39,6 @@ cd apps/consumer && npm run test:e2e   # Playwright (requires my-ai-api running)
 
 ## Deploy on Vercel
 
-Use `vercel.consumer.json` at the repo root as the project config: Next.js in `apps/consumer`, FastAPI in `my-ai/` on the same domain. Set `NEXT_PUBLIC_SITE_URL` to your origin for share cards. Add Upstash or Vercel KV for durable share IDs across instances.
+Use `vercel.json` at the repo root as the project config: Next.js in `apps/consumer`, FastAPI in `my-ai/` on the same domain. Set `NEXT_PUBLIC_SITE_URL` to your origin for share cards. Add Upstash or Vercel KV for durable share IDs across instances.
 
 See also `my-ai/README.md` and `my-ai/ARCHITECTURE.md` from the upstream project.
