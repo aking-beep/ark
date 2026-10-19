@@ -82,3 +82,58 @@ Format and scoring rules: `factory/RUBRIC.md`.
 - `action.ts:406-408`: `ActionRequest | unknown` and similar unions still collapse to `unknown` (carried over from Round 1).
 - `EVIDENCE.md:152` and `:196`: deviations are numbered 1, 2, 4, 3. `EVIDENCE.md:176` says Proxy traps are "invoked once per field", but no test asserts the count; only the throwing-trap case is tested.
 - `EVIDENCE.md` "Definition of done" says the security review still needs a re-review, and `SECURITY.md` holds only the original BLOCK verdict. The spec's Risk section requires that review, and this score does not substitute for it.
+
+## Round 3 — 2026-10-19 — 5/5
+
+**Reviewer:** factory-reviewer subagent (Claude Opus 5.5), clean context, invoked under session_01DKfbobDano1mFhd4XFokPt for Round 3. It is not the builder context and was given no build transcript. Inputs were the spec, `git diff edba21e..HEAD` (HEAD `9cc0899`; the round-3 delta is `9304b3e..HEAD`: `action.ts`, `action.test.ts`, `EVIDENCE.md`), and `evidence/action-decision-kernel/` (REVIEW.md Rounds 1–2, SECURITY.md including "Re-review (round 2)", EVIDENCE.md, before/after, captures.tsv).
+
+**Read from the evidence alone, before the diff:** this is unchanged from Round 2. Before (`32451b7`), `decide-demo.mjs` exits 1 because `@ark/core` has no kernel. After (`345afe8`), it prints the 12-row table: 2 allows, require_approval from $100.01 to $1,000, deny above $1,000, unknown for an unknown tool, another org, a version mismatch and a malformed rule, forged role with no effect, and 0 network calls. A caller can now get a deterministic, fail-closed decision on one typed protected action. EVIDENCE.md deviation 5 says the R-L1..R-L3 fixes (`4f6780c`) do not change the demo output, so no new capture was taken. The reviewer confirmed this below.
+
+**Re-run by the reviewer (Node v22.22.0):**
+- `npm run build:packages`: exit 0.
+- `npm test --workspace @ark/core`: 218 tests, 218 pass, 0 fail. This matches the EVIDENCE count.
+- `npm run typecheck`: exit 0.
+- `node evidence/action-decision-kernel/decide-demo.mjs`: exit 0. The output is byte-identical to the body of `after.txt` (lines 5 to n−1, which drops the capture wrapper's header and exit-code trailer).
+- `npm run build --workspace @ark/business`: exit 0.
+- Probes against the built dist: 53 cases in the reviewer scratchpad (`rv3-adk/probe.mjs`, `rv3-adk/probe2.mjs`), not committed. 0 threw, 0 unexpected.
+
+**Security re-review lows: R-L1, R-L2 and R-L3 are CONFIRMED FIXED.** Each one fails closed with a decision (no throw), and inputs exactly at each limit still decide normally. Details:
+- **R-L1** (`action.ts:232`, `:250`). An own `__proto__`, `constructor` or `prototype` key is rejected in `ownEntries` before any copy. Probes built these keys with `JSON.parse` and put them on the policy, a rule, `when`, an amount comparison, the request, `attributes`, `resource` and `options`:
+  - The policy-side cases give `unknown policy_invalid`. These include the security reviewer's `"__proto__":"x"` and the TTL supplied only through `__proto__`.
+  - The request-side and `options` cases give `unknown invalid_request`. These include `now` supplied only through `__proto__`.
+  - `Object.prototype` is unpolluted afterwards.
+- **R-L2** (`action.ts:249`, `:252`, `:258-272`). A symbol key or a non-enumerable key is rejected in each of these places: a rule (the hidden and symbol `unless` at $5,000, both `allow` in round 2), a policy, the request, and `attributes`. So are:
+  - an extra string key or symbol key on the `rules` array or the `policies` array;
+  - an interior hole and a trailing hole;
+  - a non-enumerable array element.
+- **R-L3** (`action.ts:227-231`, `:262-264`, `:518-519`, `:566-567`). The length is checked before any key is listed:
+  - 1e6 rules: `policy_invalid` in 9 ms (3.5 s in round 2).
+  - 1e6 policies: 8.5 ms.
+  - `length` 2^32−1 rules and policies: under 1 ms.
+  - 65 rules, 257 policies, 65 keys on the policy, request or attributes, and 1e5 nesting levels: all fail closed.
+
+  At-limit inputs decide normally:
+  - 64 rules → `allow`.
+  - 256 identical policies → `allow`.
+  - 256 distinct agreeing policies → `allow`, with `expiresAt = now + min TTL`.
+  - The same 256 at $5,000 → `deny rule_matched`.
+  - A request with exactly 64 keys → `allow`. Attributes with exactly 64 keys → `allow`.
+
+  `Math.min(...spread)` is gone: the dist has no `Math.min`, and the TTL is a loop.
+
+| # | Criterion | Point | Finding |
+|---|---|---|---|
+| 1 | Spec satisfied | ✅ | AC1–AC6 still hold as written. The demo output is unchanged and reproduced. The R-L fixes narrow what is accepted, always toward `unknown`, and they are declared in EVIDENCE.md deviation 5. No new scope: no execution, persistence or approval flow. AC2 ("a forged `role` … changes nothing") still holds for every JSON-representable request: a plain `role` key is ignored, and the demo row's digest equals plain $5,000. A non-enumerable or symbol `role` now gives `unknown`, which fails closed and is declared. |
+| 2 | Evidence proves it | ✅ | Same committed script, same command, same Node for before and after. The before is a genuine pre-kernel import failure. EVIDENCE.md says that `4f6780c` leaves the demo byte-identical and so takes no new capture row. The reviewer reproduced that claim at HEAD. Deviation 5 lists each R-L fix with its test and quotes the measured before (3.5 s) and after (< 500 ms). "What this does not prove" is still specific, and "Definition of done" says that the security reviewer has not confirmed R-L1..R-L3. This round's probes confirm them, but they do not replace a security-review sign-off. |
+| 3 | Structure holds | ✅ | The round-3 delta touches only `packages/core/src/governance/action.ts` and its test. There is no new import or dependency, and the "reads no clock / imports only …" assertion still passes. Pure library code with no edge, adapter or framework types. |
+| 4 | Fails safely | ✅ | Every R-L input fails closed with a visible closed reason code and never throws (probes above). Oversized arrays are rejected in constant time, before copying. Hostile Proxies also fail closed: a Proxy whose `ownKeys` throws and a getter on an ignored request key each give `unknown invalid_request`. A Proxy policies array that reports `length` through a trap decides only on its actually-present, consistent elements. No path yields `allow` without a valid, governing, agreeing policy. |
+| 5 | Readable | ✅ | One helper (`ownEntries`, `action.ts:234-255`) applies every own-key rule in a single pass, and its doc lists each rejection. The limits are named constants (`:227-231`), and `MAX_ARRAY` says why it is 64 (`:229`). Comments explain the non-obvious points: why the length is checked before the keys (`:262`), why assigning into `{}` is now safe (`:279`), and why `-0` is normalized (`:495`). Round 2's doc notes are addressed (`ActionRequest` strict vs ignored keys, `:64-65`; multi-version pin, `:172-176`). Each fix has a named test in the "security re-review (round 2) fixes" `describe`, including the Proxy read-once assertion that Round 2 said was missing. The deviations are now numbered 1–5 in order. No dead code, commented-out code or debug output. |
+
+**Blocking:** none.
+
+**Non-blocking:**
+- `action.ts:243-244` (`ownEntries`). `Reflect.ownKeys` lists every key before the `maxKeys` check, so very wide *objects*, unlike arrays, still cost linear time before rejection. Measured on prebuilt objects: a request with 1e6 keys took 1.1 s, and a policy with 1e6 keys took 1.4 s. Both gave `unknown`. JS has no way to count an ordinary object's keys without listing them, and the caller already paid to build the object, so this is inherent rather than a defect. It is worth one clause in deviation 5, which currently reads as if every bound is checked before any work.
+- `action.ts:264-266` (`arrayElements`). A Proxy array has its `length` descriptor read twice: once directly and once inside `ownEntries`. A mismatch is rejected (`array shape`), so this is safe. But it is the one place where the "each descriptor read exactly once" doc at `:236` is not literally true.
+- `MAX_DEPTH` at the limit cannot be observed through a valid policy, because the strict schemas allow nesting of at most 6. The test checks 100k levels, not 8 vs 9. That is harmless, since depth 9 is `policy_invalid` either way.
+- Carried from Round 2 (left unchanged by the builder, as declared): the catch-all reports `invalid_request` for internal faults (`action.ts`, `decideAction` catch), and `policy_conflict` is emitted with both `unknown` and `deny`. `ActionRequest | unknown` unions collapse to `unknown`.
+- The spec's Risk section requires a security-review sign-off. SECURITY.md's latest verdict is APPROVE WITH NOTES (round 2), and R-L1..R-L3 are fixed per this round's probes. A one-line security confirmation would close EVIDENCE.md "Definition of done", which still says the fixes are unconfirmed.
