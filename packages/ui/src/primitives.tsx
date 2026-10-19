@@ -319,21 +319,39 @@ export function Table({
   align,
   children,
   className,
+  label,
 }: {
   head: React.ReactNode[];
   /** Per-column header alignment; defaults to left for the first, right for the rest. */
   align?: ('left' | 'right' | undefined)[];
   children: React.ReactNode;
   className?: string;
+  /**
+   * Names the table. When set, the scroll container becomes a labelled,
+   * focusable region, so a keyboard user can scroll a table wider than the
+   * screen with the arrow keys.
+   */
+  label?: string;
 }) {
+  const region = label
+    ? { role: 'region', 'aria-label': label, tabIndex: 0 }
+    : {};
   return (
-    <div className={cx('-mx-5 overflow-x-auto px-5', className)}>
-      <table className="w-full min-w-full border-collapse text-sm">
+    <div
+      {...region}
+      className={cx(
+        '-mx-5 overflow-x-auto px-5',
+        label && 'focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/60',
+        className,
+      )}
+    >
+      <table className="w-full min-w-full border-collapse text-sm" aria-label={label}>
         <thead>
           <tr className="border-b border-ink-700">
             {head.map((h, i) => (
               <th
                 key={i}
+                scope="col"
                 className={cx(
                   'whitespace-nowrap px-3 pb-2 text-2xs font-medium uppercase tracking-wider text-ink-400 first:pl-0 last:pr-0',
                   (align?.[i] ?? (i === 0 ? 'left' : 'right')) === 'left' ? 'text-left' : 'text-right',
@@ -393,14 +411,17 @@ export function CardTable({
   columns,
   rows,
   className,
+  label,
 }: {
   columns: CardColumn[];
   rows: { key: string; cells: React.ReactNode[] }[];
   className?: string;
+  /** Names the table and the card list; see `Table`. */
+  label?: string;
 }) {
   return (
     <div className={className}>
-      <Table head={columns.map((c) => c.label)} align={columns.map((c, i) => c.align ?? (i === 0 ? 'left' : 'right'))} className="hidden md:block">
+      <Table head={columns.map((c) => c.label)} align={columns.map((c, i) => c.align ?? (i === 0 ? 'left' : 'right'))} className="hidden md:block" label={label}>
         {rows.map((r) => (
           <tr key={r.key} className="border-t border-ink-800 align-top">
             {r.cells.map((cell, i) => (
@@ -416,7 +437,7 @@ export function CardTable({
           </tr>
         ))}
       </Table>
-      <ul className="space-y-3 md:hidden">
+      <ul className="space-y-3 md:hidden" aria-label={label}>
         {rows.map((r) => (
           <li key={r.key} className="rounded-lg border border-ink-700 bg-ink-900 p-4">
             {r.cells.map((cell, i) => (

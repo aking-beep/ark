@@ -8,6 +8,7 @@ const LINKS = [
   { href: '/discover', label: 'Discover' },
   { href: '/agents', label: 'Agents' },
   { href: '/assurance', label: 'Assurance' },
+  { href: '/actions', label: 'Actions' },
   { href: '/dashboard', label: 'Spend' },
   { href: '/workloads', label: 'Workloads' },
   { href: '/protocols', label: 'Protocols' },

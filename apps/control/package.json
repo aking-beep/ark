@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start -p 3002",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --experimental-strip-types --test src/lib/guards.test.ts src/lib/basis.test.ts"
+    "test": "node --experimental-strip-types --test src/lib/guards.test.ts src/lib/basis.test.ts src/lib/receipts.test.ts"
   },
   "dependencies": {
     "@ark/core": "*",
