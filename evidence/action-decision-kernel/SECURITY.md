@@ -211,3 +211,128 @@ neither `Object.prototype` nor `null`).
   `sha256.test.ts` checks it against NIST vectors and `node:crypto` for lengths
   0..300, multi-byte input and a 1 MB input.
 - There is one `@noble/hashes` entry in the lockfile, so no duplicate versions.
+
+---
+
+# Re-review (round 2)
+
+**Reviewer:** security reviewer (separate pass, `agents/security-reviewer.md`)
+**Scope:** `git diff edba21e..HEAD` at `d0675d6`, mainly the rebuilt
+`packages/core/src/governance/action.ts` and `canonical-json.ts`. Checked against
+`specs/action-decision-kernel.md` and the accepted constraints in `EVIDENCE.md`.
+**Date:** 2026-10-19
+**Method:** `npm run build:packages`, then core tests (212/212 pass). Next, the round-1
+scripts were re-run against the new dist, and two new scripts were run against it.
+All scripts are in the reviewer scratchpad, outside the repo:
+`secreview-kernel/attack.mjs` (round 1, 61 cases), `rereview.mjs` (about 90 cases:
+Proxies, odd objects, `__proto__`, DoS, currency, conflicts, decisionId binding,
+normalizedRequest) and `rereview2.mjs` (108 injected throw paths, plus digest checks).
+
+## Verdict: APPROVE WITH NOTES
+
+H1 is fixed. M1, M2 and M3 are fixed. L1 is recorded as an accepted constraint, and
+L2–L7 are fixed or accepted (L5 and L7 are recorded in `EVIDENCE.md`). The new code
+has no critical, high or medium findings. None of the attacks below produced an
+`allow` that a correct reading of the policy would not give. Every exception path
+returns `unknown`. The three new findings are low. Each one fails closed, or is
+reachable only through policy objects built in code (not JSON). None of them blocks.
+
+## Prior findings
+
+| Finding | Status | Evidence |
+|---|---|---|
+| H1 non-strict `ActionRule` fails open | **Fixed** | `ActionRule` is `.strict()` (`action.ts:98-103`). A misplaced `amountMinor` and an `unless` both now give `unknown policy_invalid`. Test at `action.test.ts:329` |
+| M1 decisionId does not bind policy content | **Fixed** | The preimage (`action.ts:357-367`) now includes the sorted `policyDigests` of every governing policy, plus `expiresAt`. 54 policy variants (rules × version × TTL) across 3 `now` values gave 54 distinct ids and 0 collisions. Changing only the *second* governing policy's rules or TTL changes the id. With two policies the id does not depend on their order. `policyDigest` equals `sha256(canonicalJson(policy))` |
+| M2 decisionId is not a token | **Fixed (doc)** | The module doc (`action.ts:22-27`) and the field doc (`:148-152`) say it is a content address, not an authenticator. It can still be recomputed from public data, which is expected and documented |
+| M3 TOCTOU, getters, inherited props | **Fixed** | Only own data properties are read, each once (`ownData`, `:223-228`). An accessor gives `unknown`, and an inherited `attributes` gives `deny invalid_amount`. A Proxy that returns a different amount on each read is read exactly once, and the returned `normalizedRequest` carries that value. `normalizedRequest` is deep-frozen and independent of the caller's object: mutating the source afterwards does not change it. `requestDigest === sha256(canonicalJson(normalizedRequest))` held for every case in the sweep. `-0` is normalized to `0` in both `now` and `amountMinor` |
+| L1 match-all and shadowed rules | **Accepted constraint** | Recorded in `EVIDENCE.md` deviation list ("policy authors are trusted") |
+| L2 hostile inputs throw | **Fixed** | `decideAction` wraps the body in `try/catch` (`:410-418`). There were 108 injected throws (number, `null`, an object shaped like `{decision:'allow'}`, `RangeError`) at every request, resource, attribute, policy, rule, policies-array and options key, plus `getPrototypeOf` traps. All 108 returned `unknown`/`deny`: none escaped and none gave `allow`. A call made near stack exhaustion returns `unknown invalid_request` |
+| L3 malformed principal dropped | **Fixed** | `principal: 42` and `principal: ''` both give `deny invalid_request` |
+| L4 prototype-pollution reach | **Fixed** | No inherited reads on the request. For the policy side, see R-L1 |
+| L5 `canonicalJson` not injective | **Fixed / accepted** | No longer exported from `@ark/core` (`index.ts` exports `action.js` only). It throws on non-finite numbers |
+| L6 multi-currency policies deny each other | **Fixed** | Currency is part of the governing key (`:510-512`) |
+| L7 `now` caller-trusted | **Accepted / documented** | `action.ts:29-30` |
+
+## New code: what was attacked and held
+
+| Attack | Result |
+|---|---|
+| Proxy request/attributes with a `getOwnPropertyDescriptor` trap that returns a different value per read | each field read once. The decision and `normalizedRequest` agree |
+| Proxy whose `getPrototypeOf` lies about a class instance | accepted as plain. Harmless: only own data descriptors are read, once |
+| Revoked Proxy as the request / a policy; Proxy `ownKeys` that throws or hides `rules` | `unknown invalid_request` / `unknown policy_invalid` |
+| Proxy policies array with `length` 2^32−1 | first missing index → `unknown policy_invalid` (fast) |
+| Null-prototype request and policy; frozen request; sealed policy | decide normally (correct) |
+| Arrays where objects are expected (request, resource, attributes, policy, `when`); a `Date` as attributes; an Array subclass as `policies`; sparse arrays and holes; explicit `undefined` in a policy | `deny invalid_*` or `unknown policy_invalid` |
+| Accessor (getter) on a policy rule | `unknown policy_invalid` |
+| Nesting depth 9, and 100k deep | `unknown policy_invalid` (depth cap at `:232`, no stack overflow) |
+| Currency selection with a USD demo policy plus an EUR allow-all policy, $5,000 request as `eur`, `EUR `, ` EUR`, `EUR\n`, `Eur`, full-width `ＥＵＲ`, `EU`, `EURO` | all `deny invalid_currency`. Only an exact `EUR` selects the EUR policy, and that is the policy for that currency, so it is correct. JS `$` without the `m` flag does not match before a trailing newline. A policy with `currency:'usd'` gives `unknown policy_invalid` |
+| Two USD policies (allow-all + demo), $5,000 | `deny policy_conflict` |
+| Same id with different rules, a different TTL, or a different currency | `unknown policy_conflict` |
+| Same id, where one copy is invalid | `unknown policy_invalid` |
+| Same id under another org (not claiming) | ignored (correct) |
+| Version pin with an EUR v7 policy present on a USD request | the pin applies to governing policies only, so `allow` (correct: EUR does not govern) |
+
+## New findings
+
+### R-L1 (low). A `__proto__` key in a policy becomes the copied object's prototype, so it is no longer rejected as an unknown key
+
+**File:** `packages/core/src/governance/action.ts:242-243` (`plainCopy`)
+
+`plainCopy` writes `out[k] = …` into an ordinary `{}`. For an own `__proto__` key
+(which `JSON.parse` produces), that assignment calls the `__proto__` setter instead
+of creating a key. zod 3.25 reads known keys with `data[key]`, which includes
+inherited ones, and its strict check uses `for…in`. The results:
+
+- `{"__proto__":"x", …valid policy}` → previously `unknown policy_invalid` (round 1),
+  now **accepted** (`allow` for $75). The primitive is silently dropped.
+- `{…policy without decisionTtlMs, "__proto__":{"decisionTtlMs":86400000}}` → accepted,
+  and the 24h TTL comes from the prototype.
+- An own key wins over a `__proto__` copy of it. A reviewer reading the stored JSON
+  can therefore see two TTLs, or two caps, and not know which one applies.
+- An unknown key inside `__proto__` (`unless`, `evil`) is still rejected, because
+  `for…in` sees it. **Not fail-open:** `policyDigest` and the decision both use
+  the effective zod output, so what was decided is what was digested.
+
+The strictness added for H1 exists so that odd policy JSON is rejected, not
+quietly reinterpreted. This is a small regression on that.
+
+**Fix:** in `plainCopy`, `if (k === '__proto__') throw new Unreadable('__proto__')`,
+or build `out` with `Object.create(null)` / `Object.defineProperty` so strict
+rejects the key. Add a test with `JSON.parse('{"__proto__":…}')`.
+
+### R-L2 (low). Symbol-keyed and non-enumerable policy properties are silently ignored
+
+**File:** `action.ts:243` (`Object.keys(v)`)
+
+A rule `{when:{}, effect:'allow'}` with a non-enumerable or Symbol-keyed `unless`
+gives `allow` for $5,000. This is the H1 shape (a condition that does not count),
+but JSON cannot produce it. Only a policy object built in code can, and policy
+authors are trusted (L1). **Fix:** iterate `Reflect.ownKeys(v)` and throw
+`Unreadable` on a symbol key or a non-enumerable property.
+
+### R-L3 (low). No size bound before validation, so very large policy inputs cost seconds of CPU (fails closed)
+
+**File:** `action.ts:234-239`, `:477-498`, `:526`
+
+`plainCopy` copies any array length and any object width before zod's `max(64)`
+applies. Measured: one policy with 1e6 rules takes 3.5 s, then `unknown policy_invalid`.
+1e5 identical claiming policies take 4.6 s, then `allow`. 2e5 distinct claiming
+policies take 10 s, then `unknown invalid_request`, because the spread in
+`Math.min(...)` at `:526` throws `RangeError` and the catch-all handles it. Every case
+fails closed. Policies come from trusted server storage, so this matters only if a
+policy store can be written by a less trusted party.
+**Fix:** in `plainCopy`, reject arrays longer than 64 and objects with more than
+about 16 keys. Cap `policies.length`, for example at 256 → `policy_invalid`. Use a
+loop or `reduce` in place of `Math.min(...spread)`.
+
+### Informational
+
+- The returned `ActionDecision` object is not frozen (its `normalizedRequest` is).
+  A consumer can only mutate its own copy, so this is not a kernel issue.
+- `policyId` and `policyVersion` report the first governing policy by id sort. The
+  full governing set is bound only through `decisionId`. An audit log that wants to
+  list every governing policy has to record the set itself.
+- A malformed policy that cannot be shown to belong elsewhere (for example another
+  org's policy with no `tool`) still gives `unknown` for every request in this org.
+  That is fail-closed by design, and it is an availability coupling.
+- Dependencies: no change since round 1 (`@noble/hashes` 1.8.0 exact pin; `zod` ^3.23.8 was already present).
