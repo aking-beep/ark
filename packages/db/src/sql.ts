@@ -131,6 +131,33 @@ export const DDL: string[] = [
   id TEXT PRIMARY KEY, org_id TEXT NOT NULL, agent_id TEXT NOT NULL,
   created_at INTEGER NOT NULL, status TEXT NOT NULL, report TEXT NOT NULL)`,
 `CREATE INDEX IF NOT EXISTS assurance_runs_agent_idx ON assurance_runs(org_id, agent_id, created_at)`,
+
+// One row per guarded tool attempt (@ark/guard, ADR-0009). `id` is the
+// kernel's decision id. Identifiers, the decision and digests only: no column
+// can hold tool arguments, a prompt, customer PII, a secret or the raw
+// idempotency key (only its sha256 is stored).
+//
+// The partial unique index is the idempotency claim: a receipt that left
+// `not_attempted` owns its (org_id, idempotency_key_hash), so of two concurrent
+// INSERTs for one key at most one lands. The CHECKs make it impossible to store
+// an executed receipt for anything but an `allow`, or one with no key.
+`CREATE TABLE IF NOT EXISTS action_receipts (
+  id TEXT NOT NULL, org_id TEXT NOT NULL, trace_id TEXT, agent_id TEXT NOT NULL, principal TEXT,
+  tool TEXT NOT NULL, action TEXT NOT NULL, resource_type TEXT, resource_id TEXT,
+  policy_id TEXT, policy_version INTEGER,
+  decision TEXT NOT NULL CHECK (decision IN ('allow','deny','require_approval','unknown')),
+  reason_code TEXT NOT NULL, request_digest TEXT NOT NULL,
+  execution_status TEXT NOT NULL
+    CHECK (execution_status IN ('not_attempted','attempted','completed','failed','outcome_unknown')),
+  idempotency_key_hash TEXT,
+  sender_reported_approval INTEGER NOT NULL DEFAULT 0 CHECK (sender_reported_approval IN (0, 1)),
+  amount_minor INTEGER, currency TEXT,
+  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+  CHECK (execution_status = 'not_attempted' OR (decision = 'allow' AND idempotency_key_hash IS NOT NULL)),
+  PRIMARY KEY (org_id, id))`,
+`CREATE UNIQUE INDEX IF NOT EXISTS action_receipts_idempotency_idx
+  ON action_receipts(org_id, idempotency_key_hash) WHERE execution_status <> 'not_attempted'`,
+`CREATE INDEX IF NOT EXISTS action_receipts_created_idx ON action_receipts(org_id, created_at)`,
 ];
 
 /** Additive statements for databases created before this column existed. */
