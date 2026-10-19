@@ -1,0 +1,4 @@
+memory   allow 0.300 ms/call (n=500)
+memory   deny  0.212 ms/call (n=500)
+libsql   allow 3.874 ms/call (n=500)
+libsql   deny  2.437 ms/call (n=500)

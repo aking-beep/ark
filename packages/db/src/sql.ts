@@ -137,6 +137,37 @@ export const DDL: string[] = [
   id TEXT PRIMARY KEY, applied_at INTEGER NOT NULL)`,
 ];
 
+// action_receipts: one row per guarded tool attempt (@ark/guard, ADR-0009).
+// `id` is the kernel's decision id. Identifiers, the decision and digests only:
+// no column can hold tool arguments, a prompt, customer PII, a secret or the raw
+// idempotency key (only its sha256 is stored).
+//
+// The partial unique index is the idempotency claim: a receipt that left
+// `not_attempted` owns its (org_id, idempotency_key_hash), so of two concurrent
+// INSERTs for one key at most one lands. The CHECKs make it impossible to store
+// an executed receipt for anything but an `allow`, or one with no key.
+//
+// Tracked migrations (0008-0010), not DDL: the table is new, so it ships as
+// migrations from the start. Each statement is IF NOT EXISTS, so it is safe on a
+// fresh database and on one where an earlier build created it from the DDL list.
+const ACTION_RECEIPTS_TABLE = `CREATE TABLE IF NOT EXISTS action_receipts (
+  id TEXT NOT NULL, org_id TEXT NOT NULL, trace_id TEXT, agent_id TEXT NOT NULL, principal TEXT,
+  tool TEXT NOT NULL, action TEXT NOT NULL, resource_type TEXT, resource_id TEXT,
+  policy_id TEXT, policy_version INTEGER,
+  decision TEXT NOT NULL CHECK (decision IN ('allow','deny','require_approval','unknown')),
+  reason_code TEXT NOT NULL, request_digest TEXT NOT NULL,
+  execution_status TEXT NOT NULL
+    CHECK (execution_status IN ('not_attempted','attempted','completed','failed','outcome_unknown')),
+  idempotency_key_hash TEXT,
+  sender_reported_approval INTEGER NOT NULL DEFAULT 0 CHECK (sender_reported_approval IN (0, 1)),
+  amount_minor INTEGER, currency TEXT,
+  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+  CHECK (execution_status = 'not_attempted' OR (decision = 'allow' AND idempotency_key_hash IS NOT NULL)),
+  PRIMARY KEY (org_id, id))`;
+const ACTION_RECEIPTS_IDEMPOTENCY_IDX = `CREATE UNIQUE INDEX IF NOT EXISTS action_receipts_idempotency_idx
+  ON action_receipts(org_id, idempotency_key_hash) WHERE execution_status <> 'not_attempted'`;
+const ACTION_RECEIPTS_CREATED_IDX = `CREATE INDEX IF NOT EXISTS action_receipts_created_idx ON action_receipts(org_id, created_at)`;
+
 export interface Migration {
   /** Stable and never reused: once shipped, an id means this statement forever. */
   id: string;
@@ -144,8 +175,9 @@ export interface Migration {
 }
 
 /**
- * Additive statements for databases created before a column existed. Applied in
- * order, each at most once, and recorded in `schema_migrations`. Append only.
+ * Additive statements: columns for databases created before they existed, and
+ * new tables with their indexes. Applied in order, each at most once, and
+ * recorded in `schema_migrations`. Append only.
  */
 export const MIGRATIONS: Migration[] = [
   { id: '0001_events_agent_id', sql: `ALTER TABLE events ADD COLUMN agent_id TEXT` },
@@ -157,6 +189,9 @@ export const MIGRATIONS: Migration[] = [
   { id: '0005_actions_agent_idx', sql: `CREATE INDEX IF NOT EXISTS actions_agent_idx ON actions(org_id, agent_id)` },
   { id: '0006_protocol_evidence_agent_id', sql: `ALTER TABLE protocol_evidence ADD COLUMN agent_id TEXT` },
   { id: '0007_protocol_evidence_agent_idx', sql: `CREATE INDEX IF NOT EXISTS protocol_evidence_agent_idx ON protocol_evidence(org_id, agent_id)` },
+  { id: '0008_action_receipts', sql: ACTION_RECEIPTS_TABLE },
+  { id: '0009_action_receipts_idempotency_idx', sql: ACTION_RECEIPTS_IDEMPOTENCY_IDX },
+  { id: '0010_action_receipts_created_idx', sql: ACTION_RECEIPTS_CREATED_IDX },
 ];
 
 /**

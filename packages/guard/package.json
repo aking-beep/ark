@@ -1,0 +1,25 @@
+{
+  "name": "@ark/guard",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsc -p tsconfig.json && node --test dist/guard.test.js dist/guard-hardening.test.js dist/memory-store.test.js dist/demo/refund.test.js",
+    "demo": "tsc -p tsconfig.json && node dist/demo/run.js"
+  },
+  "dependencies": {
+    "@ark/core": "*",
+    "@ark/sdk": "*",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@ark/db": "*",
+    "typescript": "^5.6.0",
+    "@types/node": "^22.9.0"
+  }
+}
