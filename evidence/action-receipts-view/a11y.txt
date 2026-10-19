@@ -1,0 +1,57 @@
+a11y probe base=http://localhost:3002 viewport=1280x900 captured=2026-10-19T08:26:33.306Z
+
+Tab order (first 40 stops):
+   1. a "ARKControl"
+   2. a "Connect"
+   3. a "Discover"
+   4. a "Agents"
+   5. a "Assurance"
+   6. a "Actions"
+   7. a "Spend"
+   8. a "Workloads"
+   9. a "Protocols"
+  10. a "Optimise"
+  11. a "Budgets"
+  12. a "Calibration"
+  13. button "Sign out"
+  14. div[role=region] "Action receipts"
+  15. summary "decision e01b5af9024e42ae… (show the full decision id)"
+  16. summary "decision 6ca22f7f4b96b192… (show the full decision id)"
+  17. summary "decision 0e17b106bafea037… (show the full decision id)"
+  18. summary "decision 0a390d7ac6985736… (show the full decision id)"
+  19. summary "decision f9ec94ee35b2daa1… (show the full decision id)"
+  20. summary "decision a6354f05aa605204… (show the full decision id)"
+  21. summary "decision 448e2b6966188dd3… (show the full decision id)"
+  22. (body)
+  23. a "ARKControl"
+  24. a "Connect"
+  25. a "Discover"
+  26. a "Agents"
+  27. a "Assurance"
+  28. a "Actions"
+  29. a "Spend"
+  30. a "Workloads"
+  31. a "Protocols"
+  32. a "Optimise"
+  33. a "Budgets"
+  34. a "Calibration"
+  35. button "Sign out"
+  36. div[role=region] "Action receipts"
+  37. summary "decision e01b5af9024e42ae… (show the full decision id)"
+  38. summary "decision 6ca22f7f4b96b192… (show the full decision id)"
+  39. summary "decision 0e17b106bafea037… (show the full decision id)"
+  40. summary "decision 0a390d7ac6985736… (show the full decision id)"
+
+Enter on first correlation summary: open=true fullIdLength=64
+
+Receipts table columns (header align vs cell align):
+  Time             scope=col header=left cells=left ok
+  Agent            scope=col header=left cells=left ok
+  Tool and action  scope=col header=left cells=left ok
+  Resource         scope=col header=left cells=left ok
+  Amount           scope=col header=right cells=right ok
+  Policy           scope=col header=left cells=left ok
+  Decision         scope=col header=left cells=left ok
+  Execution        scope=col header=left cells=left ok
+  Correlation      scope=col header=left cells=left ok
+columns=9 mismatches=0

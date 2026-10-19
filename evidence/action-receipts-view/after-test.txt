@@ -1,0 +1,149 @@
+$ (cd packages/db && node --test dist/action-receipts.test.js dist/bootstrap.test.js)
+# Subtest: action_receipts migrations
+    ok 1 - are tracked migrations 0008-0010, not plain DDL
+    ok 2 - a fresh push records 0008-0010 and creates the table with an (org_id, id) key; a second push is a no-op
+    ok 3 - a database that already has the table (the pre-migration build) upgrades without error and keeps its rows
+    ok 4 - CHECKs refuse an executed receipt for a non-allow decision or with no key
+ok 1 - action_receipts migrations
+# Subtest: LibsqlActionReceiptStore
+    ok 1 - record stores not_attempted and refuses a duplicate (org_id, id)
+    ok 2 - round-trips every field
+    ok 3 - claim: one key, one owner; a second claim gets the owner back
+    ok 4 - claim colliding on (org_id, id) only returns existing: null
+    ok 5 - keys and ids are org-scoped
+    ok 6 - finish moves attempted to a final status once, and never touches not_attempted
+    ok 7 - race: 20 concurrent claims for one key over two connections, exactly one lands
+ok 2 - LibsqlActionReceiptStore
+# Subtest: Control read path: listActionReceipts / countActionReceipts
+    ok 1 - org isolation: each org reads only its own receipts, and an unknown org reads nothing
+    ok 2 - the list is bounded; the counts are not
+ok 3 - Control read path: listActionReceipts / countActionReceipts
+# Seeded 11800 events across 2064 traces, 319 protocol observations, 137 alerts, 4 budgets, 1 calibration snapshot.
+# Seeded discovery run dr_mvezwup1_1uaj70de (2 candidates), registered support-agent and refund-agent, 1 assurance run (fail).
+# Ran 8 guarded refund scenarios through guardTool: 7 action receipts for org_demo.
+# Seeded org_northwind with zero events (live ingest is npm run ingest:live).
+# Subtest: seedGuard
+    ok 1 - anything goes outside production
+    ok 2 - production refuses without ARK_ALLOW_SEED=1
+    ok 3 - production refuses the published defaults and missing values
+    ok 4 - production with ARK_ALLOW_SEED=1 and real values passes
+ok 4 - seedGuard
+# Subtest: bootstrap
+    ok 1 - pushes the schema and seeds an empty database once
+    ok 2 - an empty production database without ARK_ALLOW_SEED stays empty but boots
+    ok 3 - production that asks to seed with default credentials fails loudly
+ok 5 - bootstrap
+# Subtest: bootstrap with the real seed
+    ok 1 - a fresh database seeds, and Demo Co can walk Discover → Register → Assure
+    ok 2 - procurement-agent is observed but never registered — the shadow-agent case
+    ok 3 - Northwind stays empty of agents, runs and telemetry
+    ok 4 - Demo Co has the guard demo scenarios as receipts; Northwind has none
+    ok 5 - a second boot never re-seeds
+ok 6 - bootstrap with the real seed
+# tests 25
+# suites 6
+# pass 25
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 28242.425794
+exit=0
+
+$ npm run test --workspace @ark/control
+# (node:23769) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/user/ark/.claude/worktrees/agent-ac3db85e7d20bf493/apps/control/src/lib/basis.test.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to /home/user/ark/.claude/worktrees/agent-ac3db85e7d20bf493/apps/control/package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: telemetryBasis
+    ok 1 - counts and rates from ingested telemetry are measured, n = traces
+    ok 2 - below the floor it is still measured, and says it is thin
+ok 1 - telemetryBasis
+# Subtest: dollarBasis
+    ok 1 - measured only when every event carried a caller-reported cost
+    ok 2 - one catalog-priced event makes the total calibrated, and the share is stated
+    ok 3 - nothing reported reads as priced from the catalog, not as the bill
+    ok 4 - unrecorded provenance is never promoted to measured
+    ok 5 - no events is not "all reported"
+    ok 6 - below the floor the source says so
+ok 2 - dollarBasis
+# Subtest: projectionBasis and weaker
+    ok 1 - a projection is heuristic whatever it rests on
+    ok 2 - weaker picks the lower basis in either order
+ok 3 - projectionBasis and weaker
+# (node:23770) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/user/ark/.claude/worktrees/agent-ac3db85e7d20bf493/apps/control/src/lib/guards.test.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to /home/user/ark/.claude/worktrees/agent-ac3db85e7d20bf493/apps/control/package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: readBodyCapped
+    ok 1 - reads a body under the cap
+    ok 2 - refuses on Content-Length before reading
+    ok 3 - refuses a stream that exceeds the cap with no or a lying Content-Length
+    ok 4 - a malformed Content-Length is a 400
+ok 4 - readBodyCapped
+# Subtest: tooManyEvents
+    ok 1 - caps the events array before parsing
+ok 5 - tooManyEvents
+# Subtest: sameOrigin
+    ok 1 - accepts a matching Origin and refuses another site
+    ok 2 - uses X-Forwarded-Host behind a proxy, and honours an explicit allow-list
+    ok 3 - no Origin: allowed unless Sec-Fetch-Site says cross-site
+ok 6 - sameOrigin
+# Subtest: RateLimiter
+    ok 1 - allows the limit, refuses the next, and resets after the window
+    ok 2 - stays bounded in memory
+    ok 3 - clientIp takes the right-most hop, the one a client cannot write
+ok 7 - RateLimiter
+# Subtest: parseDays
+    ok 1 - integers in 1..365, default on garbage
+ok 8 - parseDays
+# Subtest: resolveSessionSecret
+    ok 1 - development falls back to the dev secret
+    ok 2 - production refuses empty, published and short secrets
+ok 9 - resolveSessionSecret
+# Subtest: showDemoLogin
+    ok 1 - on outside production, off in production unless opted in
+ok 10 - showDemoLogin
+# Subtest: discover
+    ok 1 - error codes map to fixed copy and arbitrary text is never echoed
+    ok 2 - fetch errors classify into codes
+    ok 3 - isPublicRepo trusts only an anonymous private:false
+    ok 4 - private discovery is opt-in
+ok 11 - discover
+# (node:23771) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/user/ark/.claude/worktrees/agent-ac3db85e7d20bf493/apps/control/src/lib/receipts.test.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to /home/user/ark/.claude/worktrees/agent-ac3db85e7d20bf493/apps/control/package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: decisionLabel
+    ok 1 - maps the four kernel decisions; require_approval is pending, never approved
+    ok 2 - anything else is unknown, and no label anywhere says approved
+ok 12 - decisionLabel
+# Subtest: executionLabel
+    ok 1 - maps the stored statuses
+    ok 2 - attempted (possibly executed) reads as outcome unknown, with a note
+    ok 3 - a missing or unrecognised status is unknown, never a success
+    ok 4 - only completed is green; failures and unknown outcomes are amber, never red
+ok 13 - executionLabel
+# Subtest: isSimulation
+    ok 1 - the guard demo agent on a demo tool id is a simulation
+    ok 2 - a real agent calling the same tool is not
+ok 14 - isSimulation
+# Subtest: formatting
+    ok 1 - amounts use the currency exponent
+    ok 2 - time is absolute UTC
+    ok 3 - policy id and version, or says none matched
+    ok 4 - the ignored-approval sentence says so in words
+ok 15 - formatting
+# Subtest: tallyReceipts
+    ok 1 - folds stored values onto labels; attempted counts as outcome unknown
+    ok 2 - receipts are measured, n = receipts, sourced to the guard
+ok 16 - tallyReceipts
+# tests 43
+# suites 16
+# pass 43
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 330.514236
+exit=0

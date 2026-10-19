@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@ark/core": "*",
+    "@ark/guard": "*",
     "@ark/protocols": "*",
     "@libsql/client": "^0.14.0",
     "drizzle-orm": "^0.36.0"

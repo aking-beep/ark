@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { budgetStatus, recentAlerts, actionAudit } from '@ark/db';
 import { Panel, Badge, BasisTag, Meter, Table, Td, Callout, fmt, type Tone } from '@ark/ui';
 import { requireOrg, WINDOW_DAYS } from '@/lib/org';
@@ -104,6 +105,11 @@ export default async function Budgets() {
             />
           }
         >
+          <p className="mb-3 text-xs leading-relaxed text-ink-400">
+            <span className="font-mono">approvedBy</span> here is sender-reported — the caller&apos;s own claim, not
+            verified by ARK. For decisions ARK made and recorded itself, see{' '}
+            <Link href="/actions" className="text-signal underline underline-offset-2">Actions</Link>.
+          </p>
           <Table head={['Action', 'System', 'Blast radius', 'Executed', 'Unapproved', 'Value moved']} align={['left', 'left', 'left', 'right', 'right', 'right']}>
             {unapproved.map((a) => (
               <tr key={`${a.name}-${a.system}`}>

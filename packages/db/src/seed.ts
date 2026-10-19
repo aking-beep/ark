@@ -38,7 +38,7 @@ export async function runSeed(): Promise<void> {
 
 async function run() {
   for (const t of [
-    'alert_deliveries', 'alert_destinations', 'org_tokens', 'memberships', 'users',
+    'action_receipts', 'alert_deliveries', 'alert_destinations', 'org_tokens', 'memberships', 'users',
     'quality_samples', 'alerts', 'actions', 'protocol_evidence', 'events', 'traces',
     'budgets', 'workloads', 'calibration_snapshots', 'assurance_runs', 'discovery_runs', 'agents', 'orgs',
   ]) {
@@ -246,6 +246,10 @@ async function run() {
 
   await seedSecondOrg(client, now);
   await seedAuth(client, now);
+
+  // Last: it imports @ark/guard at runtime. If that package is unbuilt the
+  // throw lands after logins exist, so the DB is usable rather than half-seeded.
+  console.log(await seedActionReceipts(client, now));
 }
 
 /**
@@ -515,6 +519,46 @@ async function seedAgents(client: ReturnType<typeof createClient>, now: number):
   await createAssuranceRun(ORG, support.id, report, client);
 
   return `Seeded discovery run ${run.id} (${result.candidates.length} candidates), registered ${registered.map((a) => a.id).join(' and ')}, 1 assurance run (${report.overallStatus}).`;
+}
+
+/**
+ * Action receipts for Demo Co, produced by actually running the guarded-refund
+ * demo scenarios (`@ark/guard/demo`) through `guardTool` against this
+ * database's `action_receipts` — not hand-written rows — so /actions shows
+ * exactly what the guard records. The refund is synthetic: an in-memory
+ * ledger, no network, no money.
+ *
+ * The scenarios' trusted context is `org_demo`; the cross-tenant scenario
+ * deliberately runs under `org_other`, an org with no members, so its receipt
+ * is stored there and is visible to nobody. Northwind gets none.
+ *
+ * The guard's clock ticks 1 ms per read from a fixed offset before the seed's
+ * `now`, so the decisions, statuses and order are the same on every run; the
+ * timestamps (and the decision ids, which hash them) move with `now` like the
+ * rest of the seed, and are never in the future.
+ *
+ * Imported through a computed specifier: `@ark/guard` is built after
+ * `@ark/db` (its demo and tests use this package's store), so this file cannot
+ * name its types at compile time. `GuardDemo` is the slice used here.
+ */
+interface GuardDemo {
+  runRefundScenarios(o: {
+    receipts: import('@ark/core').ActionReceiptStore;
+    clock?: () => number;
+  }): Promise<{ rows: { name: string; result: { outcome: string } }[] }>;
+  tickingClock(start?: number): () => number;
+}
+
+async function seedActionReceipts(client: ReturnType<typeof createClient>, now: number): Promise<string> {
+  const spec = '@ark/guard/demo';
+  const demo = (await import(spec)) as GuardDemo;
+  const { LibsqlActionReceiptStore } = await import('./action-receipts.js');
+  const { rows } = await demo.runRefundScenarios({
+    receipts: new LibsqlActionReceiptStore(client),
+    clock: demo.tickingClock(now - 2 * 36e5),
+  });
+  const stored = await client.execute({ sql: 'SELECT COUNT(*) n FROM action_receipts WHERE org_id=?', args: [ORG] });
+  return `Ran ${rows.length} guarded refund scenarios through guardTool: ${stored.rows[0]!.n} action receipts for ${ORG}.`;
 }
 
 const round2 = (x: number) => Math.round(x * 100) / 100;
