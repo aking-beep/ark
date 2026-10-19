@@ -37,3 +37,48 @@ Format and scoring rules: `factory/RUBRIC.md`.
 - `action.ts:331`: `governing[0] ?? null` is unreachable, because `governing` is non-empty after line 325.
 - ISO-4217 is checked by shape only (`action.ts:20`). This is declared in "What this does not prove" and is harmless while the policy-currency equality check stands.
 - The spec's Risk section requires `agents/security-reviewer.md` before merge. `EVIDENCE.md` correctly says it has not run. This review does not substitute for it.
+
+## Round 2 — 2026-10-19 — 5/5
+
+**Reviewer:** factory-reviewer subagent (Claude Opus 5.5), clean context, invoked under session_01DKfbobDano1mFhd4XFokPt for Round 2. It is not the builder context and was given no build transcript. Inputs were the spec, `git diff edba21e..HEAD` (HEAD `d0675d6`; the round-2 delta is `673d0e1..HEAD`), and `evidence/action-decision-kernel/` (REVIEW.md Round 1, SECURITY.md, EVIDENCE.md, before/after, captures.tsv).
+
+**Read from the evidence alone, before the diff:** before (`32451b7`), `decide-demo.mjs` exits 1 because `@ark/core` exports no kernel. After (`345afe8`), the same command prints a 12-row decision table. There are 2 allows ($75, $100), require_approval from $100.01 to $1,000, deny above $1,000, unknown for an unknown tool, another org and a version mismatch, and forged role/permissions with no effect (same digest as plain $5,000). The new row is a malformed-rule policy, which is now `unknown` `policy_invalid`. 0 network calls. A caller can now get a deterministic, fail-closed decision on one typed protected action. Before this change, no function could give one.
+
+**Re-run by the reviewer (Node v22.22.0):**
+- `npm run build:packages`: exit 0.
+- `npm test --workspace @ark/core`: 212 tests, 212 pass, 0 fail. This matches the EVIDENCE count (166 + 43 + 3).
+- `npm run typecheck`: exit 0.
+- `node evidence/action-decision-kernel/decide-demo.mjs`: exit 0, output byte-identical to the body of `after.txt`.
+- `npm run build --workspace @ark/business`: exit 0.
+- A probe against the built dist (reviewer scratchpad, not committed):
+  - `principal` `42`, `{admin:true}`, `null` and `''` each give `deny` `invalid_request`; `undefined` and `'u1'` give `allow`.
+  - `canonicalJson` and `sha256Hex` are not exported from `@ark/core`.
+  - Same id with different content, unpinned or pinned to v2, gives `unknown` `policy_conflict`. Distinct ids that disagree give `deny` `policy_conflict`.
+  - `expectedPolicyVersion: null` and `'1'` give `unknown` `policy_version_mismatch`.
+  - A sparse policies array and an invalid EUR policy beside a valid USD one each give `unknown` `policy_invalid`.
+  - `-0` normalizes. A Proxy over the policies array decides normally.
+  - `normalizedRequest` is frozen.
+
+**Round 1 blocker: fixed and tested.** `action.ts:441-445` now validates `principal` from the own-data snapshot with `Id.optional()`, so a present but invalid value fails, and nothing is coerced to `undefined` first. `action.test.ts`, "criterion 4 / L3", covers `42`, `{admin:true}`, an array, `''`, `null` and `true`. For each it asserts `deny` `invalid_request` and a digest different from the no-principal request. It also keeps absent and `undefined` as `allow`.
+
+**Before/after after the script change.** `decide-demo.mjs` changed after the before capture (`345afe8`: one H1 row and an optional per-row policy list). EVIDENCE.md "How it was measured" declares the change. The command, the fixed `now`, the policy and the original 11 rows are unchanged. The before fails at the import on line 10, before any row is built, so the extra row could not have changed it. The comparison still holds: same command, same Node, the same 11 shared cases. The 12th row is extra after-only evidence, labelled as such.
+
+| # | Criterion | Point | Finding |
+|---|---|---|---|
+| 1 | Spec satisfied | ✅ | AC1–AC6 still hold as written. `policy.ts`, `enforce.ts` and their tests are unchanged since `edba21e`. Each round-2 change is declared in EVIDENCE.md deviations 2 and 4, and none adds scope the spec forbids. In detail: strict schemas (`action.ts:42-126`); `policyDigest` and the wider `decisionId` preimage (`:355-367`, deviation 2); `normalizedRequest` (`:165`, `:454-463`); own-data-property snapshotting (`:216-284`); the never-throw wrapper (`:405-418`); currency as part of the governing key (`:510-512`), which still gives `deny` `currency_mismatch` for an ungoverned currency (AC3); same id with different content as `unknown` `policy_conflict` (`:501-506`); and `canonicalJson` made internal (`canonical-json.ts`). `normalizedRequest` and `policyDigest` are additive output fields that answer security findings M1 and M3. They are not new behaviour the spec ruled out (no execution, persistence or approval flow). Same-id-different-content returning `unknown` instead of `deny` is declared and fail-closed. It reads as "policy invalid → unknown", not as AC3's "two matching policies with conflicting effects → deny", which is still `deny` for distinct ids (probe and test). |
+| 2 | Evidence proves it | ✅ | One committed script and one command for both captures, on the same Node and with the same fixed inputs. The before is a genuine pre-kernel import failure at `32451b7`. The post-before script change is declared and cannot have affected the before (see above). `captures.tsv` accounts for every after row, and only `345afe8` is current. The reviewer reproduced the after byte-for-byte. "What this does not prove" is specific: nothing calls the kernel, a forged `orgId` would be believed, currency is checked by shape only, purity is evidenced and not proven, bundle size is unmeasured, and L1/L5/L7 are accepted constraints. |
+| 3 | Structure holds | ✅ | Pure library code in `packages/core/src/governance/`. `action.ts` imports only `zod`, `./canonical-json.js` and `./sha256.js`, and `canonical-json.ts` imports nothing; `action.test.ts`, "synchronous, and reads no clock…", asserts both. The third-party hash sits behind the single `sha256.ts` wrapper. No new dependency in round 2. `canonicalJson` left the public barrel. |
+| 4 | Fails safely | ✅ | The Round 1 blocker is fixed and tested (above). Hostile inputs now return a decision instead of throwing: `null`/non-object/throwing-getter `options`, accessor properties, throwing Proxy traps and non-plain objects (`action.ts:405-418`, `:473-498`; tests "L2", "M3", "M3 / L4"). A getter that changes value between reads is never invoked (asserted `reads === 0`). A malformed rule is `unknown` `policy_invalid` (H1 test and demo row). No path yields `allow` without a valid, governing, agreeing policy. |
+| 5 | Readable | ✅ | The module doc (`action.ts:5-34`) states the snapshot rule, the content-address-not-token rule and the trusted-`now` rule. The `decideAction` doc (`:382-404`) lists the fail-closed order, including the new steps 4 and 5. Comments carry the non-obvious *why*: strictness against match-everything rules (`:92-97`), preimage breadth (`:355-356`), and when an invalid policy may be ignored (`:490`). Each round-2 behaviour has a named test in a dedicated `describe` block. Round 1's dead `governing[0] ?? null` is gone. No debug output, commented-out code or dead code. |
+
+**Blocking:** none.
+
+**Non-blocking:**
+- `action.ts:415-417`: the catch-all maps *every* exception to `unknown` `invalid_request`, including a defect inside the kernel itself (for example in `evaluatePolicy` or `sha256`). It fails closed and returns a visible decision. But the reason code then blames the caller's request, and the error is discarded, so an operator chasing a kernel bug sees "bad request". Consider a separate closed reason code (for example `internal_error`) when a future guard starts logging reason codes.
+- `action.ts:505` vs `:523`: `policy_conflict` is now emitted with `unknown` (same id, different content) and with `deny` (distinct policies disagree). EVIDENCE.md says so, but a guard that switches on `reasonCode` alone gets two meanings. A distinct code (or reusing `policy_invalid`, as Round 1 suggested) would be unambiguous.
+- `action.ts:501-506`: passing v1 and v2 of one id together *with* `expectedPolicyVersion: 2` gives `policy_conflict`, not a decision under v2 (probe-confirmed). It fails closed, but a caller cannot hand over a policy history and pin one version. Worth one line in the `DecideActionOptions` doc.
+- `action.ts:66-79` and the strictness test in `action.test.ts`: the exported `ActionRequest` schema is `.strict()`, so `ActionRequest.parse({...req, role:'admin'})` throws. `decideAction` reads only known keys and ignores `role` (AC2, demo row). Both are defensible, but a caller who validates with the exported schema gets a different answer about extra keys than the kernel does. A one-line note on the schema would prevent surprise.
+- `action.ts:453`, `:462`: `x === 0 ? 0 : x` normalizes `-0` with no comment. `digestValue` (`:290`) does the same with `Object.is`. A short "why" (so `-0` and `0` produce one digest) would help the next reader.
+- `action.ts:406-408`: `ActionRequest | unknown` and similar unions still collapse to `unknown` (carried over from Round 1).
+- `EVIDENCE.md:152` and `:196`: deviations are numbered 1, 2, 4, 3. `EVIDENCE.md:176` says Proxy traps are "invoked once per field", but no test asserts the count; only the throwing-trap case is tested.
+- `EVIDENCE.md` "Definition of done" says the security review still needs a re-review, and `SECURITY.md` holds only the original BLOCK verdict. The spec's Risk section requires that review, and this score does not substitute for it.
