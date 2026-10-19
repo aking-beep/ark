@@ -4,8 +4,9 @@
 
 A caller can now hand `@ark/core` a typed description of one protected action
 (org, agent, tool, action, resource, amount, currency, time) and get back a
-deterministic `allow`, `deny`, `require_approval` or `unknown`, with a decision id,
-policy id/version, a closed reason code, a request digest and an expiry. Before
+deterministic `allow`, `deny`, `require_approval` or `unknown`. Each decision
+carries a decision id, the policy id, version and content digest, a closed reason
+code, a request digest, the normalized request it was made on, and an expiry. Before
 this change ARK had no function that could answer "may this agent refund $750 on
 this order, now?". ADR-0009 records that this is now the wedge, and ADR-0008 is
 marked superseded in part.
@@ -21,11 +22,14 @@ node evidence/action-decision-kernel/decide-demo.mjs
 The script imports `decideAction` and `DEMO_REFUND_POLICY` from the built
 `packages/core/dist/index.js` and prints one row per case: $75, $100, $100.01,
 $750, $1,000, $1,000.01, $5,000, an unknown tool, another org's policy, a forged
-`role`/`permissions`, and a version mismatch. It counts network calls by wrapping
+`role`/`permissions`, a version mismatch, and (added after the security review)
+a policy with a malformed rule (H1). It counts network calls by wrapping
 `globalThis.fetch`, and runs every decision with `Date.now` and `Math.random`
 replaced by stubs that throw, so a clock read or random draw inside the kernel
 would crash the run. The script was committed (`32451b7`) before the before
-capture and was not changed afterwards, so before and after use the same command.
+capture. Its only later change (`345afe8`) adds the H1 row and an optional
+per-row policy list. The command, the fixed `now` and the other 11 rows are
+unchanged.
 `capture.sh` (kept in the session scratchpad, not committed) wraps that command
 and writes the version, the command and the exit code into `before.txt` /
 `after.txt`.
@@ -35,27 +39,29 @@ cannot change it, because the kernel reads no state.
 
 ## Before / after
 
-| | Before (`32451b7`) | After (`7a91a43`) |
+| | Before (`32451b7`) | After (`345afe8`) |
 |---|---|---|
 | Artefact | `before.txt` | `after.txt` |
-| Measurement | exit code 1: `SyntaxError: ... does not provide an export named 'DEMO_REFUND_POLICY'`. No kernel exists. | exit code 0. 11 cases, **2 `allow`** ($75, $100). $100.01 / $750 / $1,000 are `require_approval`. $1,000.01 / $5,000 are `deny`. Unknown tool and other-org are `unknown` `no_matching_policy`. Forged role is `deny`, with a digest identical to the plain $5,000 request. Version mismatch is `unknown` `policy_version_mismatch`. **0 network/model calls.** |
-| `@ark/core` tests | 166 | 200 (+31 `action.test.js`, +3 `sha256.test.js`) |
-| `npm test` (repo) | — | exit 0. 615 tests, 0 failures across 12 suite runs |
+| Measurement | exit code 1: `SyntaxError: ... does not provide an export named 'DEMO_REFUND_POLICY'`. No kernel exists. | exit code 0. 12 cases, **2 `allow`** ($75, $100). $100.01 / $750 / $1,000 are `require_approval`. $1,000.01 / $5,000 are `deny`. Unknown tool and other-org are `unknown` `no_matching_policy`. Forged role is `deny`, with a digest identical to the plain $5,000 request. Version mismatch is `unknown` `policy_version_mismatch`. A malformed rule at $5,000 is `unknown` `policy_invalid` (before the H1 fix it was `allow`, per SECURITY.md). **0 network/model calls.** |
+| `@ark/core` tests | 166 | 212 (+43 `action.test.js`, +3 `sha256.test.js`) |
+| `npm test` (repo) | — | exit 0. 627 tests, 0 failures across 12 suite runs |
 | `npm run typecheck` | — | exit 0 |
 | `npm run build --workspace @ark/business` | — | exit 0 (see deviation 1) |
 | `npm run build --workspace @ark/control` | — | exit 0 |
 
-`captures.tsv` has three `after` rows, and only the last is current.
+`captures.tsv` has four `after` rows, and only the last is current.
 - `8535621` was taken before the decisionId fix (deviation 2). Its `after.txt`
   was overwritten.
 - `22546e7` used the hand-rolled SHA-256 that was later removed. It reads
   `dirty=2` because `captures.tsv` and `after.txt` themselves were uncommitted
   at the time. No source file was dirty.
-- `7a91a43` is current: `@noble/hashes`, `dirty=0`.
-
-The `7a91a43` output is byte-identical to `22546e7` apart from the header line.
-Every `decisionId` and digest is the same, so swapping the hash implementation
-did not change behaviour.
+- `7a91a43` switched to `@noble/hashes`. Its output was byte-identical to
+  `22546e7` apart from the header line, so swapping the hash implementation did
+  not change behaviour.
+- `345afe8` is current: the review round 1 and security fixes, `dirty=0`. Every
+  `decisionId` differs from `7a91a43`, as expected, because the preimage now
+  binds policy digests and `expiresAt` (deviation 2). Every decision and reason
+  code for the original 11 rows is unchanged.
 
 `policy.ts`, `enforce.ts`, `policy.test.ts` and `enforce.test.ts` are unchanged.
 `git diff edba21e -- <those four files>` is empty.
@@ -84,6 +90,16 @@ did not change behaviour.
 - **Purity is evidenced, not proven.** Traps on `Date.now`/`Math.random`/`fetch`
   and a check of the compiled module's imports show the absence of the obvious
   side effects. They do not rule out every possible one.
+- **Accepted constraints (security review L1, L5, L7).**
+  - *L1:* match-all rules (`when: {}`) and rules shadowed by an earlier rule are
+    accepted. Policy authors are trusted, and the kernel does not lint
+    policies.
+  - *L5:* `canonicalJson` is now internal (not exported from `@ark/core`) and
+    throws on non-finite numbers. The kernel never passes it one: amounts are
+    validated, and the digest projection tags non-finite values. So NaN can no
+    longer reach it.
+  - *L7:* `now` is trusted from the caller. The guard (PR-3) owns the clock, and
+    `now` must never come from the agent. This is stated in the module doc.
 - **Bundle size is not measured.** `apps/business` imports the `@ark/core` barrel
   in a client component, so the kernel and the frozen demo policy probably ship
   in that bundle. The build passes. The size delta was not
@@ -117,20 +133,71 @@ did not change behaviour.
    (`npm install --save-exact`). In the same write, npm also synced the
    lockfile's root `engines.node` from `>=20` to `>=22.6`, which is what the root
    `package.json` already declares. I did not edit `package-lock.json` by hand.
-2. **`decisionId` preimage includes `decision` and `reasonCode`.** The spec
+2. **`decisionId` preimage is wider than the spec's (extended again after security review M1).** The spec
    says "sha256 over policy id, version and request digest". Built literally, the
    first after capture (stamped at `8535621`, then overwritten, never
    committed) showed `$75 allow` and `$75 version mismatch → unknown` with the
    same `decisionId` (`9e56284abcfb84ff`, first 16 hex chars, in both rows). A `policy_conflict` deny would also
    share an id with a single-policy allow. An accountability id that is the same
-   for an allow and a refusal is a defect, so the preimage is now
-   `{decision, policyId, policyVersion, reasonCode, requestDigest}` in canonical
-   JSON. A test pins that the three outcomes get three distinct ids.
+   for an allow and a refusal is a defect, so the preimage gained `decision` and
+   `reasonCode`. After M1 it is now
+   `{decision, reasonCode, requestDigest, policyId, policyVersion, policyDigests, expiresAt}`
+   in canonical JSON. `policyDigests` is the sorted list of sha256 hashes of
+   every governing policy's canonical content. The decision also returns
+   `policyDigest` for the reported policy. Tests pin four things: distinct
+   outcomes get distinct ids; same id and version with different rules gives a
+   different id; a different TTL gives a different id; a second agreeing policy
+   gives a different id. The id is a content address, not a token (M2). That is
+   documented in the module doc and ADR-0009.
+4. **Review round 1 and security review fixes (`b5f9234`), each with a test:**
+   - *H1:* `ActionRule` is `.strict()`, and so is every other object schema
+     (`ActionRequest`, `ActionResource`, `ActionAttributes`, `AmountComparison`,
+     `when`, `ActionPolicy`). A test asserts each one is strict. A rule with a
+     top-level `amountMinor` or an `unless` key now gives `unknown`
+     `policy_invalid`.
+   - *Criterion 4 / L3:* a `principal` that is present but invalid (`42`,
+     `{admin:true}`, an array, `''`, `null`, `true`) gives `deny`
+     `invalid_request`. Absent or `undefined` still means "no principal".
+   - *M3 / L4:* inputs are snapshotted before deciding.
+     - Only own data properties of plain objects (prototype `Object.prototype`
+       or `null`) are read, each exactly once.
+     - A request is read only for its known keys. Policies are deep-copied the
+       same way.
+     - An accessor property on the request gives `unknown` `invalid_request`,
+       and the getter is never invoked. On a policy it gives `unknown`
+       `policy_invalid`.
+     - Non-plain objects are rejected: a class-instance request gives
+       `invalid_request`, inherited `attributes` give `invalid_amount`, and a
+       non-plain policy gives `policy_invalid`.
+     - Polluting `Object.prototype` cannot supply a missing field.
+     - The decision returns `normalizedRequest`. It is frozen and is the exact
+       object the digest was computed from (asserted), or `null` when the
+       request itself was rejected.
+     - A Proxy over a plain object passes the plain-object check. Its traps
+       are invoked once per field, and a throwing trap gives `unknown`.
+   - *L2:* the function never throws. `options` that is `null`, a non-object,
+     or has a throwing getter gives `unknown` `invalid_request`, and so does any
+     unexpected exception (the whole body is wrapped). Accessor or unreadable
+     *requests* give `unknown`, not `deny`. They are not a validated request.
+   - *Currency (reviewer's call: match by currency):* currency is now part of
+     the governing key. Among the policies that claim the org, tool and action,
+     only those for the request's currency govern. So separate USD and EUR
+     limits work. A currency no claiming policy governs still gives `deny`
+     `currency_mismatch` (spec AC3). This replaces the earlier behaviour, where
+     a USD and an EUR policy produced `deny policy_conflict` for every request.
+   - *Same id, different content:* two policies with the same id and different
+     content (for example v1 and v2 together, unpinned) give `unknown`
+     `policy_conflict` before any evaluation. Identical duplicates collapse to
+     one. Note that `policy_conflict` is now emitted with `unknown` here and
+     with `deny` when distinct policies disagree.
+   - The dead `governing[0] ?? null` fallback is removed. `canonicalJson` moved
+     to an internal `canonical-json.ts` and is no longer exported from
+     `@ark/core`.
 3. **Choices the spec left open, stated so they can be reviewed:**
    - `expectedPolicyVersion` is a third `options` argument, not a request field.
    - Policy `version` is a positive integer.
-   - A policy has one `currency`, and requests in any other currency get `deny`
-     `currency_mismatch`.
+   - A policy has one `currency`. Policies are selected by org, tool, action
+     and currency (see 4).
    - `decisionTtlMs` (≤ 24 h) sets `expiresAt = now + ttl`. When governing
      policies agree, the shortest TTL wins.
    - A malformed `orgId`/`agentId`/`tool`/`action`/`now` gets `deny`
@@ -144,8 +211,12 @@ did not change behaviour.
    - Governing policies are sorted by id, so input order does not change the
      decision or the id.
 
-Tests changed: none. New test files: `action.test.ts`, `sha256.test.ts`. Both are
-added to the core `test` script.
+Tests changed: in `action.test.ts`, the module-import assertion now also
+expects `./canonical-json.js`, and the canonical JSON test also checks that
+non-finite numbers throw. Both are this feature's own tests and were updated for
+the internal module split. No other test was changed. New test files are
+`action.test.ts` and `sha256.test.ts`, and both are in the core `test` script.
+`canonical-json.ts` is covered through `action.test.ts`.
 
 ## Definition of done
 
@@ -162,5 +233,7 @@ added to the core `test` script.
   otherwise unchanged. README, `docs/00-thesis.md` and `docs/prd/ark-control.md`
   each have a one-line pointer to ADR-0009. The ADR labels `DEMO_REFUND_POLICY`
   synthetic.
-- **Security review:** The spec requires `agents/security-reviewer.md` to run.
-  It has not run; that is not the builder's step.
+- **Security review:** It ran (`SECURITY.md`, verdict BLOCK on H1). Every
+  finding is addressed in deviation 4, or listed above as an accepted
+  constraint (L1, L5, L7). M2 is a documentation fix only. It still needs a
+  re-review; that is not the builder's step.
