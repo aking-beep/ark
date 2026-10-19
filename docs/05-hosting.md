@@ -64,6 +64,8 @@ Provider credentials (`ARK_OLLAMA_*`, `ARK_BEDROCK_*`, `ARK_FRONTIER_*`, …) an
 
 On every boot the entrypoint runs `npm run db:bootstrap`: push the schema (idempotent) and seed **only if the `orgs` table is empty**. It does not look for a local file, so it behaves the same against the volume and against a remote libSQL URL. The seed values above are therefore read exactly once, at first boot; changing them later does not rotate existing logins or tokens.
 
+Schema migrations are tracked in the `schema_migrations` table: each one runs once, in order, and is recorded with the time it applied. A migration that fails (anything other than "the column or index is already there") stops the push, so the container exits at boot with the migration's id and the database error rather than starting on a half-migrated schema. Migrations are additive only — there are no down migrations — so to roll back, restore the database from a backup taken before the upgrade and run the previous image.
+
 Northwind has **no events** until you exec:
 
 ```bash

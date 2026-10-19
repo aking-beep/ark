@@ -5,8 +5,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createClient } from '@libsql/client';
 import type { ActionReceipt } from '@ark/core';
-import { DDL, pushSchema } from './sql.js';
-import { LibsqlActionReceiptStore, openActionReceiptStore, ACTION_RECEIPTS_DDL } from './action-receipts.js';
+import { DDL, MIGRATIONS, pushSchema } from './sql.js';
+import { LibsqlActionReceiptStore, openActionReceiptStore, ACTION_RECEIPTS_DDL, ACTION_RECEIPTS_MIGRATIONS } from './action-receipts.js';
 
 function tempUrl(name: string): string {
   return `file:${path.join(mkdtempSync(path.join(tmpdir(), 'ark-receipts-')), name)}`;
@@ -39,11 +39,24 @@ function receipt(over: Partial<ActionReceipt> = {}): ActionReceipt {
   };
 }
 
-describe('action_receipts DDL', () => {
-  test('is part of the DDL list, so pushSchema creates it with an (org_id, id) key', async () => {
-    assert.equal(ACTION_RECEIPTS_DDL.length, 3);
+describe('action_receipts migrations', () => {
+  const ids = ['0008_action_receipts', '0009_action_receipts_idempotency_idx', '0010_action_receipts_created_idx'];
+  const recorded = async (client: ReturnType<typeof createClient>) =>
+    (await client.execute(`SELECT id, applied_at FROM schema_migrations WHERE id LIKE '%action_receipts%' ORDER BY id`)).rows
+      .map((r) => [String(r.id), Number(r.applied_at)]);
+
+  test('are tracked migrations 0008-0010, not plain DDL', () => {
+    assert.deepEqual(ACTION_RECEIPTS_MIGRATIONS.map((m) => m.id), ids);
+    assert.ok(!DDL.some((s) => /action_receipts/.test(s)));
+    assert.deepEqual(MIGRATIONS.slice(-3).map((m) => m.id), ids, 'appended after 0007');
+    for (const m of ACTION_RECEIPTS_MIGRATIONS) assert.match(m.sql, /^CREATE (UNIQUE )?(TABLE|INDEX) IF NOT EXISTS /);
+  });
+
+  test('a fresh push records 0008-0010 and creates the table with an (org_id, id) key; a second push is a no-op', async () => {
     const client = createClient({ url: tempUrl('push.db') });
     await pushSchema(client);
+    const first = await recorded(client);
+    assert.deepEqual(first.map(([id]) => id), ids);
     const info = await client.execute(`PRAGMA table_info(action_receipts)`);
     const pk = info.rows.filter((r) => Number(r.pk) > 0).sort((a, b) => Number(a.pk) - Number(b.pk)).map((r) => String(r.name));
     assert.deepEqual(pk, ['org_id', 'id']);
@@ -54,8 +67,20 @@ describe('action_receipts DDL', () => {
       'idempotency_key_hash', 'org_id', 'policy_id', 'policy_version', 'principal', 'reason_code',
       'request_digest', 'resource_id', 'resource_type', 'sender_reported_approval', 'tool', 'trace_id', 'updated_at',
     ]);
-    // Re-running the DDL is a no-op.
-    for (const stmt of DDL) await client.execute(stmt);
+    const indexes = (await client.execute(`SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='action_receipts' AND name NOT LIKE 'sqlite_%' ORDER BY name`)).rows.map((r) => String(r.name));
+    assert.deepEqual(indexes, ['action_receipts_created_idx', 'action_receipts_idempotency_idx']);
+    await pushSchema(client);
+    assert.deepEqual(await recorded(client), first);
+    client.close();
+  });
+
+  test('a database that already has the table (the pre-migration build) upgrades without error and keeps its rows', async () => {
+    const client = createClient({ url: tempUrl('upgrade.db') });
+    for (const stmt of ACTION_RECEIPTS_DDL) await client.execute(stmt);
+    await new LibsqlActionReceiptStore(client).claim(receipt());
+    await pushSchema(client);
+    assert.deepEqual((await recorded(client)).map(([id]) => id), ids);
+    assert.equal((await new LibsqlActionReceiptStore(client).get('org_a', 'dec_1'))?.executionStatus, 'attempted');
     client.close();
   });
 

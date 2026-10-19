@@ -132,16 +132,25 @@ export const DDL: string[] = [
   created_at INTEGER NOT NULL, status TEXT NOT NULL, report TEXT NOT NULL)`,
 `CREATE INDEX IF NOT EXISTS assurance_runs_agent_idx ON assurance_runs(org_id, agent_id, created_at)`,
 
-// One row per guarded tool attempt (@ark/guard, ADR-0009). `id` is the
-// kernel's decision id. Identifiers, the decision and digests only: no column
-// can hold tool arguments, a prompt, customer PII, a secret or the raw
+// One row per entry in MIGRATIONS that has been applied. See pushSchema.
+`CREATE TABLE IF NOT EXISTS schema_migrations (
+  id TEXT PRIMARY KEY, applied_at INTEGER NOT NULL)`,
+];
+
+// action_receipts: one row per guarded tool attempt (@ark/guard, ADR-0009).
+// `id` is the kernel's decision id. Identifiers, the decision and digests only:
+// no column can hold tool arguments, a prompt, customer PII, a secret or the raw
 // idempotency key (only its sha256 is stored).
 //
 // The partial unique index is the idempotency claim: a receipt that left
 // `not_attempted` owns its (org_id, idempotency_key_hash), so of two concurrent
 // INSERTs for one key at most one lands. The CHECKs make it impossible to store
 // an executed receipt for anything but an `allow`, or one with no key.
-`CREATE TABLE IF NOT EXISTS action_receipts (
+//
+// Tracked migrations (0008-0010), not DDL: the table is new, so it ships as
+// migrations from the start. Each statement is IF NOT EXISTS, so it is safe on a
+// fresh database and on one where an earlier build created it from the DDL list.
+const ACTION_RECEIPTS_TABLE = `CREATE TABLE IF NOT EXISTS action_receipts (
   id TEXT NOT NULL, org_id TEXT NOT NULL, trace_id TEXT, agent_id TEXT NOT NULL, principal TEXT,
   tool TEXT NOT NULL, action TEXT NOT NULL, resource_type TEXT, resource_id TEXT,
   policy_id TEXT, policy_version INTEGER,
@@ -154,24 +163,72 @@ export const DDL: string[] = [
   amount_minor INTEGER, currency TEXT,
   created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
   CHECK (execution_status = 'not_attempted' OR (decision = 'allow' AND idempotency_key_hash IS NOT NULL)),
-  PRIMARY KEY (org_id, id))`,
-`CREATE UNIQUE INDEX IF NOT EXISTS action_receipts_idempotency_idx
-  ON action_receipts(org_id, idempotency_key_hash) WHERE execution_status <> 'not_attempted'`,
-`CREATE INDEX IF NOT EXISTS action_receipts_created_idx ON action_receipts(org_id, created_at)`,
-];
+  PRIMARY KEY (org_id, id))`;
+const ACTION_RECEIPTS_IDEMPOTENCY_IDX = `CREATE UNIQUE INDEX IF NOT EXISTS action_receipts_idempotency_idx
+  ON action_receipts(org_id, idempotency_key_hash) WHERE execution_status <> 'not_attempted'`;
+const ACTION_RECEIPTS_CREATED_IDX = `CREATE INDEX IF NOT EXISTS action_receipts_created_idx ON action_receipts(org_id, created_at)`;
 
-/** Additive statements for databases created before this column existed. */
-export const MIGRATIONS: string[] = [
-  `ALTER TABLE events ADD COLUMN agent_id TEXT`,
-  `CREATE INDEX IF NOT EXISTS events_agent_idx ON events(org_id, agent_id)`,
+export interface Migration {
+  /** Stable and never reused: once shipped, an id means this statement forever. */
+  id: string;
+  sql: string;
+}
+
+/**
+ * Additive statements: columns for databases created before they existed, and
+ * new tables with their indexes. Applied in order, each at most once, and
+ * recorded in `schema_migrations`. Append only.
+ */
+export const MIGRATIONS: Migration[] = [
+  { id: '0001_events_agent_id', sql: `ALTER TABLE events ADD COLUMN agent_id TEXT` },
+  { id: '0002_events_agent_idx', sql: `CREATE INDEX IF NOT EXISTS events_agent_idx ON events(org_id, agent_id)` },
   // 'reported' | 'catalog' | 'unpriced'. NULL on rows ingested before it existed,
   // which Control reads as "not shown to be reported".
-  `ALTER TABLE events ADD COLUMN cost_source TEXT`,
-  `ALTER TABLE actions ADD COLUMN agent_id TEXT`,
-  `CREATE INDEX IF NOT EXISTS actions_agent_idx ON actions(org_id, agent_id)`,
-  `ALTER TABLE protocol_evidence ADD COLUMN agent_id TEXT`,
-  `CREATE INDEX IF NOT EXISTS protocol_evidence_agent_idx ON protocol_evidence(org_id, agent_id)`,
+  { id: '0003_events_cost_source', sql: `ALTER TABLE events ADD COLUMN cost_source TEXT` },
+  { id: '0004_actions_agent_id', sql: `ALTER TABLE actions ADD COLUMN agent_id TEXT` },
+  { id: '0005_actions_agent_idx', sql: `CREATE INDEX IF NOT EXISTS actions_agent_idx ON actions(org_id, agent_id)` },
+  { id: '0006_protocol_evidence_agent_id', sql: `ALTER TABLE protocol_evidence ADD COLUMN agent_id TEXT` },
+  { id: '0007_protocol_evidence_agent_idx', sql: `CREATE INDEX IF NOT EXISTS protocol_evidence_agent_idx ON protocol_evidence(org_id, agent_id)` },
+  { id: '0008_action_receipts', sql: ACTION_RECEIPTS_TABLE },
+  { id: '0009_action_receipts_idempotency_idx', sql: ACTION_RECEIPTS_IDEMPOTENCY_IDX },
+  { id: '0010_action_receipts_created_idx', sql: ACTION_RECEIPTS_CREATED_IDX },
 ];
+
+/**
+ * The only errors a migration may hit and still count as applied: the column or
+ * index is already there, because the DDL created it or the untracked loop that
+ * predates `schema_migrations` added it. Each message is tolerated only for the
+ * statement kind that can produce it; everything else is a real failure.
+ */
+export function isBenignMigrationError(sql: string, message: string): boolean {
+  if (/^ALTER TABLE \w+ ADD COLUMN /.test(sql)) return /duplicate column name/i.test(message);
+  if (/^CREATE INDEX IF NOT EXISTS /.test(sql)) return /already exists/i.test(message);
+  return false;
+}
+
+/**
+ * Run one migration, and record it in the same write when `record` is set. A
+ * benign error still records it; any other error, including one recording a
+ * tolerated statement, throws naming the migration.
+ */
+async function applyMigration(client: Client, m: Migration, record: boolean): Promise<void> {
+  // OR IGNORE: a replica booting against the same database may have recorded it first.
+  const mark = { sql: 'INSERT OR IGNORE INTO schema_migrations (id, applied_at) VALUES (?, ?)', args: [m.id, Date.now()] };
+  const failed = (err: unknown, message: string) =>
+    new Error(`migration ${m.id} failed: ${message}`, { cause: err });
+  try {
+    await client.batch(record ? [m.sql, mark] : [m.sql], 'write');
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (!isBenignMigrationError(m.sql, message)) throw failed(err, message);
+    if (!record) return;
+    try {
+      await client.execute(mark);
+    } catch (markErr) {
+      throw failed(markErr, markErr instanceof Error ? markErr.message : String(markErr));
+    }
+  }
+}
 
 /**
  * Tables that used to be keyed by a global `id` and are now keyed (org_id, id).
@@ -229,29 +286,35 @@ async function rebuildWithOrgKey(client: Client, table: string): Promise<void> {
 }
 
 /**
- * Idempotent schema push: rebuild legacy-keyed tables, apply DDL, then the
- * additive migrations. Safe to run on every boot (deploy/entrypoint.sh does).
+ * Idempotent schema push: rebuild legacy-keyed tables, apply DDL, then each
+ * migration not yet recorded in `schema_migrations`. Safe to run on every boot
+ * (deploy/entrypoint.sh does). A migration that fails for any reason other than
+ * `isBenignMigrationError` rejects the push and nothing after it runs.
+ *
+ * `migrations` is a parameter only so tests can inject a failing one.
  */
-export async function pushSchema(client: Client): Promise<{ rebuilt: string[] }> {
+export async function pushSchema(
+  client: Client,
+  migrations: readonly Migration[] = MIGRATIONS,
+): Promise<{ rebuilt: string[] }> {
   const rebuilt: string[] = [];
   for (const table of ORG_SCOPED_TABLES) {
     if (await hasLegacyKey(client, table)) {
       // Older DBs may lack columns the new DDL indexes, so add those first.
-      for (const stmt of MIGRATIONS) {
-        if (!stmt.startsWith(`ALTER TABLE ${table} `)) continue;
-        try { await client.execute(stmt); } catch { /* already present */ }
+      // Not recorded here: the pass below records them once the table exists.
+      for (const m of migrations) {
+        if (m.sql.startsWith(`ALTER TABLE ${table} `)) await applyMigration(client, m, false);
       }
       await rebuildWithOrgKey(client, table);
       rebuilt.push(table);
     }
   }
   for (const stmt of DDL) await client.execute(stmt);
-  for (const stmt of MIGRATIONS) {
-    try {
-      await client.execute(stmt);
-    } catch {
-      // Duplicate column on an already-migrated file. Fresh DBs already have it in DDL.
-    }
+  const applied = new Set(
+    (await client.execute('SELECT id FROM schema_migrations')).rows.map((r) => String(r.id)),
+  );
+  for (const m of migrations) {
+    if (!applied.has(m.id)) await applyMigration(client, m, true);
   }
   return { rebuilt };
 }

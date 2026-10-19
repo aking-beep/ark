@@ -63,6 +63,11 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     await bootstrap();
   } catch (err) {
     console.error(err instanceof Error ? err.message : err);
+    // pushSchema wraps a failed migration; the cause carries the database error code.
+    if (err instanceof Error && err.cause != null) {
+      const cause = err.cause as { code?: unknown; message?: unknown };
+      console.error(`  caused by: ${String(cause.code ?? '')} ${String(cause.message ?? err.cause)}`.trimEnd());
+    }
     process.exit(1);
   }
 }

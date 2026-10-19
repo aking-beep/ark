@@ -64,8 +64,8 @@ is the only line that changes.
 | Receipts | 0 | 8 |
 | Telemetry | — | 1 POST attempt to a transport that always fails. Flush rejected; no outcome changed |
 | `npm run demo:guard` | exit 1 `Missing script` | exit 0 |
-| Guard + receipt-store tests | — | 68 (`@ark/guard`: 44 + 24 in `guard-hardening.test.ts`) + 9 (`action-receipts.test.js`), 0 failures |
-| `npm test` (repo) | 633 (per the action-decision-kernel evidence) | exit 0. 710 tests, 0 failures across 13 suite runs |
+| Guard + receipt-store tests | — | 68 (`@ark/guard`: 44 + 24 in `guard-hardening.test.ts`) + 11 (`action-receipts.test.js`, after the migration move), 0 failures |
+| `npm test` (repo) | 633 (per the action-decision-kernel evidence) | exit 0. 723 tests, 0 failures across 13 suite runs, after merging `origin/main` (710 at `ec786f1`, before the merge) |
 | `npm run typecheck` | — | exit 0 (includes `@ark/guard`) |
 | `npm run build` (packages + consumer, business, control) | — | exit 0 |
 
@@ -196,13 +196,33 @@ Each fix has a test in `packages/guard/src/guard-hardening.test.ts`.
 
 ## Deviations
 
-1. **`action_receipts` comes from the existing DDL list, not a tracked
-   migration.** PR-1 (tracked migrations, #21) is not in this base, so the table
-   and its two indexes were added to `DDL` in `packages/db/src/sql.ts`
-   (`CREATE TABLE IF NOT EXISTS`, `CREATE [UNIQUE] INDEX IF NOT EXISTS`).
-   `pushSchema` creates them on every boot, and old code never reads them.
-   When PR-1 lands, these three statements should move into a numbered
-   migration.
+1. **Resolved: `action_receipts` is now three tracked migrations.**
+   - *Before:* PR-1 (tracked migrations, #21) was not in the original base, so
+     the table and its two indexes were first added to the plain `DDL` list.
+   - *Now:* PR-1 and PR-2 merged to `main` (`f80c0ca`), and `origin/main` was
+     merged into this branch as a merge commit, not a rebase. The `sql.ts`
+     conflict was resolved by moving the three statements into `MIGRATIONS` in
+     `packages/db/src/sql.ts`:
+     - `0008_action_receipts`
+     - `0009_action_receipts_idempotency_idx`
+     - `0010_action_receipts_created_idx`
+   - They use the same `{ id, sql }` shape and the same `applyMigration` /
+     `isBenignMigrationError` path as 0001–0007. `DDL` no longer mentions the
+     table.
+   - Every statement is `CREATE … IF NOT EXISTS`, so it is safe on a fresh
+     database and on one where the earlier build created the table from the
+     DDL list. Neither case needs a tolerated error.
+   - Tests in `action-receipts.test.ts`:
+     - a fresh `pushSchema` records exactly 0008–0010 and creates the table and
+       both indexes;
+     - a second push is a no-op (the ids and `applied_at` are unchanged);
+     - a database that already had the table and a claimed row upgrades
+       without error and keeps the row.
+     The existing `migrations.test.ts` (from PR-1) covers all ids, including
+     the new ones.
+   - `openActionReceiptStore(url)`, for a database that holds only receipts,
+     runs the same three statements (`ACTION_RECEIPTS_DDL`, now derived from
+     `MIGRATIONS`) without recording them.
 2. **Receipt types live in `@ark/core`.** `ActionReceipt`,
    `ActionReceiptStore`, `ClaimResult`, `ExecutionStatus` and the guard reason
    codes are in `packages/core/src/governance/receipt.ts`. The file is types
@@ -310,7 +330,9 @@ Each fix has a test in `packages/guard/src/guard-hardening.test.ts`.
   `@ark/sdk`. No Control UI reads receipts yet; that is PR-4, out of scope.
 - **Docs or ADR updated:** yes. See deviation 9.
 - **Rollback:** revert the branch. `action_receipts` is new and unused by the
-  old code. A pushed database keeps an empty, harmless table. Drop it by hand
-  if wanted: `DROP TABLE action_receipts`.
-- **Authorization and privacy review:** pending. `agents/security-reviewer.md`
-  must run before ship, per the spec's Risk section.
+  old code. A pushed database keeps the table and its three `schema_migrations`
+  rows (0008–0010). Both are harmless to the old code. To remove them by hand:
+  `DROP TABLE action_receipts` and delete those three ids.
+- **Authorization and privacy review:** `SECURITY.md` (round 1) approved with
+  notes. Every medium and low finding is fixed and tested, per "Review round 1
+  and security review fixes". The fixes have not been re-reviewed.

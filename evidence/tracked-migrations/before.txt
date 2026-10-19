@@ -1,0 +1,7 @@
+$ node evidence/tracked-migrations/probe.mjs   # at commit 1a49e35 (main @ edba21e + spec + probe), after npm ci && npm run build:packages
+node v22.22.0; MIGRATIONS has 7 entries
+[broken migration] pushSchema RESOLVED - "ALTER TABLE no_such_table ADD COLUMN x TEXT" was swallowed silently
+[broken migration] schema_migrations rows: n/a (SQLITE_ERROR: no such table: schema_migrations)
+[fresh, push 1] schema_migrations rows: n/a (SQLITE_ERROR: no such table: schema_migrations)
+[fresh, push 2] schema_migrations rows: n/a (SQLITE_ERROR: no such table: schema_migrations)
+exit=0

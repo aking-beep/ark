@@ -8,7 +8,7 @@ import type {
   FinalExecutionStatus,
   ReceiptReasonCode,
 } from '@ark/core';
-import { DDL } from './sql.js';
+import { MIGRATIONS, type Migration } from './sql.js';
 
 /**
  * libSQL adapter for `ActionReceiptStore` (guarded-refund-tool).
@@ -117,8 +117,15 @@ export class LibsqlActionReceiptStore implements ActionReceiptStore {
   }
 }
 
-/** The DDL statements that create `action_receipts` and its indexes. */
-export const ACTION_RECEIPTS_DDL: readonly string[] = DDL.filter((s) => /\baction_receipts\b/.test(s));
+/** The tracked migrations (0008-0010) that create `action_receipts` and its indexes. */
+export const ACTION_RECEIPTS_MIGRATIONS: readonly Migration[] = MIGRATIONS.filter((m) => /\baction_receipts\b/.test(m.sql));
+
+/**
+ * The `action_receipts` statements alone, for a database that holds only
+ * receipts. Every one is IF NOT EXISTS. A database managed by `pushSchema`
+ * gets the same statements as tracked migrations.
+ */
+export const ACTION_RECEIPTS_DDL: readonly string[] = ACTION_RECEIPTS_MIGRATIONS.map((m) => m.sql);
 
 /**
  * Open a receipt store on `url` (e.g. `file:/tmp/x.db`) and create the table if
