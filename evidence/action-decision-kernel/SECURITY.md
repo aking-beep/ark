@@ -336,3 +336,51 @@ loop or `reduce` in place of `Math.min(...spread)`.
   org's policy with no `tool`) still gives `unknown` for every request in this org.
   That is fail-closed by design, and it is an availability coupling.
 - Dependencies: no change since round 1 (`@noble/hashes` 1.8.0 exact pin; `zod` ^3.23.8 was already present).
+
+---
+
+# Security sign-off (round 3)
+
+**Scope:** fix commit `4f6780c` (`action.ts`, `action.test.ts`). I rebuilt the
+packages with `npm run build:packages`; core tests pass 218/218. I re-ran
+`attack.mjs`, `rereview.mjs` and `rereview2.mjs` against the new dist, and added
+`round3.mjs` (all four are in the reviewer scratchpad, `secreview-kernel/`).
+
+## Verdict: APPROVE
+
+No findings remain at any severity. R-L1, R-L2 and R-L3 are fixed. Each one now
+fails closed with `unknown` and nothing is thrown to the caller.
+
+| Finding | Status | Evidence |
+|---|---|---|
+| R-L1 `__proto__` smuggling | **Fixed** | `ownEntries` rejects `__proto__`, `constructor` and `prototype` keys. `"__proto__":"x"`, a TTL or cap supplied through `__proto__`, and `__proto__` inside a rule or `when` all give `unknown policy_invalid`. The same keys on a request give `unknown invalid_request` |
+| R-L2 Symbol / non-enumerable keys | **Fixed** | Keys come from `Reflect.ownKeys`, and a symbol key, an accessor or a non-enumerable key is unreadable. A Symbol or non-enumerable `unless` on a rule gives `unknown policy_invalid`. On a request it gives `unknown invalid_request` |
+| R-L3 no size bound | **Fixed** | The array length is checked before keys are listed, and the TTL minimum is now a loop. Policies above 256, rules above 64 and keys above 64 are rejected; exactly 256, 64 and 64 are accepted. Every case returns `unknown` within milliseconds: 1e6 rules, 1e5 and 2e5 policies, 2e5 keys, a Proxy reporting a length of 2^32−1. Measured before the fix: 3.5–10 s. A worst-case valid input (256 distinct governing policies) takes about 13 ms per call. An extra non-index key on an array, a hole, or a Proxy whose `length` disagrees with its keys gives `policy_invalid` |
+
+**Held again:** all round-1 and round-2 cases give the same outcomes as before, apart
+from the R-L1/R-L2/R-L3 cases above:
+- currency casing and whitespace
+- same id with different content gives `policy_conflict`
+- decisionId binding: 54 variants, 0 collisions
+- the digest matches `normalizedRequest`
+- `normalizedRequest` is deep-frozen and read once
+
+**Throw paths:** throws were injected through `ownKeys` and `getOwnPropertyDescriptor`
+traps on the request, options, policies array and rules, using a thrown object
+shaped like `{decision:'allow'}`. Each one returns `unknown`. Every throw that
+actually fired led to `unknown`, never `allow`, and none escaped.
+
+The older scripts still count some `allow` results under "allows from throws". In
+those cases the trap was set on a key that is absent, and `ownEntries` only reads
+listed keys, so no throw was ever raised. `round3.mjs` checks whether each throw
+fired, and the count of `allow` after a fired throw is 0.
+
+**Remaining notes (informational, no action needed):**
+- A request now gets `unknown invalid_request` if it carries a Symbol, non-enumerable,
+  `__proto__` or `constructor` key, or more than 64 keys. It used to ignore those
+  extras. Callers that put large metadata objects on the request should keep them
+  separate.
+- The returned `ActionDecision` is not frozen; its `normalizedRequest` is. `decisionId`
+  is still a content address, not a credential (M2, documented).
+- The accepted constraints from `EVIDENCE.md` still apply: L1 (match-all and
+  shadowed rules) and L7 (caller-trusted `now`).
