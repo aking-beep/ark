@@ -30,8 +30,8 @@ const VIEWPORTS = [
   { name: '390', width: 390, height: 844 },
 ];
 const ORGS = [
-  { name: 'demo', email: 'dana@riverbend.example', password: 'riverbend-demo', routes: ['actions', 'budgets'] },
-  { name: 'northwind', email: 'sam@northwind.example', password: 'northwind-demo', routes: ['actions'] },
+  { name: 'demo', email: 'dana@riverbend.example', password: process.env.ARK_DEMO_PASSWORD ?? 'riverbend-demo', routes: ['actions', 'budgets'] },
+  { name: 'northwind', email: 'sam@northwind.example', password: process.env.ARK_NORTHWIND_PASSWORD ?? 'northwind-demo', routes: ['actions'] },
 ];
 
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
