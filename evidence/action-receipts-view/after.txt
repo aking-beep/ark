@@ -1,0 +1,8 @@
+phase=after base=http://localhost:3002 captured=2026-10-19T08:25:44.341Z
+org=demo route=/actions viewport=1280x900 status=200 h1="Actions" navActions=true receiptRows=7 scrollWidth=1280 clientWidth=1280 hScroll=false file=after-actions-demo-1280.png
+org=demo route=/budgets viewport=1280x900 status=200 h1="Budgets & alerts" navActions=true receiptRows=0 scrollWidth=1280 clientWidth=1280 hScroll=false file=after-budgets-demo-1280.png
+org=demo route=/actions viewport=390x844 status=200 h1="Actions" navActions=true receiptRows=7 scrollWidth=390 clientWidth=390 hScroll=false file=after-actions-demo-390.png
+org=demo route=/budgets viewport=390x844 status=200 h1="Budgets & alerts" navActions=true receiptRows=0 scrollWidth=390 clientWidth=390 hScroll=false file=after-budgets-demo-390.png
+org=northwind route=/actions viewport=1280x900 status=200 h1="Actions" navActions=true receiptRows=0 scrollWidth=1280 clientWidth=1280 hScroll=false file=after-actions-northwind-1280.png
+org=northwind route=/actions viewport=390x844 status=200 h1="Actions" navActions=true receiptRows=0 scrollWidth=390 clientWidth=390 hScroll=false file=after-actions-northwind-390.png
+error-state route=/actions viewport=1280x900 status=500 heading="Actions could not be loaded" leaksInternals=false file=after-actions-error-1280.png

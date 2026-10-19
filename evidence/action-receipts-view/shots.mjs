@@ -55,7 +55,8 @@ for (const org of ORGS) {
         return {
           scrollWidth: el.scrollWidth,
           clientWidth: el.clientWidth,
-          rows: document.querySelectorAll('[data-receipt-row]').length,
+          // Visible rows only: the table and the stacked cards both render, one is hidden.
+          rows: [...document.querySelectorAll('[data-receipt-row]')].filter((e) => e.getClientRects().length > 0).length,
           h1: document.querySelector('h1')?.textContent?.trim() ?? '',
           nav: [...document.querySelectorAll('nav a')].some((a) => a.textContent?.trim() === 'Actions'),
         };
