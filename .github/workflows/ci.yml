@@ -5,6 +5,15 @@ on:
   push:
     branches: [main]
 
+# Read-only by default. No job here pushes, comments, or publishes; a job that
+# ever needs more must ask for it explicitly at job level.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -15,8 +24,11 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      # typecheck also builds the packages (and typechecks scripts/), which test needs.
       - run: npm run typecheck
       - run: npm run test
+      - run: npm run check:harness
+      - run: npm run lint --workspace @ark/consumer
 
   my-ai-python:
     runs-on: ubuntu-latest
@@ -36,7 +48,10 @@ jobs:
         env:
           MYAI_ROOT: ${{ github.workspace }}/my-ai
 
-  consumer-build:
+  # The full production build: packages, then consumer, business and Control.
+  # Typecheck alone does not catch Next build-time failures (route exports,
+  # server/client boundaries, static generation).
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -45,6 +60,93 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: npm run build --workspace @ark/consumer
+      - run: npm run build
         env:
           API_ORIGIN: http://127.0.0.1:8472
+
+  e2e:
+    runs-on: ubuntu-latest
+    env:
+      API_ORIGIN: http://127.0.0.1:8472
+      MYAI_ROOT: ${{ github.workspace }}/my-ai
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -e 'my-ai/[dev]'
+      - run: npm ci
+      - run: npm run build --workspace @ark/consumer
+      - run: npx playwright install --with-deps chromium
+        working-directory: apps/consumer
+      # Start both servers here rather than relying on playwright.config's
+      # webServer commands: the config reuses an existing server, and starting
+      # them explicitly pins the working directory, PYTHONPATH and port.
+      - name: Start AI Fit API and consumer
+        run: |
+          (cd my-ai && PYTHONPATH=packages/core/src nohup python -m uvicorn services.api.main:app \
+            --host 127.0.0.1 --port 8472 > "$RUNNER_TEMP/my-ai-api.log" 2>&1 &)
+          (cd apps/consumer && nohup npx next start --hostname 127.0.0.1 --port 43123 \
+            > "$RUNNER_TEMP/consumer.log" 2>&1 &)
+          for url in http://127.0.0.1:8472/health http://127.0.0.1:43123/; do
+            for i in $(seq 1 60); do
+              curl -fsS -o /dev/null "$url" && break
+              if [ "$i" = 60 ]; then echo "timed out waiting for $url" >&2; exit 1; fi
+              sleep 1
+            done
+          done
+      - run: npx playwright test
+        working-directory: apps/consumer
+      - name: Server logs
+        if: failure()
+        run: cat "$RUNNER_TEMP/my-ai-api.log" "$RUNNER_TEMP/consumer.log" || true
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: apps/consumer/playwright-report
+          retention-days: 7
+
+  # Builds the image and boots it the way docs/05-hosting.md tells operators
+  # to, then waits for the container healthcheck (all four processes answer).
+  # The secrets below are throwaway CI values, not defaults anyone deploys.
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate compose file
+        env:
+          ARK_SESSION_SECRET: ci-session-secret-0123456789abcdef0123456789
+          ARK_DEMO_PASSWORD: ci-demo-password-not-default
+          ARK_NORTHWIND_PASSWORD: ci-northwind-password-not-default
+          ARK_INGEST_TOKEN_DEMO: ci_ingest_demo_0123456789abcdef
+          ARK_INGEST_TOKEN_NORTHWIND: ci_ingest_northwind_0123456789abcdef
+        run: docker compose -f deploy/docker-compose.yml config --quiet
+      - run: docker build -f deploy/Dockerfile -t ark:ci .
+      - name: Boot and wait for healthy
+        run: |
+          docker run -d --name ark-ci \
+            -e ARK_SESSION_SECRET=ci-session-secret-0123456789abcdef0123456789 \
+            -e ARK_DEMO_PASSWORD=ci-demo-password-not-default \
+            -e ARK_NORTHWIND_PASSWORD=ci-northwind-password-not-default \
+            -e ARK_INGEST_TOKEN_DEMO=ci_ingest_demo_0123456789abcdef \
+            -e ARK_INGEST_TOKEN_NORTHWIND=ci_ingest_northwind_0123456789abcdef \
+            -e ARK_CONTROL_TOKEN=ci_ingest_demo_0123456789abcdef \
+            ark:ci
+          for i in $(seq 1 60); do
+            status=$(docker inspect --format '{{.State.Health.Status}}' ark-ci 2>/dev/null || echo missing)
+            running=$(docker inspect --format '{{.State.Running}}' ark-ci 2>/dev/null || echo false)
+            echo "health=$status running=$running"
+            [ "$status" = healthy ] && exit 0
+            [ "$running" = true ] || break
+            sleep 5
+          done
+          docker logs ark-ci
+          exit 1
+      - name: Container logs
+        if: always()
+        run: docker logs ark-ci 2>&1 | tail -200 || true

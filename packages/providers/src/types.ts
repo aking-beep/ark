@@ -38,7 +38,7 @@ export interface NormalizedCompletion {
 
 export class ProviderError extends Error {
   constructor(
-    readonly kind: 'timeout' | 'http' | 'network' | 'parse' | 'config',
+    readonly kind: 'timeout' | 'http' | 'network' | 'parse' | 'config' | 'aborted',
     message: string,
     readonly adapterId: AdapterId,
     options?: { cause?: unknown },
@@ -56,7 +56,12 @@ export interface ProviderAdapter {
   readonly latencyClass: 'fast' | 'standard' | 'slow';
   configured(): boolean;
   defaultModel(): string;
-  complete(req: CompletionRequest): Promise<NormalizedCompletion>;
+  complete(req: CompletionRequest, opts?: CompleteOptions): Promise<NormalizedCompletion>;
+}
+
+export interface CompleteOptions {
+  /** Caller-side cancellation. Aborting rejects with ProviderError kind 'aborted'. */
+  signal?: AbortSignal;
 }
 
 export type FetchFn = typeof fetch;

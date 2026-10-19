@@ -5,7 +5,9 @@
 
 ## Who
 
-The person who owns the bill. In a small company that is the same engineering lead who filled in the business intake three months earlier; in a larger one it is whoever got asked why the API line item tripled.
+**Buyer** ([ADR-0008](../adr/0008-what-is-sold.md)): an engineering-led company of roughly 15–150 people with a production — or weeks-from-production — LLM or agent workload, a named API or inference bill, and one person who gets asked why that line moved. What they pay for is the Observe loop: cost per successful outcome with a sample size, drift against the estimate, and calibration back into AI Fit Teams. Discover, Register and Assure ship here, but they are not the wedge.
+
+**Daily user:** the person who owns the bill. In a small company that is the same engineering lead who filled in the business intake three months earlier; in a larger one it is whoever got asked why the API line item tripled.
 
 ## The job it does
 

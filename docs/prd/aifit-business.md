@@ -1,13 +1,17 @@
 # PRD: MY AI for teams (business)
 
 **Surface:** `apps/business` · port 3001
-**One line:** Thirty questions about one workload. Verdict, architecture, model, controls, eval plan, cost, roadmap.
+**One line:** One workload. A verdict — which can be `not-ai` — after the first section; then architecture, model, controls, eval plan, cost and roadmap.
 
 ## Who
 
 A team of three to fifteen people who have decided to build something with AI and now have to defend the decision to someone who controls budget. Usually an engineering lead or a technical founder. They have a workload in mind and a number they have to produce.
 
 The failure they are trying to avoid is not "we picked the wrong model." It is "we spent four months and $180k building an agent for something a scheduled query does."
+
+This team is the estimator's **user**, not the buyer. The paying customer is the 15–150 person company with a production LLM bill that buys ARK Control; Teams is included in that contract as the estimator Control calibrates ([ADR-0008](../adr/0008-what-is-sold.md)).
+
+The intake answers the question that matters first — *should this use a model at all?* — after the first section, from the shape of the work alone. The other seven sections build the planning document; none of them invents an answer the user did not give.
 
 ## The job it does
 

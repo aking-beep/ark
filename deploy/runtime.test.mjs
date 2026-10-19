@@ -29,13 +29,88 @@ describe("three-product docker runtime", () => {
     assert.match(entry, /--host 0\.0\.0\.0/);
   });
 
-  test("compose publishes 8472 and API_ORIGIN, not Fit↔business URLs", () => {
+  test("compose publishes 8472 on loopback only and API_ORIGIN, not Fit↔business URLs", () => {
     const compose = read("deploy/docker-compose.yml");
-    assert.match(compose, /"8472:8472"/);
+    assert.match(compose, /"127\.0\.0\.1:8472:8472"/);
     assert.match(compose, /API_ORIGIN: http:\/\/127\.0\.0\.1:8472/);
     assert.match(compose, /MYAI_ROOT: \/app\/my-ai/);
     assert.doesNotMatch(compose, /ARK_CONSUMER_URL:/);
     assert.doesNotMatch(compose, /NEXT_PUBLIC_ARK_BUSINESS_URL:/);
+  });
+});
+
+describe("deploy hardening", () => {
+  test("entrypoint bootstraps every boot instead of testing for a local file", () => {
+    const entry = read("deploy/entrypoint.sh");
+    // A file check re-seeds a remote libSQL DB on every replica boot.
+    assert.doesNotMatch(entry, /-f \/data\/ark\.db/);
+    assert.doesNotMatch(entry, /db:seed/);
+    assert.match(entry, /npm run db:bootstrap/);
+    assert.match(entry, /concurrently --kill-others-on-fail/);
+  });
+
+  test("compose requires a session secret and real seed credentials", () => {
+    const compose = read("deploy/docker-compose.yml");
+    assert.doesNotMatch(compose, /change-me-in-production/);
+    assert.doesNotMatch(compose, /ark_dev_ingest_org_demo/);
+    assert.match(compose, /ARK_SESSION_SECRET: \$\{ARK_SESSION_SECRET:\?/);
+    for (const v of [
+      "ARK_DEMO_PASSWORD",
+      "ARK_NORTHWIND_PASSWORD",
+      "ARK_INGEST_TOKEN_DEMO",
+      "ARK_INGEST_TOKEN_NORTHWIND",
+    ]) {
+      assert.match(compose, new RegExp(`${v}: \\$\\{${v}:\\?`), v);
+    }
+    assert.match(compose, /ARK_DATABASE_URL: \$\{ARK_DATABASE_URL:-file:\/data\/ark\.db\}/);
+    assert.match(compose, /ARK_DATABASE_AUTH_TOKEN:/);
+    assert.match(compose, /ARK_CONTROL_TOKEN: \$\{ARK_CONTROL_TOKEN:-\$\{ARK_INGEST_TOKEN_DEMO\}\}/);
+    for (const v of ["ARK_SHOW_DEMO_LOGIN", "ARK_MEASURE_ENABLED", "ARK_ALLOW_SEED"]) {
+      assert.match(compose, new RegExp(`${v}:`), v);
+    }
+    assert.match(compose, /restart: unless-stopped/);
+    assert.match(compose, /healthcheck:/);
+  });
+
+  test("Dockerfile picks the node build for the target arch and drops root", () => {
+    const docker = read("deploy/Dockerfile");
+    assert.match(docker, /ARG TARGETARCH/);
+    assert.match(docker, /linux-\$\{NODE_ARCH\}/);
+    assert.doesNotMatch(docker, /linux-x64\.tar/);
+    assert.match(docker, /^USER ark$/m);
+    assert.match(docker, /chown -R ark:ark \/app \/data/);
+    assert.match(docker, /^HEALTHCHECK /m);
+    assert.ok(existsSync(join(root, "deploy/healthcheck.sh")));
+  });
+
+  test("secrets stay out of the image and the repo", () => {
+    const dockerignore = read(".dockerignore").split("\n");
+    const gitignore = read(".gitignore").split("\n");
+    for (const lines of [dockerignore, gitignore]) {
+      assert.ok(lines.some((l) => /^(\*\*\/)?\.env\*$/.test(l)));
+      // Negation must come after the exclude or it is overridden.
+      const neg = lines.indexOf("!.env.example");
+      const exc = lines.findIndex((l) => /^(\*\*\/)?\.env\*$/.test(l));
+      assert.ok(neg > exc, "!.env.example must follow .env*");
+    }
+    for (const p of ["**/.venv", "**/__pycache__", "**/playwright-report", "**/test-results", "**/coverage"]) {
+      assert.ok(dockerignore.includes(p), p);
+    }
+  });
+
+  test("root package exposes db:bootstrap and requires a node with strip-types", () => {
+    const pkg = JSON.parse(read("package.json"));
+    assert.equal(pkg.engines.node, ">=22.6");
+    assert.equal(pkg.scripts["db:bootstrap"], "npm run bootstrap --workspace @ark/db");
+    assert.match(pkg.scripts.test, /npm run test:control/);
+    assert.match(pkg.scripts.typecheck, /typecheck:scripts/);
+  });
+
+  test("workflows default to read-only tokens", () => {
+    for (const f of [".github/workflows/ci.yml", ".github/workflows/refresh-models.yml"]) {
+      assert.match(read(f), /^permissions:\n  contents: read$/m, f);
+    }
+    assert.doesNotMatch(read(".github/workflows/refresh-models.yml"), /node-version: '20'/);
   });
 });
 

@@ -94,9 +94,10 @@ const OUTCOME: Record<A2uiPolicyDecision, EvidenceOutcome> = {
 
 export function a2uiEvidence(o: A2uiObservation): NormalisedEvidence {
   const operation = String(o.operation).trim();
+  // Trimmed and shape-checked once; risk and count read the same accepted
+  // list, so ` Button ` is interactive and a form value is not a component.
   const components = vocabulary(o.components);
   const policy = o.policy;
-
 
   return compose(o, {
     protocol: 'a2ui',
@@ -108,12 +109,12 @@ export function a2uiEvidence(o: A2uiObservation): NormalisedEvidence {
     outcome: o.errorKind ? 'error' : policy ? OUTCOME[policy] : 'ok',
     // Interactive components collect input from a person; a Text and an Image
     // do not. That is the whole of the risk difference at this grain.
-    risk: hasInteractive(o.components) ? 'medium' : 'low',
+    risk: hasInteractive(components.accepted) ? 'medium' : 'low',
     evidenceRef: o.surfaceId,
     metadata: {
       catalogId: o.catalogId,
       componentTypes: components.names,
-      componentCount: o.componentCount ?? o.components?.length,
+      componentCount: o.componentCount ?? (o.components ? components.accepted.length : undefined),
       // Something was passed as a component type that is not shaped like one,
       // which usually means a caller sent the tree rather than the vocabulary.
       // Counted rather than dropped in silence.

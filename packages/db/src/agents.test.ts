@@ -119,7 +119,7 @@ describe('agent persistence', () => {
         costUsd: 0.02,
       }],
     });
-    const r = await applyIngest(body, {
+    const r = await applyIngest('org_a', body, {
       client,
       allowlist: ['anthropic'],
       turnCeiling: 25,
@@ -136,7 +136,7 @@ describe('agent persistence', () => {
   });
 
   test('events without agentId still ingest', async () => {
-    const r = await applyIngest(IngestBody.parse({
+    const r = await applyIngest('org_a', IngestBody.parse({
       orgId: 'org_a',
       events: [{
         id: 'ev_no_agent',
@@ -157,7 +157,7 @@ describe('agent persistence', () => {
   });
 
   test('actions and protocol evidence store optional agent_id and count by it', async () => {
-    const r = await applyIngest(IngestBody.parse({
+    const r = await applyIngest('org_a', IngestBody.parse({
       orgId: 'org_a',
       events: [{
         id: 'ev_join',

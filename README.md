@@ -5,7 +5,7 @@ Three separate products — **AI Fit**, **AI Fit Teams**, and **Control** — on
 | Surface | Port | What it is |
 |---|---|---|
 | **AI Fit** (consumer) | 3000 | Five-minute quiz: your AI style, matched tools, paste-ready setup files. |
-| **AI Fit Teams** (business) | 3001 | Thirty questions about one workload. Verdict, architecture, model, controls, eval plan, cost, roadmap. |
+| **AI Fit Teams** (business) | 3001 | One workload. A verdict — which can be `not-ai` — after the first section; then architecture, controls, eval plan, cost and roadmap. |
 | **ARK Control** | 3002 | The evidence and control plane: discover and register agents, run ARK Assurance, ingest traces, govern spend, observe protocol evidence from MCP, A2A, AG-UI, A2UI, UCP and AP2. Measures what AI Fit Teams estimated. |
 
 ![Three surfaces, one engine, one wire between them](docs/diagrams/system-map.svg)
@@ -23,9 +23,11 @@ That is the whole product thesis in one sentence: **the estimator does not get m
 Three products — not one suite with three tabs. Two libraries that are not products.
 
 - **AI Fit** (`:3000`) is a personal quiz. Paste-ready `CLAUDE.md`, Cursor rules, `AGENTS.md`. It does not talk to the other two, and they do not link to it.
-- **AI Fit Teams** (`:3001`) is the estimator. Thirty questions, a verdict that can be `not-ai`, every figure labelled.
+- **AI Fit Teams** (`:3001`) is the estimator. A verdict that can be `not-ai` after the first section, the full planning document after eight, every figure labelled.
 - **ARK Control** (`:3002`) is the measurement and the control plane. Discover a repository, register an Agent Manifest, run ARK Assurance. Wrap the client you already have (`instrumentFetch` + `run()`), or send one sample from the report (`POST /api/measure`). Spend is per outcome. `/start` is the connect path. v0.1 is [Discover → Register → Assure](docs/09-agent-control-v01.md).
 - **`@ark/runtime`** and **`@ark/protocols`** are libraries. Not apps, not six new dashboards.
+
+What is sold is Control's Observe loop, with AI Fit Teams as the estimator it calibrates. AI Fit is not in the contract, and Assurance is not the wedge. The paying customer, the reason they pay, and the refusals that bind every pilot are in [ADR-0008](docs/adr/0008-what-is-sold.md).
 
 The only runtime wire is teams → Control (`GET /api/v1/calibration`). If Control does not answer, the report still completes and every figure reads `heuristic`. The map, with a unit of work across four grains, is [`docs/08-how-ark-works.md`](docs/08-how-ark-works.md).
 
@@ -54,14 +56,15 @@ A prior is promoted only above that floor. Below it, the number stays `heuristic
 
 ## The engine can say no
 
-`Verdict = 'not-ai'` is a real outcome, not a courtesy. A workload whose task shapes are only `calculate` and `lookup` gets routed to a query and a scheduled job, with the LLM alternative explicitly rejected and the reason written down. Roughly a quarter of what people bring to a tool like this should not go near a language model. An assessment tool that always finds a way to recommend AI is a lead-generation form.
+`Verdict = 'not-ai'` is a real outcome, not a courtesy. A workload whose task shapes are only `calculate` and `lookup` gets routed to a query and a scheduled job, with the LLM alternative explicitly rejected and the reason written down. An assessment tool that always finds a way to recommend AI is a lead-generation form.
 
 ## Quick start
 
+Requires Node ≥ 22.6 and Python ≥ 3.12.
+
 ```bash
 npm install
-pip install -e 'my-ai/[dev]'   # consumer AI Fit API (Python)
-npm run setup                # build ARK packages, push schema, seed Control
+npm run setup                # AI Fit API into my-ai/.venv, build ARK packages, push schema, seed Control
 npm run dev                  # AI Fit API + consumer + business + control
 ```
 
@@ -71,9 +74,11 @@ Then:
 - http://localhost:3001 — AI Fit Teams
 - http://localhost:3002 — ARK Control (sign in; see demo accounts below)
 
+If AI Fit says it can't reach its scoring service, the Python API on port 8472 did not start: look for the `[my-ai-api]` lines in the `npm run dev` output, run `npm run setup:my-ai`, and start again. Setup installs into `my-ai/.venv` rather than the system Python, because Homebrew and recent Linux Pythons refuse system-wide installs ("externally-managed-environment").
+
 AI Fit (consumer) uses Next 16 nested under `apps/consumer`. Business and Control stay on Next 15 / React 18. After a consumer install, restart those two apps so they are not left on a stale `.next` from a previous `next dev`. `npm run dev:ark` starts only those two.
 
-Zero config. The database is a local SQLite file (`ark.db`); nothing else is required. To see AI Fit Teams figures flip from `heuristic` to `measured`, set `ARK_CONTROL_URL=http://localhost:3002` and `ARK_CONTROL_TOKEN` to a Demo Co ingest token, then reload a business report.
+Zero config. The database is a local SQLite file (`ark.db` at the repo root); nothing else is required. When you do configure something, each Next app reads its own `apps/<app>/.env.local` — see [`.env.example`](.env.example). To see AI Fit Teams figures flip from `heuristic` to `measured`, set `ARK_CONTROL_URL=http://localhost:3002` and `ARK_CONTROL_TOKEN` to a Demo Co ingest token, then reload a business report.
 
 Control is org-scoped at the edge. After `npm run setup`:
 
@@ -84,7 +89,7 @@ Control is org-scoped at the edge. After `npm run setup`:
 
 `npm run ingest:live` posts traces for Northwind through the same ingest path as production. Until that runs, Northwind's calibration is `calibrated` from Demo Co's patterns — fleet priors, not a thin sample of its own.
 
-Host all four processes (AI Fit API + three Next apps) with Docker: [`docs/05-hosting.md`](docs/05-hosting.md).
+These demo credentials are for local development only. Host all four processes (AI Fit API + three Next apps) with Docker: [`docs/05-hosting.md`](docs/05-hosting.md) — a production deploy must set its own session secret, passwords and ingest tokens, and refuses to start on the defaults above.
 
 ## Layout
 
@@ -122,11 +127,13 @@ Consumer AI Fit keeps quiz progress in the browser (`localStorage`) and scores v
 npm run dev            # AI Fit API + consumer + business + control
 npm run dev:ark        # business (:3001) and Control (:3002) only
 npm run build          # packages, then all three apps
-npm run test           # @ark/core, protocols, db, SDK, providers, evals, runtime
+npm run test           # @ark/core, protocols, db, SDK, providers, evals, runtime, control, deploy
 npm run smoke:runtime  # Runtime dry-run (+ live providers when env is set)
 npm run test:my-ai     # AI Fit Python engine (pytest)
-npm run typecheck      # every workspace
-npm run db:seed        # regenerate demo telemetry
+npm run typecheck      # every workspace, plus scripts/
+npm run check:harness  # harness/ and .claude/ + .cursor/ copies are identical
+npm run db:bootstrap   # push schema; seed only if the database has no orgs
+npm run db:seed        # regenerate demo telemetry (replaces data; refused in production without ARK_ALLOW_SEED=1)
 npm run ingest:live    # POST live traces for the Northwind org (not SQL-inserted)
 ```
 
@@ -142,7 +149,7 @@ npm run ingest:live    # POST live traces for the Northwind org (not SQL-inserte
 8. [`docs/07-protocol-evidence.md`](docs/07-protocol-evidence.md) — the six protocols, the fourth grain, and the three redaction layers
 9. [`docs/08-how-ark-works.md`](docs/08-how-ark-works.md) — the map: what talks to what, and what a request looks like from quiz to drift
 10. [`docs/09-agent-control-v01.md`](docs/09-agent-control-v01.md) — Discover → Register → Assure: Agent Manifest, discovery, assurance, policy foundation
-11. [`docs/adr/`](docs/adr/) — the decisions that would otherwise be re-litigated every quarter (including [ADR-0006](docs/adr/0006-runtime-is-not-a-surface.md): Runtime is a library, not a surface, and [ADR-0007](docs/adr/0007-protocols-are-adapters-not-surfaces.md): protocols are adapters, not surfaces)
+11. [`docs/adr/`](docs/adr/) — the decisions that would otherwise be re-litigated every quarter (including [ADR-0006](docs/adr/0006-runtime-is-not-a-surface.md): Runtime is a library, not a surface, [ADR-0007](docs/adr/0007-protocols-are-adapters-not-surfaces.md): protocols are adapters, not surfaces, and [ADR-0008](docs/adr/0008-what-is-sold.md): the first invoice is Control's Observe loop)
 12. [`docs/prd/`](docs/prd/) — one per surface: who it is for, what it refuses to do
 
 If you would rather see the five arguments than read them, [`docs/diagrams/`](docs/diagrams/) is an index of the same material: the system map above, the trace-versus-event comparison, the verdict ladder drawn from the source, the provenance ladder worked end to end, and the calibration loop.

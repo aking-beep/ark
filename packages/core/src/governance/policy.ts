@@ -58,6 +58,12 @@ function applies(when: PolicyCondition, agent: Manifest): boolean {
 /**
  * Evaluate a policy against a manifest. Unmatched policies return status
  * unknown (they did not apply). Request-path blocking lives in `enforce.ts`.
+ *
+ * Definite failures are collected first and decide the status on their own:
+ * a requirement that cannot be verified does not hide one that plainly fails.
+ * Only when nothing fails does an unverifiable requirement make the result
+ * `unknown` — never `pass`. An agent with no recorded models, or a model the
+ * manifest names as `unknown`, cannot be shown to be on an approved list.
  */
 export function evaluatePolicy(rawPolicy: unknown, rawAgent: unknown): PolicyEvaluation {
   const policy = AgentPolicy.parse(rawPolicy);
@@ -66,27 +72,44 @@ export function evaluatePolicy(rawPolicy: unknown, rawAgent: unknown): PolicyEva
     return { policyId: policy.id, matched: false, status: 'unknown', failures: [] };
   }
   const failures: string[] = [];
+  const unknowns: string[] = [];
   const req = policy.require;
   if (req.policyRefs && !(agent.governance?.policyRefs?.length)) failures.push('policyRefs required');
   if (req.evaluations && !(agent.governance?.evaluationRefs?.length)) failures.push('evaluations required');
   if (req.humanEscalation && !agent.governance?.humanEscalation) failures.push('humanEscalation required');
   if (req.humanApproval && !agent.governance?.approvalRequired) failures.push('humanApproval required');
   if (req.approvedProviders?.length) {
+    if (agent.models.length === 0) {
+      unknowns.push('approvedProviders cannot be verified: no models recorded (unknown)');
+    }
     for (const m of agent.models) {
-      if (!req.approvedProviders.includes(m.provider)) failures.push(`provider ${m.provider} not approved`);
+      if (m.provider === 'unknown') {
+        unknowns.push(`provider of model ${m.modelId} is unknown; cannot verify it is approved`);
+      } else if (!req.approvedProviders.includes(m.provider)) {
+        failures.push(`provider ${m.provider} not approved`);
+      }
     }
   }
   if (req.approvedModels?.length) {
+    if (agent.models.length === 0) {
+      unknowns.push('approvedModels cannot be verified: no models recorded (unknown)');
+    }
     for (const m of agent.models) {
-      if (m.modelId !== 'unknown' && !req.approvedModels.includes(m.modelId)) {
+      if (m.modelId === 'unknown') {
+        unknowns.push(`model id unknown (provider ${m.provider}); cannot verify it is approved`);
+      } else if (!req.approvedModels.includes(m.modelId)) {
         failures.push(`model ${m.modelId} not approved`);
       }
     }
   }
   if (req.loggingEnabled) {
-    failures.push('loggingEnabled cannot be verified from the manifest (unknown)');
-    return { policyId: policy.id, matched: true, status: 'unknown', failures };
+    unknowns.push('loggingEnabled cannot be verified from the manifest (unknown)');
   }
-  const status: CheckStatus = failures.length ? 'fail' : 'pass';
-  return { policyId: policy.id, matched: true, status, failures };
+  const status: CheckStatus = failures.length ? 'fail' : unknowns.length ? 'unknown' : 'pass';
+  return {
+    policyId: policy.id,
+    matched: true,
+    status,
+    failures: [...failures, ...unknowns].slice(0, 32).map((f) => f.slice(0, 400)),
+  };
 }

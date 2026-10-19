@@ -11,8 +11,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "push": "node dist/push.js",
     "seed": "node dist/seed.js",
+    "bootstrap": "node dist/bootstrap.js",
     "ingest:live": "node dist/live-ingest.js",
-    "test": "tsc -p tsconfig.json && node --test dist/ingest.test.js dist/evidence.test.js dist/auth.test.js dist/alerts.test.js dist/session-token.test.js dist/agents.test.js"
+    "test": "tsc -p tsconfig.json && node --test dist/ingest.test.js dist/evidence.test.js dist/auth.test.js dist/alerts.test.js dist/session-token.test.js dist/agents.test.js dist/tenancy.test.js dist/bootstrap.test.js"
   },
   "dependencies": {
     "@ark/core": "*",

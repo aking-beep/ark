@@ -26,6 +26,7 @@ SECRET_PATTERNS = [
     (r"sk-ant-[A-Za-z0-9\-_]{20,}", "Anthropic API key"),
     (r"sk-[A-Za-z0-9]{32,}", "OpenAI-style API key"),
     (r"ghp_[A-Za-z0-9]{36}", "GitHub personal access token"),
+    (r"github_pat_[A-Za-z0-9_]{22,}", "GitHub fine-grained token"),
     (r"-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----", "private key"),
     (r"(?i)(password|passwd|secret|api[_-]?key|token)\s*[:=]\s*['\"][^'\"\s]{8,}['\"]",
      "hardcoded credential"),
@@ -36,6 +37,14 @@ SECRET_PATTERNS = [
 # to markers that cannot occur in real prose — an ellipsis would false-positive
 # on the first honest sentence someone writes.
 UNFILLED = ["TODO", "FILL IN"]
+
+# Same rule as scripts/factory-new.sh. The slug becomes a path segment and a git
+# ref below, so anything else (../, spaces, leading dashes) is refused before use.
+SLUG_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+
+# Text artefacts in evidence/<slug>/ that are scanned for secrets. Binary
+# captures (png, mp4) cannot be grepped meaningfully and are skipped.
+SCANNED_SUFFIXES = {".md", ".txt", ".log", ".json", ".tsv", ".csv", ".yml", ".yaml", ".har"}
 
 
 class Result:
@@ -67,6 +76,36 @@ def latest_score(review: str):
     return int(found[-1]) if found else None
 
 
+def round_blocks(review: str) -> list[str]:
+    """Split REVIEW.md into its round blocks, oldest first."""
+    starts = [m.start() for m in re.finditer(r"^#+\s*Round\b", review, re.M | re.I)]
+    return [review[a:b] for a, b in zip(starts, starts[1:] + [len(review)])]
+
+
+def reviewer_of(block: str):
+    """The `Reviewer:` signature in a round block, or None if absent/placeholder.
+
+    The signature names who (or which clean-context reviewer session) scored the
+    round. It is what makes "the builder did not review its own work" checkable
+    after the fact; a round nobody signed cannot be attributed and does not count.
+    """
+    m = re.search(r"^\s*\**Reviewer:\**\s*(.*?)\s*$", block, re.M | re.I)
+    if not m:
+        return None
+    who = m.group(1).strip("* ")
+    if not who or who.startswith("<") or any(u in who for u in UNFILLED):
+        return None
+    return who
+
+
+def scan_secrets(text: str) -> list[str]:
+    return [label for pat, label in SECRET_PATTERNS if re.search(pat, text)]
+
+
+def git_ok(args: list[str], cwd: Path) -> bool:
+    return subprocess.run(["git", *args], cwd=cwd, capture_output=True).returncode == 0
+
+
 def unresolved_severity(security: str) -> list[str]:
     """Critical/high findings that have not been marked resolved or none.
 
@@ -88,6 +127,10 @@ def main() -> int:
         return 2
 
     slug = sys.argv[1]
+    if not SLUG_RE.match(slug):
+        print("slug must be kebab-case: [a-z0-9] separated by single hyphens",
+              file=sys.stderr)
+        return 2
     root = Path(subprocess.run(
         ["git", "rev-parse", "--show-toplevel"],
         capture_output=True, text=True, check=True).stdout.strip())
@@ -145,10 +188,15 @@ def main() -> int:
         # --- review -------------------------------------------------------
         rev = ev / "REVIEW.md"
         if r.check(rev.exists(), "REVIEW.md exists", "the feature has not been reviewed"):
-            s = latest_score(rev.read_text())
+            review = rev.read_text()
+            s = latest_score(review)
             r.check(s is not None, "REVIEW.md records a score", "no 'n/5' found")
             if s is not None:
                 r.check(s == 5, "review score is 5/5", f"latest round scored {s}/5")
+            blocks = round_blocks(review)
+            r.check(bool(blocks) and reviewer_of(blocks[-1]) is not None,
+                    "latest review round is signed",
+                    "add a 'Reviewer: <who>' line to the latest round; see factory/RUBRIC.md")
 
         # Security review is required only under the governance layer; when the
         # file exists, an unresolved critical or high finding blocks regardless
@@ -179,16 +227,40 @@ def main() -> int:
         code, out = run(cmd, where)
         r.check(code == 0, f"check: {name}", f"`{cmd}` exited {code}\n{out}")
 
-    # --- secrets in the diff ---------------------------------------------
+    # --- secrets in the diff and in the evidence ---------------------------
+    # Diff against the fetched base when there is one: a stale local base makes
+    # `base...feature` include commits that are already merged, while the point
+    # is to scan exactly what this feature adds. The feature ref is the slug
+    # branch when it exists locally (ship runs from the root checkout), else
+    # HEAD (cloud mode, where the station is the checkout). A diff that cannot
+    # be produced fails the gate — an unscanned diff is not a clean one.
     base_branch = os.environ.get("FACTORY_BASE_BRANCH", "main")
-    base = subprocess.run(["git", "rev-parse", "--verify", base_branch],
-                          cwd=root, capture_output=True, text=True)
-    if base.returncode == 0:
-        diff = subprocess.run(["git", "diff", f"{base_branch}...{slug}"],
-                              cwd=root, capture_output=True, text=True).stdout
-        hits = [label for pat, label in SECRET_PATTERNS
-                if re.search(pat, diff)]
-        r.check(not hits, "no secrets in the diff", ", ".join(hits))
+    head = slug if git_ok(["rev-parse", "--verify", "--quiet", f"refs/heads/{slug}"], root) else "HEAD"
+    candidates = [f"origin/{base_branch}", base_branch]
+    base = next((c for c in candidates
+                 if git_ok(["rev-parse", "--verify", "--quiet", c], root)), None)
+    if r.check(base is not None, "base branch resolves for the secret scan",
+               f"neither {' nor '.join(candidates)} exists; set FACTORY_BASE_BRANCH"):
+        d = subprocess.run(["git", "diff", f"{base}...{head}"], cwd=root,
+                           capture_output=True, text=True, errors="replace")
+        if r.check(d.returncode == 0, "secret scan diff produced",
+                   f"`git diff {base}...{head}` exited {d.returncode}: {d.stderr.strip()[:300]}"):
+            hits = scan_secrets(d.stdout)
+            r.check(not hits, "no secrets in the diff", ", ".join(hits))
+
+    # The spec and evidence are committed onto the base branch by
+    # factory-ship.sh, outside the feature diff, so they are scanned directly.
+    # A pasted curl with a live bearer token in after.txt is the usual leak.
+    scanned = [spec] if spec.exists() else []
+    if ev.is_dir():
+        scanned += sorted(p for p in ev.rglob("*")
+                          if p.is_file() and p.suffix.lower() in SCANNED_SUFFIXES)
+    leaks = []
+    for p in scanned:
+        hits = scan_secrets(p.read_text(errors="replace"))
+        if hits:
+            leaks.append(f"{p.relative_to(root)} ({', '.join(hits)})")
+    r.check(not leaks, "no secrets in spec or evidence", "; ".join(leaks[:5]))
 
     # --- report -----------------------------------------------------------
     print(f"\nfactory gate — {slug}\n")

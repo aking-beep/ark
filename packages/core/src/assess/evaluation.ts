@@ -18,14 +18,26 @@ export interface Metric {
 }
 
 export interface EvaluationPlan {
-  goldenSetSize: number;
+  /**
+   * 'golden-set' for anything that calls a model. 'deterministic' for the
+   * not-ai path: rules are checked with tests against the rule, not with a
+   * labelled sample, so there is no golden set to size.
+   */
+  kind: 'golden-set' | 'deterministic';
+  /** Null on the deterministic path. Sized by `GOLDEN_SET_RULE` otherwise. */
+  goldenSetSize: number | null;
   metrics: Metric[];
   cadence: string;
   humanBaselineNote: string;
   regressionPolicy: string;
 }
 
+/** How the golden set is sized — a rubric rule, so the report tags it heuristic. */
+export const GOLDEN_SET_RULE =
+  '2% of monthly volume, at least 120 and at most 1,000 — enough to separate the threshold from noise, capped at what a person will label';
+
 export function evaluationPlan(w: Workload, pattern: Pattern): EvaluationPlan {
+  if (pattern === 'deterministic-automation') return deterministicPlan(w);
   const tol = w.errorTolerance;
   const accuracy = { none: 0.99, low: 0.97, medium: 0.93, high: 0.85 }[tol];
   const units = w.volume.unitsPerMonth;
@@ -124,6 +136,7 @@ export function evaluationPlan(w: Workload, pattern: Pattern): EvaluationPlan {
           blocksLaunch: false,
         },
       ],
+      kind: 'golden-set',
       cadence: 'Re-check whenever the tool updates its model, which happens more often than announcements suggest.',
       humanBaselineNote: 'Compare against how well you do it now, not against perfection.',
       regressionPolicy: 'If it gets worse after an update, stop using it for anything you cannot verify.',
@@ -131,6 +144,7 @@ export function evaluationPlan(w: Workload, pattern: Pattern): EvaluationPlan {
   }
 
   return {
+    kind: 'golden-set',
     goldenSetSize,
     metrics,
     cadence: 'Every deploy, every prompt change, every model version change, and weekly on live sampled traffic.',
@@ -139,5 +153,49 @@ export function evaluationPlan(w: Workload, pattern: Pattern): EvaluationPlan {
       : 'No human baseline was supplied. Measure it first, or you will hold the model to a standard the current process does not meet either.',
     regressionPolicy:
       'Pin model versions. Providers change model behaviour underneath a stable name; re-run the golden set before adopting any new version, and keep the ability to roll back.',
+  };
+}
+
+/**
+ * The not-ai path. A rule has a right answer, so it is tested like code:
+ * one case per documented example, a property check over generated inputs,
+ * and a watch on how much the rules decline. No golden set, no model pin, no
+ * accuracy percentage to argue about.
+ */
+function deterministicPlan(w: Workload): EvaluationPlan {
+  return {
+    kind: 'deterministic',
+    goldenSetSize: null,
+    metrics: [
+      {
+        name: 'Documented cases pass',
+        threshold: 'Every case',
+        measuredHow: 'Unit tests, one per documented example, including the edge cases the current process handles by hand. Written before the rules.',
+        blocksLaunch: true,
+      },
+      {
+        name: 'Property check against the rule',
+        threshold: '0 violations',
+        measuredHow: 'Property-based tests over generated inputs assert the invariant: totals reconcile, a lookup returns exactly one record or an explicit miss.',
+        blocksLaunch: true,
+      },
+      {
+        name: 'Exception rate',
+        threshold: '< 5% of volume',
+        measuredHow: 'Share of inputs the rules decline and route to the exception queue, counted over four weeks. Above 5% the ambiguity is real: reassess the remainder.',
+        blocksLaunch: false,
+      },
+      {
+        name: 'p95 latency',
+        threshold: `<= ${w.latencyBudgetMs.toLocaleString()} ms`,
+        measuredHow: 'Your own service metrics. There are no model calls for ARK Control to observe.',
+        blocksLaunch: w.actor === 'customer',
+      },
+    ],
+    cadence: 'On every change to the rules, in CI.',
+    humanBaselineNote:
+      'Run the rules and today\'s process over the same documented cases. Where they disagree, one of them has a bug, and it is not always the rules.',
+    regressionPolicy:
+      'Rules are versioned with the code. A failing case blocks the merge. There is no model version to pin and nothing changes underneath you.',
   };
 }

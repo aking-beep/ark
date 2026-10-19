@@ -1,10 +1,11 @@
 import type { Capability } from '@ark/core';
-import { fetchWithTimeout, readJson } from './http.js';
+import { Deadline, requestJson } from './http.js';
 import { parseBedrockConverse, toBedrockConverseBody } from './parse.js';
 import { signBedrockConverse } from './sigv4.js';
 import {
   CompletionRequest,
   ProviderError,
+  type CompleteOptions,
   type FetchFn,
   type NormalizedCompletion,
   type ProviderAdapter,
@@ -62,7 +63,7 @@ export class BedrockAdapter implements ProviderAdapter {
     return this.modelId;
   }
 
-  async complete(req: CompletionRequest): Promise<NormalizedCompletion> {
+  async complete(req: CompletionRequest, opts: CompleteOptions = {}): Promise<NormalizedCompletion> {
     const parsed = CompletionRequest.parse(req);
     if (!this.configured()) {
       throw new ProviderError(
@@ -84,14 +85,18 @@ export class BedrockAdapter implements ProviderAdapter {
       body,
     });
     const started = Date.now();
-    const res = await fetchWithTimeout(
-      this.fetchFn,
-      signed.url,
-      { method: 'POST', headers: signed.headers, body },
-      this.timeoutMs,
-      'bedrock',
-    );
-    const json = await readJson(res, 'bedrock');
-    return parseBedrockConverse(json, Date.now() - started, model);
+    const deadline = new Deadline(this.timeoutMs, opts.signal);
+    try {
+      const json = await requestJson(
+        this.fetchFn,
+        signed.url,
+        { method: 'POST', headers: signed.headers, body },
+        deadline,
+        'bedrock',
+      );
+      return parseBedrockConverse(json, Date.now() - started, model);
+    } finally {
+      deadline.dispose();
+    }
   }
 }

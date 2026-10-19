@@ -13,7 +13,7 @@ AI Fit Teams and ARK Control still use the TypeScript `@ark/core` engine. Consum
 
 ```bash
 npm install
-pip install -e 'my-ai/[dev]'    # or: npm run setup:my-ai
+npm run setup:my-ai           # creates my-ai/.venv with Python 3.12+ and installs the API
 
 # terminal 1
 npm run dev:my-ai-api         # http://127.0.0.1:8472/health

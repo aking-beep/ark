@@ -1,11 +1,15 @@
-import { proxyMyAiRequest } from "@/lib/my-ai-proxy";
+import { buildUpstreamPath, proxyMyAiRequest } from "@/lib/my-ai-proxy";
 
 export const dynamic = "force-dynamic";
 
 async function handle(request: Request, ctx: { params: Promise<{ path: string[] }> }) {
   const { path } = await ctx.params;
   const url = new URL(request.url);
-  return proxyMyAiRequest(`/v1/${path.join("/")}${url.search}`, request);
+  const upstreamPath = buildUpstreamPath(path ?? [], url.search);
+  if (!upstreamPath) {
+    return Response.json({ error: "Invalid path." }, { status: 400 });
+  }
+  return proxyMyAiRequest(upstreamPath, request);
 }
 
 export const GET = handle;

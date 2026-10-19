@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { detectSensitive } from './sensitive.js';
+import { detectSensitive, redactSensitiveText } from './sensitive.js';
+import { IngestTimestamp, LatencyMs, ValueUsd } from './limits.js';
 
 /**
  * Protocol evidence: one normalised observation from an agent protocol.
@@ -64,7 +65,7 @@ export const EvidenceInput = z.object({
   /** Correlates this observation to the unit of business work it happened in. */
   traceId: z.string().min(1).max(128).optional(),
   workloadId: z.string().min(1).max(128).optional(),
-  ts: z.number().int().optional(),
+  ts: IngestTimestamp.optional(),
 
   protocol: z.enum(PROTOCOLS),
   /** The protocol's own version string, verbatim. Never ARK's version. */
@@ -80,10 +81,10 @@ export const EvidenceInput = z.object({
   target: z.string().max(200).optional(),
 
   outcome: z.enum(EVIDENCE_OUTCOMES).default('ok'),
-  latencyMs: z.number().int().min(0).optional(),
+  latencyMs: LatencyMs.optional(),
 
   /** Populated only when the observed currency is USD. See `currency`. */
-  valueUsd: z.number().min(0).optional(),
+  valueUsd: ValueUsd.optional(),
   /** ISO 4217, as observed. A non-USD amount lives in metadata, unconverted. */
   currency: z.string().length(3).optional(),
 
@@ -210,13 +211,21 @@ function isDeniedKey(key: string): boolean {
  *
  * The key name is the caller's string and the value is the caller's data;
  * neither is safe to persist, which is the whole premise of this module. The
- * *reason* is ours. `payload_name` and `non_scalar` are named here, and the
- * rest are `detectSensitive` labels, which the events grain already stores for
+ * *reason* is ours. `payload_name`, `non_scalar`, `invalid_key` (a key not
+ * shaped like an identifier) and `over_limit` (past the field cap) are named
+ * here, and the rest are `detectSensitive` labels, which the events grain already stores for
  * exactly this purpose.
  *
  * This is what ingest is allowed to write into an alert. See `redactMetadata`.
  */
-export type RedactionClass = 'payload_name' | 'non_scalar' | string;
+export type RedactionClass = 'payload_name' | 'non_scalar' | 'invalid_key' | 'over_limit' | string;
+
+/**
+ * The shape a metadata key must have to be kept: an identifier, not prose.
+ * A key that is an email address, a card number or a sentence is dropped as
+ * `invalid_key` before anything else looks at it.
+ */
+export const EVIDENCE_METADATA_KEY_SHAPE = /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/;
 
 export interface RedactedMetadata {
   metadata: EvidenceMetadata;
@@ -232,16 +241,19 @@ export interface RedactedMetadata {
 /**
  * Third redaction layer, and the one that runs on both sides of the wire.
  *
- * Drops entries whose key names a payload, entries whose *value* trips the
- * existing sensitive-data detectors — that catches an innocently named key
- * like `note` carrying an email address — and entries whose value is not a
- * scalar, which is how a nested payload would arrive from a JavaScript caller
- * that never went through the schema.
+ * Drops entries whose key names a payload, whose key is not shaped like an
+ * identifier, or whose key or *value* trips the sensitive-data detectors —
+ * that catches an innocently named key like `note` carrying an email address,
+ * and a number like `4111111111111111` carrying a card. Also drops values that
+ * are not scalars, which is how a nested payload would arrive from a
+ * JavaScript caller that never went through the schema, and anything past the
+ * field limit.
  *
  * Deterministic and side-effect free, so `@ark/protocols` can run it while
  * composing, the SDK can run it before the POST (the value never leaves the
  * caller's process), and ingest can run it again before the INSERT, all with
- * the same result.
+ * the same result. Its output always satisfies `EvidenceMetadata`, so a
+ * redacted record can never be the reason a batch is rejected.
  *
  * Returns the keys removed and, separately, the classes they were removed
  * under. Never the values — a control that logs the payload it found in order
@@ -253,44 +265,126 @@ export function redactMetadata(meta: Record<string, unknown> | undefined): Redac
   const metadata: EvidenceMetadata = {};
   const redacted: string[] = [];
   const classes = new Set<RedactionClass>();
+  let kept = 0;
+  const drop = (key: string, ...why: RedactionClass[]) => {
+    redacted.push(key);
+    for (const w of why) classes.add(w);
+  };
   for (const [key, value] of Object.entries(meta ?? {})) {
     if (value === undefined || value === null) continue;
     if (isDeniedKey(key)) {
-      redacted.push(key);
-      classes.add('payload_name');
+      drop(key, 'payload_name');
       continue;
     }
+    if (!EVIDENCE_METADATA_KEY_SHAPE.test(key)) {
+      drop(key, 'invalid_key');
+      continue;
+    }
+    const keyHits = detectSensitive(key);
+    if (keyHits.length > 0) {
+      drop(key, ...keyHits);
+      continue;
+    }
+    let clean: string | number | boolean;
     if (typeof value === 'string') {
       const hits = detectSensitive(value);
       if (hits.length > 0) {
-        redacted.push(key);
-        for (const h of hits) classes.add(h);
+        drop(key, ...hits);
         continue;
       }
-      metadata[key] = value.slice(0, EVIDENCE_METADATA_MAX_VALUE_CHARS);
+      clean = value.slice(0, EVIDENCE_METADATA_MAX_VALUE_CHARS);
+    } else if (typeof value === 'number' && Number.isFinite(value)) {
+      // A number is text to a detector: a card or an account number is
+      // still one without the quotes.
+      const hits = detectSensitive(String(value));
+      if (hits.length > 0) {
+        drop(key, ...hits);
+        continue;
+      }
+      clean = value;
+    } else if (typeof value === 'boolean') {
+      clean = value;
+    } else {
+      drop(key, 'non_scalar');
       continue;
     }
-    if (typeof value === 'boolean' || (typeof value === 'number' && Number.isFinite(value))) {
-      metadata[key] = value;
+    if (kept >= EVIDENCE_METADATA_MAX_FIELDS) {
+      drop(key, 'over_limit');
       continue;
     }
-    redacted.push(key);
-    classes.add('non_scalar');
+    metadata[key] = clean;
+    kept++;
   }
   return { metadata, redacted, classes: [...classes].sort() };
+}
+
+/**
+ * The free-text fields of an evidence record, with their schema lengths. Each
+ * is an identifier or an operation name by contract, and each is also a string
+ * a caller controls — an MCP resource URI can carry a home directory with an
+ * email address in it.
+ *
+ * Ids (`id`, `traceId`, `workloadId`) are deliberately not here: they are
+ * idempotency and join keys, and rewriting them would split one record in two.
+ */
+export const EVIDENCE_TEXT_FIELDS = {
+  operation: 200,
+  actor: 200,
+  target: 200,
+  evidenceRef: 200,
+  approvedBy: 128,
+  protocolVersion: 64,
+} as const;
+export type EvidenceTextField = keyof typeof EVIDENCE_TEXT_FIELDS;
+
+export interface RedactedFields<T> {
+  value: T;
+  /** Which fields had a match replaced, by field name (ours, not the caller's). */
+  fields: EvidenceTextField[];
+  classes: RedactionClass[];
+}
+
+/**
+ * Replace sensitive matches inside the evidence text fields with
+ * `[redacted:<class>]`, keeping the rest of the string, and re-cap each field
+ * at its schema length. Returns the same object when nothing matched.
+ */
+export function redactEvidenceFields<T extends Partial<Record<EvidenceTextField, string | null | undefined>>>(
+  e: T,
+): RedactedFields<T> {
+  const fields: EvidenceTextField[] = [];
+  const classes = new Set<RedactionClass>();
+  let out: T = e;
+  for (const [field, max] of Object.entries(EVIDENCE_TEXT_FIELDS) as [EvidenceTextField, number][]) {
+    const v = e[field];
+    if (typeof v !== 'string' || v.length === 0) continue;
+    const { text, labels } = redactSensitiveText(v);
+    if (labels.length === 0) continue;
+    if (out === e) out = { ...e };
+    (out as Record<string, unknown>)[field] = text.slice(0, max);
+    fields.push(field);
+    for (const l of labels) classes.add(l);
+  }
+  return { value: out, fields, classes: [...classes].sort() };
 }
 
 export interface RedactedEvidence {
   evidence: EvidenceInput;
   /** Metadata keys removed, by name only. Return to the sender; do not store. */
   redacted: string[];
-  /** Why they were removed, from a fixed vocabulary. Safe to store. */
+  /** Text fields whose sensitive matches were replaced in place. Field names are ours. */
+  fields: EvidenceTextField[];
+  /** Why, from a fixed vocabulary. Safe to store. Covers metadata and text fields. */
   classes: RedactionClass[];
 }
 
 export function redactEvidence(e: EvidenceInput): RedactedEvidence {
   const { metadata, redacted, classes } = redactMetadata(e.metadata);
-  return redacted.length === 0
-    ? { evidence: e, redacted, classes }
-    : { evidence: { ...e, metadata }, redacted, classes };
+  const f = redactEvidenceFields(e);
+  const allClasses = [...new Set([...classes, ...f.classes])].sort();
+  if (redacted.length === 0 && f.fields.length === 0) {
+    return { evidence: e, redacted, fields: [], classes: allClasses };
+  }
+  const evidence: EvidenceInput = redacted.length === 0 ? f.value : { ...f.value, metadata };
+  return { evidence, redacted, fields: f.fields, classes: allClasses };
 }

@@ -1,6 +1,8 @@
 import {
   redactMetadata,
-  EVIDENCE_METADATA_MAX_FIELDS,
+  redactEvidenceFields,
+  EVIDENCE_TEXT_FIELDS,
+  type EvidenceTextField,
   type EvidenceObservation,
   type EvidenceKind,
   type EvidenceOutcome,
@@ -64,9 +66,13 @@ export interface Resolved {
   metadata?: Record<string, unknown> | undefined;
 }
 
-const text = (v: string | undefined, max: number): string | undefined => {
-  const t = v?.trim();
-  return t ? t.slice(0, max) : undefined;
+/**
+ * Trim, but do not cap yet: the length cap runs after field redaction, so an
+ * email address straddling the cap is still seen whole by the detectors.
+ */
+const text = (v: string | undefined): string | undefined => {
+  const t = typeof v === 'string' ? v.trim() : undefined;
+  return t ? t : undefined;
 };
 
 /**
@@ -80,20 +86,27 @@ const text = (v: string | undefined, max: number): string | undefined => {
  * input, so a field the adapter does not name has no path into the output at
  * all — which is why passing `arguments` to `mcpEvidence` in plain JavaScript
  * is inert rather than merely discouraged.
+ *
+ * The free-text fields — operation, actor, target, evidenceRef, approvedBy,
+ * protocolVersion — then go through `redactEvidenceFields`, which replaces any
+ * sensitive match with `[redacted:<class>]` and caps each at its schema
+ * length. An MCP resource URI is an identifier by contract and a caller's
+ * string in practice; `file:///home/bob@example.com/…` is both.
  */
 export function compose(base: ObservationBase, r: Resolved): NormalisedEvidence {
+  // redactMetadata enforces the field cap and key shape itself, so what it
+  // returns is always something the SDK's schema accepts.
   const { metadata } = redactMetadata({ ...r.metadata, ...base.metadata });
-  const trimmed = Object.fromEntries(Object.entries(metadata).slice(0, EVIDENCE_METADATA_MAX_FIELDS));
 
   const out: NormalisedEvidence = {
     protocol: r.protocol,
-    protocolVersion: base.protocolVersion ?? r.protocolVersion,
+    protocolVersion: text(base.protocolVersion) ?? r.protocolVersion,
     kind: r.kind,
-    operation: text(r.operation, 200) ?? r.protocol,
+    operation: text(r.operation) ?? r.protocol,
     outcome: base.outcome ?? r.outcome,
     risk: base.risk ?? r.risk,
     requiredApproval: base.requiredApproval ?? r.requiredApproval ?? false,
-    metadata: trimmed,
+    metadata,
   };
 
   if (base.id !== undefined) out.id = base.id;
@@ -103,16 +116,25 @@ export function compose(base: ObservationBase, r: Resolved): NormalisedEvidence 
   if (base.latencyMs !== undefined) out.latencyMs = base.latencyMs;
   if (base.approvedBy !== undefined) out.approvedBy = base.approvedBy;
 
-  const actor = text(r.actor, 200);
-  const target = text(r.target, 200);
-  const ref = text(r.evidenceRef, 200);
+  const actor = text(r.actor);
+  const target = text(r.target);
+  const ref = text(r.evidenceRef);
   if (actor) out.actor = actor;
   if (target) out.target = target;
   if (ref) out.evidenceRef = ref;
   if (r.valueUsd !== undefined) out.valueUsd = r.valueUsd;
   if (r.currency !== undefined) out.currency = r.currency;
 
-  return out;
+  return capFields(redactEvidenceFields(out).value);
+}
+
+/** Cap every text field at its schema length, after redaction has seen it whole. */
+function capFields(e: NormalisedEvidence): NormalisedEvidence {
+  for (const [field, max] of Object.entries(EVIDENCE_TEXT_FIELDS) as [EvidenceTextField, number][]) {
+    const v = e[field];
+    if (typeof v === 'string' && v.length > max) (e as Record<string, unknown>)[field] = v.slice(0, max);
+  }
+  return e;
 }
 
 export interface Money {
@@ -158,16 +180,20 @@ const TYPE_NAME = /^[A-Za-z][A-Za-z0-9_]{0,31}$/;
 export interface Vocabulary {
   /** Sorted, de-duplicated, comma-joined — a vocabulary, not a payload. */
   names: string | undefined;
+  /** Every entry that was accepted, trimmed, duplicates kept, in order. */
+  accepted: string[];
   /** How many entries did not look like type names and were dropped. */
   rejected: number;
 }
 
 export function vocabulary(names: readonly string[] | undefined): Vocabulary {
-  if (!names?.length) return { names: undefined, rejected: 0 };
+  if (!names?.length) return { names: undefined, accepted: [], rejected: 0 };
   const trimmed = names.map((n) => String(n).trim()).filter(Boolean);
-  const kept = [...new Set(trimmed.filter((n) => TYPE_NAME.test(n)))].sort();
+  const accepted = trimmed.filter((n) => TYPE_NAME.test(n));
+  const kept = [...new Set(accepted)].sort();
   return {
     names: kept.length ? kept.join(',') : undefined,
-    rejected: trimmed.length - trimmed.filter((n) => TYPE_NAME.test(n)).length,
+    accepted,
+    rejected: trimmed.length - accepted.length,
   };
 }

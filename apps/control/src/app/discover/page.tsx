@@ -1,12 +1,16 @@
+import Link from 'next/link';
 import {
   GITHUB_FETCH_LIMITS,
   materializeAgentManifests,
+  isSampleRepository,
   type DiscoveryResult,
 } from '@ark/core';
-import { getDiscoveryRun } from '@ark/db';
+import { getDiscoveryRun, listAgents } from '@ark/db';
 import { Panel, Table, Td, Badge, Callout, fmt } from '@ark/ui';
 import { requireOrg } from '@/lib/org';
-import { discoverRepo, registerCandidate } from './actions';
+import { discoverErrorMessage } from '@/lib/discover';
+import { recentDiscoveryRuns } from '@/lib/queries';
+import { discoverRepo, discoverSample, registerCandidate } from './actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,8 +21,16 @@ export default async function DiscoverPage({
 }) {
   const { orgId } = await requireOrg();
   const q = await searchParams;
-  const run = q.run ? await getDiscoveryRun(orgId, q.run) : null;
+  // A fixed code mapped to fixed copy. The parameter itself is never
+  // rendered: a link can put any text in it.
+  const errorMessage = discoverErrorMessage(q.error);
+  const [run, runs, agents] = await Promise.all([
+    q.run ? getDiscoveryRun(orgId, q.run) : null,
+    recentDiscoveryRuns(orgId),
+    listAgents(orgId),
+  ]);
   const result = run?.result ?? null;
+  const registered = new Map(agents.map((a) => [a.id, a] as const));
 
   return (
     <div className="space-y-6">
@@ -31,9 +43,9 @@ export default async function DiscoverPage({
         </p>
       </header>
 
-      {q.error && (
+      {errorMessage && (
         <Callout tone="danger" title="Discovery did not complete">
-          {q.error}
+          {errorMessage}
         </Callout>
       )}
 
@@ -80,16 +92,75 @@ export default async function DiscoverPage({
         </p>
       </Panel>
 
-      {result && run && <DiscoveryView runId={run.id} result={result} />}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <Panel
+          title="No GitHub to hand?"
+          subtitle="A bundled sample repository, run through the same scanner. No network, no token."
+        >
+          <p className="text-sm leading-relaxed text-ink-300">
+            A small support desk: a triage agent and a refund agent over a CRM MCP server. Nothing about
+            it is hand-written discovery output — the page shows what the scanner finds in the files.
+          </p>
+          <form action={discoverSample} className="mt-3">
+            <button
+              type="submit"
+              className="min-h-10 rounded-md border border-signal/60 px-3 py-2 text-sm font-medium text-signal hover:bg-signal/10"
+            >
+              Try the sample repository
+            </button>
+          </form>
+        </Panel>
+
+        <Panel title="Recent discovery runs" subtitle="Newest first. Open one to register its candidates.">
+          {runs.length === 0 ? (
+            <p className="text-sm text-ink-400">No runs yet.</p>
+          ) : (
+            <ul className="divide-y divide-ink-800">
+              {runs.map((r) => (
+                <li key={r.id} className="flex flex-wrap items-baseline justify-between gap-2 py-2">
+                  <Link
+                    href={`/discover?run=${encodeURIComponent(r.id)}`}
+                    aria-current={run?.id === r.id ? 'page' : undefined}
+                    className="min-w-0 break-all font-mono text-xs text-ink-100 hover:text-signal"
+                  >
+                    {r.repository}
+                  </Link>
+                  <span className="font-mono text-2xs text-ink-400">
+                    {fmt.int(r.candidates)} {r.candidates === 1 ? 'candidate' : 'candidates'} &middot; {r.status}{' '}
+                    &middot; {fmt.when(r.completedAt ?? r.startedAt)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+      </div>
+
+      {result && run && <DiscoveryView runId={run.id} result={result} registered={registered} />}
     </div>
   );
 }
 
-function DiscoveryView({ runId, result }: { runId: string; result: DiscoveryResult }) {
-  const candidates = materializeAgentManifests(result, { discoveryMethod: 'github' });
+function DiscoveryView({
+  runId,
+  result,
+  registered,
+}: {
+  runId: string;
+  result: DiscoveryResult;
+  registered: Map<string, { owner: string | null; environment: string }>;
+}) {
+  const sample = isSampleRepository(result.repository);
+  const candidates = materializeAgentManifests(result, { discoveryMethod: sample ? 'snapshot' : 'github' });
 
   return (
     <div className="space-y-6">
+      {sample && (
+        <Callout tone="info" title="Sample repository">
+          This run scanned the bundled sample, not a fetched repository. Registering a candidate writes a
+          real Agent Manifest for this organisation, with the sample as its source.
+        </Callout>
+      )}
       <Panel title="Repository" subtitle="What was actually fetched.">
         <dl className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
           <Item term="Repository" value={result.repository} />
@@ -122,11 +193,19 @@ function DiscoveryView({ runId, result }: { runId: string; result: DiscoveryResu
                       <p className="mt-1 text-xs text-ink-500">{c.manifest.purpose}</p>
                     )}
                   </div>
-                  <Badge tone="info">discovered</Badge>
+                  {registered.has(c.manifest.id) ? (
+                    <Link href={`/agents/${encodeURIComponent(c.manifest.id)}`} className="text-xs text-signal underline underline-offset-2">
+                      Registered — open agent →
+                    </Link>
+                  ) : (
+                    <Badge tone="info">discovered</Badge>
+                  )}
                 </div>
                 <p className="mt-2 font-mono text-2xs text-ink-500">
                   {c.manifest.discovery?.evidencePaths.slice(0, 8).join(' · ') || 'no paths'}
                 </p>
+                {/* Prefilled from an existing registration, so updating one
+                    never quietly resets its owner or environment to unknown. */}
                 <form action={registerCandidate} className="mt-3 flex flex-wrap items-end gap-2">
                   <input type="hidden" name="runId" value={runId} />
                   <input type="hidden" name="candidateId" value={c.manifest.id} />
@@ -134,6 +213,7 @@ function DiscoveryView({ runId, result }: { runId: string; result: DiscoveryResu
                     Owner (optional)
                     <input
                       name="owner"
+                      defaultValue={registered.get(c.manifest.id)?.owner ?? ''}
                       placeholder="leave unknown"
                       className="mt-1 block rounded-md border border-ink-700 bg-ink-900 px-2 py-1.5 text-sm text-ink-100"
                     />
@@ -142,7 +222,7 @@ function DiscoveryView({ runId, result }: { runId: string; result: DiscoveryResu
                     Environment
                     <select
                       name="environment"
-                      defaultValue="unknown"
+                      defaultValue={registered.get(c.manifest.id)?.environment ?? 'unknown'}
                       className="mt-1 block rounded-md border border-ink-700 bg-ink-900 px-2 py-1.5 text-sm text-ink-100"
                     >
                       <option value="unknown">unknown</option>
@@ -153,9 +233,9 @@ function DiscoveryView({ runId, result }: { runId: string; result: DiscoveryResu
                   </label>
                   <button
                     type="submit"
-                    className="rounded-md bg-signal px-3 py-1.5 text-xs font-medium text-ink-950"
+                    className="min-h-10 rounded-md bg-signal px-3 py-1.5 text-xs font-medium text-ink-950"
                   >
-                    Register
+                    {registered.has(c.manifest.id) ? 'Update registration' : 'Register'}
                   </button>
                 </form>
               </li>
@@ -182,7 +262,7 @@ function DiscoveryView({ runId, result }: { runId: string; result: DiscoveryResu
       )}
 
       <Panel title="Evidence paths" subtitle="Every finding traces to a file. Nothing here is a payload.">
-        <Table head={['Path', 'Kind', 'Detail']}>
+        <Table head={['Path', 'Kind', 'Detail']} align={['left', 'left', 'left']}>
           {result.evidence.slice(0, 80).map((e, i) => (
             <tr key={`${e.path}-${e.kind}-${i}`}>
               <Td align="left" mono>{e.path}</Td>

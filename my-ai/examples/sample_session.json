@@ -4,114 +4,254 @@
     {
       "event_type": "requested_evidence",
       "scenario_id": "launch-risk",
-      "turn_id": "1",
+      "turn_id": "lr-1",
       "strength": 1.0,
-      "evidence": "Asked for severity and exploitability before recommendation."
+      "evidence": "Find out how bad it is and what 'ready' actually means before anyone picks a path."
+    },
+    {
+      "event_type": "asked_clarification",
+      "scenario_id": "launch-risk",
+      "turn_id": "lr-1",
+      "strength": 0.8,
+      "evidence": "Find out how bad it is and what 'ready' actually means before anyone picks a path."
     },
     {
       "event_type": "challenged_assumption",
       "scenario_id": "launch-risk",
-      "turn_id": "2",
-      "strength": 0.9,
-      "evidence": "Questioned engineering's definition of ready."
+      "turn_id": "lr-2",
+      "strength": 1.0,
+      "evidence": "Challenge what 'ready' means and ask for the evidence behind that claim."
+    },
+    {
+      "event_type": "requested_evidence",
+      "scenario_id": "launch-risk",
+      "turn_id": "lr-2",
+      "strength": 0.8,
+      "evidence": "Challenge what 'ready' means and ask for the evidence behind that claim."
+    },
+    {
+      "event_type": "requested_integration",
+      "scenario_id": "launch-risk",
+      "turn_id": "lr-3",
+      "strength": 1.0,
+      "evidence": "Connect it to the existing tracker and chat stack rather than a one-off doc."
     },
     {
       "event_type": "requested_comparison",
       "scenario_id": "contested-research",
-      "turn_id": "1",
+      "turn_id": "cr-1",
       "strength": 1.0,
-      "evidence": "Asked for side-by-side source comparison."
+      "evidence": "Put the conflicting sources side by side, with dates and methods, before any conclusion."
     },
     {
       "event_type": "requested_sources",
       "scenario_id": "contested-research",
-      "turn_id": "2",
+      "turn_id": "cr-1",
       "strength": 1.0,
-      "evidence": "Requested primary sources."
+      "evidence": "Put the conflicting sources side by side, with dates and methods, before any conclusion."
+    },
+    {
+      "event_type": "requested_sources",
+      "scenario_id": "contested-research",
+      "turn_id": "cr-2",
+      "strength": 1.0,
+      "evidence": "Keep searching until a primary source settles it."
+    },
+    {
+      "event_type": "chose_deep_path",
+      "scenario_id": "contested-research",
+      "turn_id": "cr-2",
+      "strength": 0.9,
+      "evidence": "Keep searching until a primary source settles it."
+    },
+    {
+      "event_type": "challenged_assumption",
+      "scenario_id": "contested-research",
+      "turn_id": "cr-3",
+      "strength": 1.0,
+      "evidence": "Refuse the false certainty. Keep sources and disagreements visible."
+    },
+    {
+      "event_type": "requested_sources",
+      "scenario_id": "contested-research",
+      "turn_id": "cr-3",
+      "strength": 0.8,
+      "evidence": "Refuse the false certainty. Keep sources and disagreements visible."
     },
     {
       "event_type": "requested_code",
       "scenario_id": "weekend-build",
-      "turn_id": "1",
-      "strength": 0.9,
-      "evidence": "Asked AI to scaffold working code."
+      "turn_id": "wb-1",
+      "strength": 1.0,
+      "evidence": "Scaffold working code for a tiny vertical slice I can run locally."
+    },
+    {
+      "event_type": "delegated_action",
+      "scenario_id": "weekend-build",
+      "turn_id": "wb-1",
+      "strength": 0.7,
+      "evidence": "Scaffold working code for a tiny vertical slice I can run locally."
+    },
+    {
+      "event_type": "delegated_action",
+      "scenario_id": "weekend-build",
+      "turn_id": "wb-2",
+      "strength": 1.0,
+      "evidence": "You handle the remaining implementation; ping me only for product calls."
+    },
+    {
+      "event_type": "requested_automation",
+      "scenario_id": "weekend-build",
+      "turn_id": "wb-2",
+      "strength": 0.4,
+      "evidence": "You handle the remaining implementation; ping me only for product calls."
+    },
+    {
+      "event_type": "corrected_output",
+      "scenario_id": "weekend-build",
+      "turn_id": "wb-3",
+      "strength": 0.8,
+      "evidence": "No. Correct the core loop first, then add integrations."
     },
     {
       "event_type": "changed_constraint",
       "scenario_id": "weekend-build",
-      "turn_id": "2",
-      "strength": 1.0,
-      "evidence": "Refined MVP scope after first implementation."
+      "turn_id": "wb-3",
+      "strength": 0.8,
+      "evidence": "No. Correct the core loop first, then add integrations."
     },
     {
       "event_type": "requested_automation",
       "scenario_id": "workflow-automation",
-      "turn_id": "1",
+      "turn_id": "wa-1",
       "strength": 1.0,
-      "evidence": "Wanted the workflow orchestrated rather than documented."
+      "evidence": "Automate it. Orchestrate the steps instead of writing a better checklist."
     },
     {
       "event_type": "delegated_action",
       "scenario_id": "workflow-automation",
-      "turn_id": "2",
-      "strength": 0.8,
-      "evidence": "Delegated intermediate configuration work."
+      "turn_id": "wa-1",
+      "strength": 0.6,
+      "evidence": "Automate it. Orchestrate the steps instead of writing a better checklist."
     },
     {
-      "event_type": "requested_visual",
-      "scenario_id": "campaign-create",
-      "turn_id": "1",
-      "strength": 0.8,
-      "evidence": "Requested visual concept alongside copy."
-    },
-    {
-      "event_type": "corrected_output",
-      "scenario_id": "campaign-create",
-      "turn_id": "2",
+      "event_type": "delegated_action",
+      "scenario_id": "workflow-automation",
+      "turn_id": "wa-2",
       "strength": 1.0,
-      "evidence": "Iteratively refined visual direction."
+      "evidence": "You configure it end to end; I will review the result, not the wiring."
+    },
+    {
+      "event_type": "requested_automation",
+      "scenario_id": "workflow-automation",
+      "turn_id": "wa-2",
+      "strength": 0.8,
+      "evidence": "You configure it end to end; I will review the result, not the wiring."
+    },
+    {
+      "event_type": "requested_integration",
+      "scenario_id": "workflow-automation",
+      "turn_id": "wa-3",
+      "strength": 1.0,
+      "evidence": "Connect those systems. A checklist is not an integration."
+    },
+    {
+      "event_type": "requested_automation",
+      "scenario_id": "workflow-automation",
+      "turn_id": "wa-3",
+      "strength": 0.8,
+      "evidence": "Connect those systems. A checklist is not an integration."
     },
     {
       "event_type": "requested_evidence",
       "scenario_id": "messy-data",
-      "turn_id": "1",
+      "turn_id": "md-1",
       "strength": 1.0,
-      "evidence": "Asked which conclusions were unsupported."
+      "evidence": "Ask which conclusions are unsupported and where the holes are."
     },
     {
       "event_type": "challenged_assumption",
       "scenario_id": "messy-data",
-      "turn_id": "2",
+      "turn_id": "md-1",
+      "strength": 0.8,
+      "evidence": "Ask which conclusions are unsupported and where the holes are."
+    },
+    {
+      "event_type": "requested_sources",
+      "scenario_id": "messy-data",
+      "turn_id": "md-1",
+      "strength": 0.7,
+      "evidence": "Ask which conclusions are unsupported and where the holes are."
+    },
+    {
+      "event_type": "challenged_assumption",
+      "scenario_id": "messy-data",
+      "turn_id": "md-2",
       "strength": 1.0,
-      "evidence": "Rejected an inferred value without evidence."
+      "evidence": "Reject inferred values without evidence. Show uncertainty instead."
     },
     {
-      "event_type": "requested_step_by_step",
-      "scenario_id": "learn-fast",
-      "turn_id": "1",
+      "event_type": "requested_evidence",
+      "scenario_id": "messy-data",
+      "turn_id": "md-2",
       "strength": 0.8,
-      "evidence": "Asked for a structured learning path."
+      "evidence": "Reject inferred values without evidence. Show uncertainty instead."
     },
     {
-      "event_type": "chose_deep_path",
-      "scenario_id": "learn-fast",
-      "turn_id": "2",
-      "strength": 0.8,
-      "evidence": "Preferred underlying concepts over a cheat sheet."
+      "event_type": "requested_integration",
+      "scenario_id": "messy-data",
+      "turn_id": "md-3",
+      "strength": 1.0,
+      "evidence": "Integrate the live source, but keep unsupported cells marked."
     },
     {
-      "event_type": "requested_alternative",
+      "event_type": "requested_evidence",
+      "scenario_id": "messy-data",
+      "turn_id": "md-3",
+      "strength": 0.7,
+      "evidence": "Integrate the live source, but keep unsupported cells marked."
+    },
+    {
+      "event_type": "requested_code",
+      "scenario_id": "messy-data",
+      "turn_id": "md-3",
+      "strength": 0.6,
+      "evidence": "Integrate the live source, but keep unsupported cells marked."
+    },
+    {
+      "event_type": "requested_comparison",
       "scenario_id": "executive-choice",
-      "turn_id": "1",
+      "turn_id": "ec-1",
       "strength": 1.0,
-      "evidence": "Asked for viable alternatives before choosing."
+      "evidence": "Compare the three paths on the same criteria, then recommend one."
     },
     {
       "event_type": "requested_recommendation",
       "scenario_id": "executive-choice",
-      "turn_id": "2",
+      "turn_id": "ec-1",
+      "strength": 0.8,
+      "evidence": "Compare the three paths on the same criteria, then recommend one."
+    },
+    {
+      "event_type": "chose_deep_path",
+      "scenario_id": "executive-choice",
+      "turn_id": "ec-2",
       "strength": 1.0,
-      "evidence": "Asked AI to recommend after tradeoff analysis."
+      "evidence": "Keep analyzing until I am more certain, even if we miss the meeting."
+    },
+    {
+      "event_type": "requested_evidence",
+      "scenario_id": "executive-choice",
+      "turn_id": "ec-2",
+      "strength": 0.5,
+      "evidence": "Keep analyzing until I am more certain, even if we miss the meeting."
+    },
+    {
+      "event_type": "chose_local_control",
+      "scenario_id": "executive-choice",
+      "turn_id": "ec-3",
+      "strength": 1.0,
+      "evidence": "Prefer local control even if it is slower to stand up."
     }
   ]
 }

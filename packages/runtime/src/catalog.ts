@@ -73,8 +73,30 @@ export function catalogModelId(adapter: ProviderAdapter, requested?: string): st
   return raw;
 }
 
+/**
+ * The request an adapter will actually receive. A model hint is for ranking:
+ * do not send gpt-* to Ollama on fallback — that adapter uses its own default.
+ */
+export function requestForAdapter(adapter: ProviderAdapter, request: CompletionRequest): CompletionRequest {
+  const hinted = hintAdapter(request.model);
+  if (request.model && hinted && hinted !== adapter.id) {
+    const { model: _ignored, ...rest } = request;
+    return rest;
+  }
+  return request;
+}
+
+/** The model id the adapter will send for this request (hint dropped → adapter default). */
+export function effectiveModel(adapter: ProviderAdapter, req: CompletionRequest): string {
+  return requestForAdapter(adapter, req).model ?? adapter.defaultModel();
+}
+
+/**
+ * Price the call with the model the adapter will actually send, not the
+ * caller's hint. null = that model is not in the catalog.
+ */
 export function estimateCostUsd(adapter: ProviderAdapter, req: CompletionRequest): number | null {
-  const model = byId(catalogModelId(adapter, req.model));
+  const model = byId(catalogModelId(adapter, effectiveModel(adapter, req)));
   if (!model) return null;
   const input = estimateTokens(req.messages.map((m) => m.content).join('\n')).value;
   const output = req.maxTokens ?? 256;
@@ -132,8 +154,13 @@ export function completionFrom(req: {
   };
 }
 
+/**
+ * True when the cost cap excludes the adapter. An unpriced model under a
+ * cost cap fails closed: nothing shows it stays under the cap.
+ */
 export function costConstraintApplies(constraints: RuntimeConstraints, usd: number | null): boolean {
-  if (constraints.maxCostUsd === undefined || usd === null) return false;
+  if (constraints.maxCostUsd === undefined) return false;
+  if (usd === null) return true;
   return usd > constraints.maxCostUsd;
 }
 

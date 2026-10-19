@@ -11,10 +11,33 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
   if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || `Request failed (${response.status})`);
+    throw new Error(errorMessage(response.status, await response.text()));
   }
   return response.json() as Promise<T>;
+}
+
+/**
+ * A sentence a person can act on, never a raw JSON body. When the scoring
+ * service itself is down (502/504 from the proxy), local development also
+ * gets the command that fixes the usual cause.
+ */
+export function errorMessage(status: number, body: string): string {
+  if (status === 502 || status === 504) {
+    const hint =
+      process.env.NODE_ENV === "production"
+        ? ""
+        : " Running locally? Start everything with `npm run dev`; if the AI Fit API (port 8472) fails to start, run `npm run setup:my-ai` first.";
+    return `AI Fit can't reach its scoring service right now. Try again in a moment.${hint}`;
+  }
+  if (status === 429) return "Too many requests in a short time. Wait a minute and try again.";
+  try {
+    const parsed = JSON.parse(body) as { error?: unknown; detail?: unknown };
+    const text = typeof parsed.error === "string" ? parsed.error : typeof parsed.detail === "string" ? parsed.detail : "";
+    if (text) return text;
+  } catch {
+    // Not JSON: fall through to the generic line.
+  }
+  return `Something went wrong (${status}). Try again in a moment.`;
 }
 
 export const api = {
@@ -55,10 +78,11 @@ export const api = {
     }>("/v1/signal", { method: "POST", body: JSON.stringify(session) }),
   share: (sessionId: string) =>
     request<{ share_id: string; path: string; durable?: boolean }>(`/v1/sessions/${sessionId}/share`, { method: "POST" }),
-  publishShare: (result: ScoreResult) =>
+  publishShare: (result: ScoreResult, sessionId?: string) =>
     request<{ share_id: string; path: string; durable?: boolean }>("/v1/share", {
       method: "POST",
-      body: JSON.stringify({ result }),
+      // session_id links the share to the session so deleting the session deletes the share.
+      body: JSON.stringify(sessionId ? { result, session_id: sessionId } : { result }),
     }),
   getShare: (shareId: string) => request<ScoreResult>(`/v1/share/${shareId}`),
   exportSession: (sessionId: string) =>

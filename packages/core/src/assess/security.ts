@@ -38,7 +38,10 @@ export function assessSecurity(w: Workload, pattern: Pattern): SecurityAssessmen
 
   const sensitive = w.dataClasses.filter((d) => SENSITIVE.includes(d));
   score += sensitive.length * 10;
-  if (sensitive.length) drivers.push(`Sensitive data in the prompt path: ${sensitive.join(', ')}.`);
+  const modelFree = pattern === 'deterministic-automation';
+  if (sensitive.length) {
+    drivers.push(`Sensitive data in the ${modelFree ? 'data flow' : 'prompt path'}: ${sensitive.join(', ')}.`);
+  }
 
   const writes = w.actions.filter((a) => a.write);
   score += writes.length * 8;
@@ -69,6 +72,12 @@ export function assessSecurity(w: Workload, pattern: Pattern): SecurityAssessmen
   const level: RiskLevel = score >= 70 ? 'severe' : score >= 45 ? 'high' : score >= 22 ? 'moderate' : 'low';
 
   // ---- Controls -------------------------------------------------------
+  // No model, no prompt, no provider: the controls that exist to police a
+  // model call would be theatre here, and Control has nothing to observe.
+  if (modelFree) {
+    return { level, score, drivers, controls: deterministicControls(w, sensitive, writes, irreversible, costly), complianceFlags: complianceFlagsFor(w, modelFree) };
+  }
+
   if (sensitive.length) {
     controls.push({
       id: 'SEC-01',
@@ -137,17 +146,85 @@ export function assessSecurity(w: Workload, pattern: Pattern): SecurityAssessmen
     blocking: w.autonomy === 'bounded' || w.autonomy === 'full',
   });
 
+  return { level, score, drivers, controls, complianceFlags: complianceFlagsFor(w, modelFree) };
+}
+
+function complianceFlagsFor(w: Workload, modelFree: boolean): string[] {
   const complianceFlags: string[] = [];
-  if (w.dataClasses.includes('phi')) complianceFlags.push('HIPAA — a signed BAA with the model provider is a precondition, not a formality.');
-  if (w.dataClasses.includes('pci')) complianceFlags.push('PCI DSS — keep cardholder data out of prompts entirely; there is no compliant way to send it.');
+  if (w.dataClasses.includes('phi')) {
+    complianceFlags.push(modelFree
+      ? 'HIPAA — access controls and an audit trail on every read of PHI.'
+      : 'HIPAA — a signed BAA with the model provider is a precondition, not a formality.');
+  }
+  if (w.dataClasses.includes('pci')) {
+    complianceFlags.push(modelFree
+      ? 'PCI DSS — the rules run inside your cardholder-data scope; keep that scope as small as you can.'
+      : 'PCI DSS — keep cardholder data out of prompts entirely; there is no compliant way to send it.');
+  }
   if (w.dataClasses.includes('minors')) complianceFlags.push('Data concerning minors — heightened duty of care and, in several jurisdictions, separate consent requirements.');
   if (w.regulated.includes('gdpr') || w.dataResidency === 'eu') complianceFlags.push('GDPR — lawful basis, residency and a documented data-processing agreement.');
-  if (w.regulated.includes('eu_ai_act')) complianceFlags.push('EU AI Act — classify the system; obligations scale sharply with risk tier.');
+  // A rules engine is not an AI system, so the AI Act has nothing to classify.
+  if (w.regulated.includes('eu_ai_act') && !modelFree) complianceFlags.push('EU AI Act — classify the system; obligations scale sharply with risk tier.');
   if (w.autonomy !== 'suggest' && w.actions.some((a) => a.valueCeilingUsd)) {
     complianceFlags.push('Automated decisions with financial effect may trigger a right to human review. Confirm with counsel.');
   }
 
-  return { level, score, drivers, controls, complianceFlags };
+  return complianceFlags;
+}
+
+function deterministicControls(
+  w: Workload,
+  sensitive: DataClass[],
+  writes: Workload['actions'],
+  irreversible: Workload['actions'],
+  costly: Workload['actions'],
+): Control[] {
+  const controls: Control[] = [];
+  if (sensitive.length) {
+    controls.push({
+      id: 'SEC-09',
+      requirement: 'Give the rules read access to the fields they need and nothing else, and log every read of a sensitive record.',
+      why: 'A rules engine with a broad database grant is a reporting tool anyone can point at the whole table.',
+      verifiedBy: 'Your database audit log.',
+      blocking: true,
+    });
+  }
+  if (w.dataClasses.includes('credentials')) {
+    controls.push({
+      id: 'SEC-10',
+      requirement: 'Keep credentials in a secrets manager, never in rule definitions or configuration files.',
+      why: 'Rules are versioned, reviewed and copied. Anything written into them is eventually read by someone it was not meant for.',
+      verifiedBy: 'Secret scanning in CI.',
+      blocking: true,
+    });
+  }
+  if (writes.length) {
+    controls.push({
+      id: 'SEC-04',
+      requirement: 'Scope every write credential to the narrowest permission that works. One service account per integration.',
+      why: 'An automated job with a broad grant turns one bad rule into a bulk change.',
+      verifiedBy: 'Your access logs: which service account performed each write.',
+      blocking: true,
+    });
+  }
+  if (irreversible.length || costly.length) {
+    const gated = [...irreversible, ...costly];
+    controls.push({
+      id: 'SEC-05',
+      requirement: `Human approval gate on: ${gated.map((a) => a.name).join(', ')}${gated.some((a) => a.valueCeilingUsd) ? ` (above the stated value ceilings)` : ''}.`,
+      why: 'A rule that is wrong is wrong every time, at machine speed, until someone notices.',
+      verifiedBy: 'An approval record exists in the audit log for every gated action.',
+      blocking: true,
+    });
+  }
+  controls.push({
+    id: 'SEC-11',
+    requirement: 'Write an audit record for every decision and action the rules take, and every input they route to the exception queue.',
+    why: 'The exception queue is the evidence for whether an AI project ever exists here. Without the log it is an anecdote.',
+    verifiedBy: 'The audit log itself, reviewed alongside the exception queue.',
+    blocking: false,
+  });
+  return controls;
 }
 
 const uniq = <T,>(xs: T[]) => Array.from(new Set(xs));

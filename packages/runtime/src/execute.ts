@@ -7,7 +7,7 @@ import { runFallback } from './fallback.js';
 import { byIdMap } from './policy.js';
 import { route } from './router.js';
 import { emitTelemetry, ingestFromEnv } from './telemetry.js';
-import { PolicyError, RuntimeRequest, type RuntimeResult } from './types.js';
+import { ExecutionAbortedError, PolicyError, RuntimeRequest, type RuntimeResult } from './types.js';
 
 export interface ExecuteDeps {
   adapters: ProviderAdapter[];
@@ -34,8 +34,19 @@ export function createRuntime(opts: {
   };
 }
 
-export async function execute(raw: unknown, deps: ExecuteDeps): Promise<RuntimeResult> {
+export interface ExecuteOptions {
+  /**
+   * Caller cancellation (e.g. an HTTP route's own timeout). Aborting stops the
+   * in-flight provider call and further fallbacks, ingests nothing, and
+   * rejects with ExecutionAbortedError.
+   */
+  signal?: AbortSignal;
+}
+
+export async function execute(raw: unknown, deps: ExecuteDeps, opts: ExecuteOptions = {}): Promise<RuntimeResult> {
+  const { signal } = opts;
   const request = RuntimeRequest.parse(raw);
+  if (signal?.aborted) throw new ExecutionAbortedError();
   const routing = route({
     adapters: deps.adapters,
     constraints: request.constraints,
@@ -85,7 +96,10 @@ export async function execute(raw: unknown, deps: ExecuteDeps): Promise<RuntimeR
   }
 
   const completionReq = completionFrom(request);
-  const { completion, attempts } = await runFallback({ chain, request: completionReq });
+  const { completion, attempts, aborted } = await runFallback({ chain, request: completionReq, signal });
+
+  // An aborted run is the caller walking away: no success, no failure trace.
+  if (aborted || signal?.aborted) throw new ExecutionAbortedError();
 
   if (!completion) {
     await emitTelemetry({

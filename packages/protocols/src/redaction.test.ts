@@ -112,9 +112,9 @@ describe('money', () => {
 
 describe('vocabulary', () => {
   test('sorts, de-duplicates and drops blanks', () => {
-    assert.deepEqual(vocabulary(['Card', 'Text', 'Card', ' ']), { names: 'Card,Text', rejected: 0 });
-    assert.deepEqual(vocabulary([]), { names: undefined, rejected: 0 });
-    assert.deepEqual(vocabulary(undefined), { names: undefined, rejected: 0 });
+    assert.deepEqual(vocabulary(['Card', 'Text', 'Card', ' ']), { names: 'Card,Text', accepted: ['Card', 'Text', 'Card'], rejected: 0 });
+    assert.deepEqual(vocabulary([]), { names: undefined, accepted: [], rejected: 0 });
+    assert.deepEqual(vocabulary(undefined), { names: undefined, accepted: [], rejected: 0 });
   });
 
   test('keeps a custom catalogue’s type names', () => {
@@ -122,6 +122,7 @@ describe('vocabulary', () => {
     // allowlist without dropping legitimate components.
     assert.deepEqual(vocabulary(['MyOrgChart', 'Acme_Gauge2']), {
       names: 'Acme_Gauge2,MyOrgChart',
+      accepted: ['MyOrgChart', 'Acme_Gauge2'],
       rejected: 0,
     });
   });
@@ -130,5 +131,41 @@ describe('vocabulary', () => {
     const v = vocabulary(['Card', 'bob@example.com', '4111 1111 1111 1111', 'Please confirm your address']);
     assert.equal(v.names, 'Card');
     assert.equal(v.rejected, 3);
+  });
+});
+
+describe('adapter output always satisfies the schema the SDK parses with', () => {
+  test('a caller metadata key that is too long or not an identifier is dropped, not fatal', () => {
+    const out = mcpEvidence({
+      method: 'tools/call',
+      metadata: { ['k'.repeat(70)]: 1, 'bob@example.com': true, '4111-1111-1111-1111': 1, region: 'eu' },
+    });
+    assert.equal(out.metadata.region, 'eu');
+    assert.equal(Object.keys(out.metadata).some((k) => k.startsWith('kkkk') || k.includes('@') || /^\d/.test(k)), false);
+    assert.equal(EvidenceInput.safeParse({ ...out, id: 'pe_k' }).success, true);
+  });
+
+  test('a numeric card number in metadata is dropped', () => {
+    const out = mcpEvidence({ method: 'tools/call', metadata: { ref: 4111111111111111, count: 3 } });
+    assert.equal(out.metadata.ref, undefined);
+    assert.equal(out.metadata.count, 3);
+  });
+
+  test('more caller fields than the cap are trimmed to the cap', () => {
+    const metadata = Object.fromEntries(Array.from({ length: 60 }, (_, i) => [`k${i}`, i]));
+    const out = mcpEvidence({ method: 'tools/call', metadata });
+    assert.ok(Object.keys(out.metadata).length <= 32);
+    assert.equal(EvidenceInput.safeParse({ ...out, id: 'pe_cap' }).success, true);
+  });
+
+  test('ag-ui surface and run ids carrying PII are redacted', () => {
+    const out = agUiEvidence({
+      eventType: 'approval.approved',
+      surface: 'jane.doe@acme.com',
+      runId: 'run 4111 1111 1111 1111',
+    } as never);
+    const s = JSON.stringify(out);
+    assert.ok(!s.includes('jane.doe@acme.com'));
+    assert.ok(!s.includes('4111 1111 1111 1111'));
   });
 });

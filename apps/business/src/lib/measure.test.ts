@@ -2,8 +2,20 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { INVOICE_LOOKUP, SUPPORT_TRIAGE } from '@ark/core';
 import { ArkIngest } from '@ark/sdk';
-import type { ProviderAdapter } from '@ark/providers';
-import { measureWorkload, sampleModelId, sampleRequestFor } from './measure.ts';
+import { ProviderError, type ProviderAdapter } from '@ark/providers';
+import {
+  MEASURE_TIMEOUT_MS,
+  measureGate,
+  measureWorkload,
+  sampleModelId,
+  sampleRequestFor,
+  sampleWorkloadId,
+} from './measure.ts';
+import { MEASURE_CLIENT_TIMEOUT_MS, MEASURE_TIMEOUT_MS as CLIENT_COPY_MS } from './measure-timeout.ts';
+import { RateLimiter, clientIp, readJsonBody } from './request-guard.ts';
+import {
+  describeClientFailure, describeMeasureFailure, describeTelemetry, measureFailureKind,
+} from './measure-errors.ts';
 
 function fakeLocal(complete: ProviderAdapter['complete']): ProviderAdapter {
   return {
@@ -192,5 +204,230 @@ describe('measureWorkload', () => {
     const out = await measureWorkload(SUPPORT_TRIAGE, { adapters: [adapter] }, 30);
     assert.equal(out.ok, false);
     if (!out.ok) assert.equal(out.reason, 'timeout');
+  });
+
+  test('timeout aborts the provider call and ingests nothing', async () => {
+    const posted: unknown[] = [];
+    let aborted = false;
+    const adapter = fakeLocal(
+      (_req, opts) =>
+        new Promise((resolve, reject) => {
+          const late = setTimeout(
+            () =>
+              resolve({
+                text: 'late', modelId: 'llama3.2', adapterId: 'ollama', catalogProvider: 'local',
+                inputTokens: 1, outputTokens: 1, latencyMs: 200, finishReason: 'stop' as const,
+              }),
+            200,
+          );
+          opts?.signal?.addEventListener('abort', () => {
+            aborted = true;
+            clearTimeout(late);
+            reject(new ProviderError('aborted', 'aborted', 'ollama'));
+          });
+        }),
+    );
+    const out = await measureWorkload(
+      SUPPORT_TRIAGE,
+      { adapters: [adapter], ingest: capturingIngest(posted) },
+      30,
+    );
+    assert.equal(out.ok, false);
+    if (!out.ok) assert.equal(out.reason, 'timeout');
+    // Let any straggling work settle, then confirm nothing reached Control.
+    await new Promise((r) => setTimeout(r, 250));
+    assert.equal(aborted, true);
+    assert.equal(posted.length, 0);
+  });
+
+  test('provider error text is logged, not returned', async () => {
+    const logged: string[] = [];
+    const adapter = fakeLocal(async () => {
+      throw new ProviderError('http', 'ollama HTTP 500: LEAK_SENTINEL internal body', 'ollama');
+    });
+    const out = await measureWorkload(
+      SUPPORT_TRIAGE,
+      { adapters: [adapter] },
+      15_000,
+      {},
+      (m) => logged.push(m),
+    );
+    assert.equal(out.ok, false);
+    if (!out.ok) {
+      assert.equal(out.reason, 'execution_failed');
+      assert.equal(out.message.includes('LEAK_SENTINEL'), false);
+    }
+    assert.ok(logged.some((m) => m.includes('LEAK_SENTINEL')));
+  });
+
+  test('no_provider message does not echo routing internals', async () => {
+    const out = await measureWorkload(SUPPORT_TRIAGE, { adapters: [] }, 15_000, {}, () => {});
+    assert.equal(out.ok, false);
+    if (!out.ok) assert.equal(/rationale|not configured|no eligible provider:/.test(out.message), false);
+  });
+
+  test('ingested sample uses the teams_sample_ workload namespace', async () => {
+    const posted: unknown[] = [];
+    const adapter = fakeLocal(async () => ({
+      text: 'OK', modelId: 'llama3.2', adapterId: 'ollama', catalogProvider: 'local',
+      inputTokens: 1, outputTokens: 1, latencyMs: 1, finishReason: 'stop' as const,
+    }));
+    const out = await measureWorkload(SUPPORT_TRIAGE, { adapters: [adapter], ingest: capturingIngest(posted) });
+    assert.equal(out.ok, true);
+    const json = JSON.stringify(posted);
+    assert.match(json, /"workloadId":"teams_sample_wl_support_triage"/);
+    assert.equal(/"workloadId":"wl_support_triage"/.test(json), false);
+  });
+});
+
+describe('sample workload namespace', () => {
+  test('forces every id under teams_sample_ with a safe charset and length', () => {
+    assert.equal(sampleWorkloadId('wl_support_triage'), 'teams_sample_wl_support_triage');
+    assert.equal(sampleWorkloadId('teams_sample_x'), 'teams_sample_x');
+    assert.equal(sampleWorkloadId('../evil id'), 'teams_sample_.._evil_id');
+    assert.equal(sampleWorkloadId(''), 'teams_sample_unnamed');
+    assert.ok(sampleWorkloadId('x'.repeat(500)).length <= 128);
+    assert.equal(sampleRequestFor(SUPPORT_TRIAGE).workloadId, 'teams_sample_wl_support_triage');
+  });
+});
+
+describe('measure gate (C6)', () => {
+  test('disabled unless ARK_MEASURE_ENABLED=1', () => {
+    const limiter = new RateLimiter(5, 60_000);
+    assert.equal(measureGate('1.2.3.4', limiter, {})?.status, 404);
+    assert.equal(measureGate('1.2.3.4', limiter, { ARK_MEASURE_ENABLED: 'true' })?.status, 404);
+    assert.equal(measureGate('1.2.3.4', limiter, { ARK_MEASURE_ENABLED: '1' }), null);
+  });
+
+  test('rate limits to 5 per minute per client', () => {
+    const limiter = new RateLimiter(5, 60_000);
+    const env = { ARK_MEASURE_ENABLED: '1' };
+    for (let i = 0; i < 5; i++) assert.equal(measureGate('1.2.3.4', limiter, env), null);
+    const refused = measureGate('1.2.3.4', limiter, env);
+    assert.equal(refused?.status, 429);
+    assert.ok(Number(refused?.headers['retry-after']) > 0);
+    assert.equal(measureGate('5.6.7.8', limiter, env), null);
+  });
+
+  test('a rotating client address cannot escape the global ceiling', () => {
+    const limiter = new RateLimiter(5, 60_000);
+    const global = new RateLimiter(3, 60_000);
+    const env = { ARK_MEASURE_ENABLED: '1' };
+    for (let i = 0; i < 3; i++) assert.equal(measureGate(`10.0.0.${i}`, limiter, env, global), null);
+    assert.equal(measureGate('10.0.0.99', limiter, env, global)?.status, 429);
+  });
+
+  test('rate limiter window resets', () => {
+    const limiter = new RateLimiter(1, 1000);
+    assert.equal(limiter.take('a', 0), 0);
+    assert.ok(limiter.take('a', 10) > 0);
+    assert.equal(limiter.take('a', 1000), 0);
+  });
+
+  test('client timeout is the server budget plus 5s', () => {
+    assert.equal(CLIENT_COPY_MS, MEASURE_TIMEOUT_MS);
+    assert.equal(MEASURE_CLIENT_TIMEOUT_MS, MEASURE_TIMEOUT_MS + 5_000);
+  });
+
+  test('clientIp takes the right-most forwarded address, not one the client wrote', () => {
+    const req = new Request('http://x/', { headers: { 'x-forwarded-for': '9.9.9.9, 10.0.0.1' } });
+    assert.equal(clientIp(req), '10.0.0.1');
+    assert.equal(clientIp(new Request('http://x/')), 'unknown');
+  });
+});
+
+describe('readJsonBody', () => {
+  test('parses a small JSON body', async () => {
+    const out = await readJsonBody(new Request('http://x/', { method: 'POST', body: '{"a":1}' }));
+    assert.deepEqual(out, { ok: true, value: { a: 1 } });
+  });
+
+  test('refuses a declared content-length over the cap without reading', async () => {
+    const req = new Request('http://x/', {
+      method: 'POST',
+      body: '{}',
+      headers: { 'content-length': String(300 * 1024) },
+    });
+    const out = await readJsonBody(req);
+    assert.equal(out.ok, false);
+    if (!out.ok) assert.equal(out.status, 413);
+  });
+
+  test('cuts off a streamed body over the cap', async () => {
+    let pulled = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled++;
+        controller.enqueue(new Uint8Array(64 * 1024).fill(0x20));
+        if (pulled > 100) controller.close();
+      },
+    });
+    const req = new Request('http://x/', { method: 'POST', body: stream, duplex: 'half' } as RequestInit);
+    const out = await readJsonBody(req, 256 * 1024);
+    assert.equal(out.ok, false);
+    if (!out.ok) assert.equal(out.status, 413);
+    assert.ok(pulled < 10);
+  });
+
+  test('invalid JSON is 400', async () => {
+    const out = await readJsonBody(new Request('http://x/', { method: 'POST', body: '{nope' }));
+    assert.equal(out.ok, false);
+    if (!out.ok) assert.equal(out.status, 400);
+  });
+});
+
+describe('measure failures in plain language', () => {
+  const ADAPTER_DIALECT = /eligible adapter|after policy|PolicyError|runtime execution failed/i;
+
+  test('every API reason maps to a line and an operator step', () => {
+    const cases: [string, string][] = [
+      ['no_provider', 'no_provider'],
+      ['disabled', 'disabled'],
+      ['rate_limited', 'rate_limited'],
+      ['timeout', 'timeout'],
+      ['not-ai', 'not-ai'],
+      ['not_ai', 'not-ai'],
+      ['unsuitable', 'not-ai'],
+      ['execution_failed', 'execution_failed'],
+      ['something_new', 'unknown'],
+    ];
+    for (const [reason, kind] of cases) {
+      assert.equal(measureFailureKind(reason), kind, reason);
+      const m = describeMeasureFailure(reason);
+      assert.ok(m.line.length > 20 && m.recovery.length > 10, reason);
+      assert.doesNotMatch(`${m.line} ${m.recovery}`, ADAPTER_DIALECT);
+    }
+  });
+
+  test('no reason falls back to the HTTP status', () => {
+    assert.equal(measureFailureKind(undefined, 429), 'rate_limited');
+    assert.equal(measureFailureKind(undefined, 422), 'invalid_workload');
+    assert.equal(measureFailureKind(undefined, 504), 'timeout');
+    assert.equal(measureFailureKind(undefined, 500), 'unknown');
+  });
+
+  test('no_provider tells the operator which env to set', () => {
+    assert.match(describeMeasureFailure('no_provider').recovery, /ARK_OLLAMA_MODEL/);
+  });
+
+  test('client-side timeout and network failures are covered', () => {
+    assert.equal(describeClientFailure('timeout'), describeMeasureFailure('timeout'));
+    assert.match(describeClientFailure('network').line, /could not reach/);
+  });
+
+  test('telemetry failures are reported even when the sample ran', () => {
+    assert.equal(describeTelemetry({ attempted: true, ok: true }), null);
+    assert.match(describeTelemetry({ attempted: false, ok: false })!.recovery, /ARK_CONTROL_URL/);
+    assert.match(describeTelemetry(undefined)!.line, /not connected/);
+    assert.match(describeTelemetry({ attempted: true, ok: false })!.line, /did not accept/);
+  });
+
+  test('the real no-provider failure renders without adapter dialect', async () => {
+    const out = await measureWorkload(SUPPORT_TRIAGE, { adapters: [] });
+    assert.equal(out.ok, false);
+    if (!out.ok) {
+      const m = describeMeasureFailure(out.reason);
+      assert.doesNotMatch(`${m.line} ${m.recovery}`, ADAPTER_DIALECT);
+    }
   });
 });

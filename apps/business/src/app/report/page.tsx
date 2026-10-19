@@ -3,15 +3,19 @@ import {
   assess,
   fetchCalibration,
   byId,
+  shapesDecideNotAi,
   PATTERN_LABEL,
+  GOLDEN_SET_RULE,
+  type Estimate,
   type Verdict,
-  type RiskLevel,
 } from '@ark/core';
 import {
-  Panel, Grid, Stat, Badge, BasisTag, Callout, DimensionList, Table, Td, fmt, type Tone,
+  Panel, Grid, Stat, Badge, BasisTag, Callout, CardTable, DimensionList, fmt, toneFor, type Tone,
 } from '@ark/ui';
 import { decodeWorkload } from '@/lib/encode';
 import { MeasureSample } from '@/components/measure-sample';
+import { ReportFooter, ReportPrintStyles, intakeHref } from '@/components/report-footer';
+import { VerdictOnlyReport } from '@/components/report-verdict-only';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,19 +47,19 @@ const VERDICT: Record<Verdict, { tone: Tone; label: string; line: string }> = {
   },
 };
 
-const RISK_TONE: Record<RiskLevel, Tone> = {
-  low: 'good', moderate: 'info', high: 'warn', severe: 'danger',
-};
+const RISK_SOURCE =
+  'ARK security rubric — scored from the data classes, write actions, blast radius and autonomy you described';
+const ROADMAP_SOURCE = 'ARK roadmap rubric — phase durations are rules of thumb, not a delivery plan';
 
 export default async function Report({
   searchParams,
 }: {
-  searchParams: Promise<{ w?: string }>;
+  searchParams: Promise<{ w?: string; scope?: string }>;
 }) {
-  const { w: encoded } = await searchParams;
+  const { w: encoded, scope } = await searchParams;
   const workload = encoded ? decodeWorkload(encoded) : null;
 
-  if (!workload) {
+  if (!workload || !encoded) {
     return (
       <Panel title="That report link did not resolve">
         <p className="text-sm leading-relaxed text-ink-300">
@@ -70,28 +74,62 @@ export default async function Report({
     );
   }
 
+  // `scope=verdict` is the intake's short-circuit: every answer after the
+  // shapes is a placeholder. Any other value is treated as absent.
+  if (scope === 'verdict') {
+    if (!shapesDecideNotAi(workload.task)) {
+      return (
+        <Panel title="This link asks for a verdict the shapes cannot decide">
+          <p className="text-sm leading-relaxed text-ink-300">
+            A verdict-only report exists for work that is only lookup and calculation. This job includes
+            other shapes, so its verdict depends on answers the link does not carry.{' '}
+            <Link href={intakeHref(encoded, 1)} className="text-signal underline underline-offset-2">
+              Continue the full assessment
+            </Link>
+            .
+          </p>
+        </Panel>
+      );
+    }
+    return (
+      <>
+        <ReportPrintStyles />
+        <VerdictOnlyReport workload={workload} encoded={encoded} />
+      </>
+    );
+  }
+
   // Measured priors where a Control instance is reachable; rubric priors where
   // it is not. Either way the basis tag on every figure says which happened.
   const calibration = await fetchCalibration({ days: 30 });
   const a = assess(workload, { depth: 'business', calibration });
+  const controlConfigured = Boolean(process.env.ARK_CONTROL_URL?.trim() && process.env.ARK_CONTROL_TOKEN?.trim());
 
+  const notAi = a.suitability.verdict === 'not-ai';
   const v = VERDICT[a.suitability.verdict];
-  const model = byId(a.model.primary.id);
+  const model = a.model ? byId(a.model.primary.id) : undefined;
   const unit = workload.volume.unitLabel;
+  const units = plural(unit);
+  const controlUrl = process.env.ARK_CONTROL_URL ?? 'http://localhost:3002';
+  const shape = a.callShape;
+  const paybackWouldBe: Tone = !a.value.paybackMonths ? 'neutral'
+    : a.value.paybackMonths.value <= 12 ? 'good'
+    : a.value.paybackMonths.value <= 24 ? 'warn' : 'danger';
 
   return (
     <div className="space-y-10">
+      <ReportPrintStyles />
       {/* ---------------------------------------------------------------- */}
       <section>
         <div className="flex flex-wrap items-center gap-2">
-          <p className="text-xs text-ink-500">{workload.name}</p>
-          <Badge tone="neutral">{fmt.int(workload.volume.unitsPerMonth)} {unit}s/mo</Badge>
-          <Badge tone={RISK_TONE[a.security.level]}>{a.security.level} risk</Badge>
-          {a.trust.calibrated ? (
+          <p className="text-xs text-ink-400">{workload.name}</p>
+          <Badge tone="neutral" title="Your input">{fmt.int(workload.volume.unitsPerMonth)} {units}/mo</Badge>
+          <Badge tone="neutral" title={RISK_SOURCE}>{a.security.level} risk</Badge>
+          {!notAi && (a.trust.calibrated ? (
             <Badge tone="good">calibrated against telemetry</Badge>
           ) : (
             <Badge tone="warn">uncalibrated</Badge>
-          )}
+          ))}
         </div>
         <h1 className={'mt-3 text-4xl font-semibold leading-tight ' + toneText(v.tone)}>{v.label}</h1>
         <p className="mt-4 max-w-3xl text-base leading-relaxed text-ink-300">{v.line}</p>
@@ -103,7 +141,7 @@ export default async function Report({
           <ul className="space-y-2">
             {a.suitability.blockers.map((b, i) => (
               <li key={i} className="flex gap-2">
-                <span className="text-danger">&middot;</span>
+                <span className="text-danger" aria-hidden>&middot;</span>
                 <span>{b}</span>
               </li>
             ))}
@@ -111,86 +149,136 @@ export default async function Report({
         </Callout>
       )}
 
-      {!a.trust.calibrated && (
+      {!notAi && !a.trust.calibrated && (
         <Callout tone="warn" title="This report is uncalibrated">
           <p>
-            Turns per outcome and failure rate are rubric priors, not measurements. They are the two
-            numbers that move the cost figure most, so treat the monthly run cost as an order of
-            magnitude rather than a budget line. Set <span className="font-mono">ARK_CONTROL_URL</span>{' '}
-            and <span className="font-mono">ARK_CONTROL_TOKEN</span> so this app can read{' '}
-            <span className="font-mono">GET /api/v1/calibration</span>. A first trace is{' '}
-            <span className="font-mono">POST /api/measure</span> on this app — one synthetic Runtime
-            sample on the operator&apos;s configured model, not a gateway. One sample does not clear
-            the 30-trace floor; it is how Control stops being empty.
+            Treat the run cost as an order of magnitude, not a budget line: turns per outcome and failure
+            rate are rubric priors until ARK Control has measured this pattern.
           </p>
+          <details className="mt-3 text-xs leading-relaxed text-ink-400">
+            <summary className="cursor-pointer text-ink-300 hover:text-ink-100">
+              For the operator: connect ARK Control
+            </summary>
+            <p className="mt-2">
+              {controlConfigured && !calibration ? (
+                <>
+                  <span className="font-mono text-ink-200">ARK_CONTROL_URL</span> is set, but ARK Control did not
+                  answer the calibration request, so the rubric prior stands. Check that Control is reachable
+                  from this app and that <span className="font-mono text-ink-200">ARK_CONTROL_TOKEN</span> is an
+                  active org token.
+                </>
+              ) : controlConfigured ? (
+                <>
+                  ARK Control is connected, but it has fewer than 30 observed outcomes for the{' '}
+                  <span className="font-mono text-ink-200">{a.architecture.pattern}</span> pattern in the last
+                  30 days, so the rubric prior stands.
+                </>
+              ) : (
+                <>
+                  Set <span className="font-mono text-ink-200">ARK_CONTROL_URL</span> and{' '}
+                  <span className="font-mono text-ink-200">ARK_CONTROL_TOKEN</span> on this app so it can read{' '}
+                  <span className="font-mono text-ink-200">GET /api/v1/calibration</span>. Reports then use
+                  observed call shapes for any pattern with at least 30 traces in the last 30 days, and the tags
+                  change from heuristic to calibrated.
+                </>
+              )}
+            </p>
+            <p className="mt-2">
+              <span className="font-mono text-ink-200">POST /api/measure</span> on this app sends one synthetic
+              Runtime sample on the model in <span className="font-mono text-ink-200">ARK_OLLAMA_MODEL</span>{' '}
+              (not the catalog estimate) and posts the trace to Control. It is off unless{' '}
+              <span className="font-mono text-ink-200">ARK_MEASURE_ENABLED=1</span>. It is not a gateway and does not sit in
+              the path of production traffic. One sample does not clear the 30-trace floor; it is how Control
+              stops being empty.
+            </p>
+          </details>
         </Callout>
       )}
 
-      {a.suitability.verdict !== 'not-ai' && <MeasureSample workload={workload} />}
+      {!notAi && (
+        <MeasureSample
+          workload={workload}
+          enabled={process.env.ARK_MEASURE_ENABLED?.trim() === '1'}
+          controlUrl={controlUrl}
+        />
+      )}
 
       {/* ---------------------------------------------------------------- */}
       <Panel
         title="The numbers"
         subtitle="Each carries a tag saying what it rests on. Read the tag before you quote the number."
       >
-        <Grid cols={4}>
-          <Stat
-            label={`Run cost / ${unit}`}
-            value={fmt.usd(a.cost.perUnit.value, 4)}
-            hint="Cost per successful outcome — retries and failed attempts included."
-            footer={<BasisTag basis={a.cost.perUnit.basis} source={a.cost.perUnit.source} sampleSize={a.cost.perUnit.sampleSize} />}
-          />
-          <Stat
-            label="Run cost / month"
-            value={fmt.usd(a.cost.perMonth.value, 2)}
-            hint={`At ${fmt.int(workload.volume.unitsPerMonth)} ${unit}s/mo.`}
-            footer={<BasisTag basis={a.cost.perMonth.basis} source={a.cost.perMonth.source} sampleSize={a.cost.perMonth.sampleSize} />}
-          />
-          <Stat
-            label="Build cost"
-            value={fmt.compactUsd(a.buildCost.value)}
-            hint="Engineering to first production traffic, at a loaded rate."
-            footer={<BasisTag basis={a.buildCost.basis} source={a.buildCost.source} />}
-          />
-          <Stat
-            label="Payback"
-            value={a.value.paybackMonths ? `${a.value.paybackMonths.value.toFixed(1)} mo` : 'unknowable'}
-            tone={
-              !a.value.paybackMonths ? 'neutral'
-                : a.value.paybackMonths.value <= 12 ? 'good'
-                : a.value.paybackMonths.value <= 24 ? 'warn' : 'danger'
-            }
-            hint={a.value.paybackMonths ? 'Months to repay the build from run savings.' : 'You did not supply what this costs today.'}
-            footer={a.value.paybackMonths
-              ? <BasisTag basis={a.value.paybackMonths.basis} source={a.value.paybackMonths.source} />
-              : undefined}
-          />
-        </Grid>
+        {notAi ? (
+          <Grid cols={3}>
+            <Stat
+              label="Run cost / month"
+              value="≈ $0"
+              hint="A deterministic implementation runs for approximately nothing: no model calls, only compute you already pay for."
+              footer={<Tag e={a.cost.perMonth} />}
+            />
+            <Stat
+              label="Build cost"
+              value={fmt.compactUsd(a.buildCost.value)}
+              hint="Engineering to first production traffic, at a loaded rate."
+              footer={<Tag e={a.buildCost} />}
+            />
+            <Payback a={a} wouldBe={paybackWouldBe} />
+          </Grid>
+        ) : (
+          <Grid cols={4}>
+            <Stat
+              label={`Run cost / ${unit}`}
+              value={fmt.usd(a.cost.perUnit.value, 4)}
+              hint="Cost per successful outcome — retries and failed attempts included."
+              footer={<Tag e={a.cost.perUnit} />}
+            />
+            <Stat
+              label="Run cost / month"
+              value={fmt.usd(a.cost.perMonth.value, 2)}
+              hint={`At ${fmt.int(workload.volume.unitsPerMonth)} ${units}/mo (your input).`}
+              footer={<Tag e={a.cost.perMonth} />}
+            />
+            <Stat
+              label="Build cost"
+              value={fmt.compactUsd(a.buildCost.value)}
+              hint="Engineering to first production traffic, at a loaded rate."
+              footer={<Tag e={a.buildCost} />}
+            />
+            <Payback a={a} wouldBe={paybackWouldBe} />
+          </Grid>
+        )}
 
         <div className="mt-6 border-t border-ink-700 pt-5">
           <p className="text-xs leading-relaxed text-ink-400">{a.trust.caveat}</p>
         </div>
 
         {a.cost.wastedOnFailures.value > 0 && (
-          <Callout tone="warn" title="What the failure rate costs">
-            <p>
-              About <span className="font-mono text-warn">{fmt.usd(a.cost.wastedOnFailures.value, 2)}</span>{' '}
-              a month — {fmt.pct((a.cost.wastedOnFailures.value / Math.max(a.cost.perMonth.value, 1e-9)) * 100)} of
-              run cost — is spent on attempts that fail and get retried. This is real spend that produces
-              nothing, and it is the line item every per-token calculator omits. It is also the number that
-              ARK Control measures directly once this is live.
-            </p>
-          </Callout>
+          <div className="mt-5">
+            <Callout tone="warn" title="What the failure rate costs">
+              <p>
+                About <span className="font-mono text-ink-100">{fmt.usd(a.cost.wastedOnFailures.value, 2)}</span>{' '}
+                a month — {fmt.pct((a.cost.wastedOnFailures.value / Math.max(a.cost.perMonth.value, 1e-9)) * 100)} of
+                run cost — is spent on attempts that fail and get retried. This is real spend that produces
+                nothing, and it is the line item every per-token calculator omits.{' '}
+                <Tag e={a.cost.wastedOnFailures} />
+              </p>
+            </Callout>
+          </div>
         )}
 
         {a.value.humanCostPerUnit && a.value.netPerMonth && (
           <div className="mt-6 grid gap-5 sm:grid-cols-3">
-            <Line label={`Human cost / ${unit}`} value={fmt.usd(a.value.humanCostPerUnit.value, 3)} />
-            <Line label={`AI cost / ${unit}`} value={fmt.usd(a.value.aiCostPerUnit.value, 4)} />
+            <Line label={`Human cost / ${unit}`} value={fmt.usd(a.value.humanCostPerUnit.value, 3)} e={a.value.humanCostPerUnit} />
+            <Line
+              label={notAi ? `Run cost / ${unit}` : `AI cost / ${unit}`}
+              value={notAi ? '≈ $0' : fmt.usd(a.value.aiCostPerUnit.value, 4)}
+              e={a.value.aiCostPerUnit}
+            />
             <Line
               label="Net / month"
               value={fmt.usd(a.value.netPerMonth.value, 0)}
-              tone={a.value.netPerMonth.value > 0 ? 'good' : 'danger'}
+              e={a.value.netPerMonth}
+              tone={toneFor(a.value.netPerMonth, a.value.netPerMonth.value > 0 ? 'good' : 'danger')}
             />
           </div>
         )}
@@ -200,9 +288,10 @@ export default async function Report({
             Inference spend per dollar of value produced:{' '}
             <span className="font-mono text-ink-100">
               {fmt.usd(a.value.spendPerDollarOfValue.value, 3)}
-            </span>
-            . This is the ratio to watch after launch — it degrades quietly when prompts grow, when context
-            accumulates, and when someone swaps in a bigger model to fix a quality complaint.
+            </span>{' '}
+            <Tag e={a.value.spendPerDollarOfValue} />. This is the ratio to watch after launch — it degrades
+            quietly when prompts grow, when context accumulates, and when someone swaps in a bigger model to
+            fix a quality complaint.
           </p>
         )}
       </Panel>
@@ -214,7 +303,7 @@ export default async function Report({
       >
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone="signal">{a.architecture.label}</Badge>
-          <span className="font-mono text-2xs text-ink-600">{a.architecture.pattern}</span>
+          <span className="font-mono text-2xs text-ink-500">{a.architecture.pattern}</span>
         </div>
         <p className="mt-3 max-w-3xl text-sm leading-relaxed text-ink-300">{a.architecture.summary}</p>
 
@@ -224,7 +313,7 @@ export default async function Report({
             <ul className="mt-2.5 space-y-1.5">
               {a.architecture.components.map((c, i) => (
                 <li key={i} className="flex gap-2 text-xs leading-relaxed text-ink-300">
-                  <span className="text-ink-600">&middot;</span>
+                  <span className="text-ink-500" aria-hidden>&middot;</span>
                   {c}
                 </li>
               ))}
@@ -237,7 +326,7 @@ export default async function Report({
             <ul className="mt-2.5 space-y-3">
               {a.architecture.rejected.map((r, i) => (
                 <li key={i}>
-                  <p className="font-mono text-2xs text-ink-500">
+                  <p className="font-mono text-2xs text-ink-400">
                     {PATTERN_LABEL[r.pattern] ?? r.pattern}
                   </p>
                   <p className="mt-0.5 text-xs leading-relaxed text-ink-400">{r.why}</p>
@@ -247,81 +336,91 @@ export default async function Report({
           </div>
         </div>
 
-        <div className="mt-6 border-t border-ink-700 pt-5">
-          <h3 className="text-xs font-medium uppercase tracking-wider text-ink-400">
-            Assumed call shape
-          </h3>
-          <p className="mt-1.5 max-w-3xl text-2xs leading-relaxed text-ink-500">
-            These five numbers drive the entire cost figure. Two of them — turns per outcome and failure
-            rate — are where estimates go wrong by an order of magnitude, and neither can be known before
-            the system runs.
-          </p>
-          <Grid cols={4}>
-            <Stat label="Turns / outcome" value={a.architecture.callShape.turnsPerOutcome.toFixed(1)} />
-            <Stat label="Context growth / turn" value={fmt.int(a.architecture.callShape.contextGrowthPerTurn)} unit="tok" />
-            <Stat label="Failure rate" value={fmt.pct(a.architecture.callShape.failureRate * 100, 1)} />
-            <Stat label="Cache hit rate" value={fmt.pct(a.architecture.callShape.cacheHitRate * 100)} />
-          </Grid>
-        </div>
+        {!notAi && (
+          <div className="mt-6 border-t border-ink-700 pt-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-xs font-medium uppercase tracking-wider text-ink-400">
+                Call shape behind the cost
+              </h3>
+              <BasisTag basis={shape.basis} source={shape.source} sampleSize={shape.sampleSize} />
+            </div>
+            <p className="mt-1.5 max-w-3xl text-xs leading-relaxed text-ink-400">
+              These five numbers drive the entire cost figure. Two of them — turns per outcome and failure
+              rate — are where estimates go wrong by an order of magnitude, and neither can be known before
+              the system runs.
+            </p>
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              <Stat label="Turns / outcome" value={shape.turnsPerOutcome.toFixed(1)} />
+              <Stat label="Context growth / turn" value={fmt.int(shape.contextGrowthPerTurn)} unit="tok" />
+              <Stat label="Failure rate" value={fmt.pct(shape.failureRate * 100, 1)} />
+              <Stat label="Retries / failure" value={shape.retriesPerFailure.toFixed(1)} />
+              <Stat label="Cache hit rate" value={fmt.pct(shape.cacheHitRate * 100)} />
+            </div>
+          </div>
+        )}
       </Panel>
 
       {/* ---------------------------------------------------------------- */}
-      <Panel title="Model" subtitle="A shortlist across providers, so the default is not lock-in.">
-        <div className="grid gap-5 md:grid-cols-2">
-          <div>
-            <p className="text-2xs uppercase tracking-wider text-ink-400">Primary</p>
-            <p className="mt-1 text-lg text-ink-100">{model?.displayName ?? a.model.primary.id}</p>
-            <p className="font-mono text-2xs text-ink-600">{a.model.primary.id}</p>
-            {model && (
-              <p className="mt-2 font-mono text-2xs text-ink-500">
-                {fmt.usd(model.inputPer1M, 2)} in / {fmt.usd(model.outputPer1M, 2)} out per 1M tokens
-                <span className="ml-2 text-ink-600">priced {model.asOf}</span>
-              </p>
-            )}
-            <ul className="mt-3 space-y-1.5">
-              {a.model.rationale.map((r, i) => (
-                <li key={i} className="text-xs leading-relaxed text-ink-400">
-                  &middot; {r}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="space-y-4">
-            {a.model.fallbackFast && (
-              <Route
-                label="Route the easy majority to"
-                id={a.model.fallbackFast.id}
-                name={a.model.fallbackFast.displayName}
-                note="A confidence threshold sends the uncertain tail to the primary. This is usually the single largest saving available, and it is a quality decision, not a finance one."
-              />
-            )}
-            {a.model.escalateTo && (
-              <Route
-                label="Escalate the hard minority to"
-                id={a.model.escalateTo.id}
-                name={a.model.escalateTo.displayName}
-                note="Reserved for inputs the primary flags as low confidence."
-              />
-            )}
-            {a.model.alternatives.length > 0 && (
-              <div>
-                <p className="text-2xs uppercase tracking-wider text-ink-400">Viable alternatives</p>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {a.model.alternatives.map((m) => (
-                    <span
-                      key={m.id}
-                      className="rounded-md border border-ink-700 px-2 py-1 font-mono text-2xs text-ink-400"
-                      title={`${m.provider} · ${fmt.usd(m.inputPer1M, 2)} in / ${fmt.usd(m.outputPer1M, 2)} out per 1M tokens`}
-                    >
-                      {m.displayName}
-                    </span>
-                  ))}
+      {a.model && (
+        <Panel title="Model" subtitle="A shortlist across providers, so the default is not lock-in.">
+          <div className="grid gap-5 md:grid-cols-2">
+            <div>
+              <p className="text-2xs uppercase tracking-wider text-ink-400">Primary</p>
+              <p className="mt-1 text-lg text-ink-100">{model?.displayName ?? a.model.primary.id}</p>
+              <p className="font-mono text-2xs text-ink-500">{a.model.primary.id}</p>
+              {model && (
+                <p className="mt-2 flex flex-wrap items-center gap-2 font-mono text-2xs text-ink-400">
+                  <span>
+                    {fmt.usd(model.inputPer1M, 2)} in / {fmt.usd(model.outputPer1M, 2)} out per 1M tokens
+                  </span>
+                  <BasisTag basis="benchmark" source={`published list price, captured ${model.asOf}`} />
+                </p>
+              )}
+              <ul className="mt-3 space-y-1.5">
+                {a.model.rationale.map((r, i) => (
+                  <li key={i} className="text-xs leading-relaxed text-ink-400">
+                    &middot; {r}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="space-y-4">
+              {a.model.fallbackFast && (
+                <Route
+                  label="Route the easy majority to"
+                  id={a.model.fallbackFast.id}
+                  name={a.model.fallbackFast.displayName}
+                  note="A confidence threshold sends the uncertain tail to the primary. This is usually the single largest saving available, and it is a quality decision, not a finance one."
+                />
+              )}
+              {a.model.escalateTo && (
+                <Route
+                  label="Escalate the hard minority to"
+                  id={a.model.escalateTo.id}
+                  name={a.model.escalateTo.displayName}
+                  note="Reserved for inputs the primary flags as low confidence."
+                />
+              )}
+              {a.model.alternatives.length > 0 && (
+                <div>
+                  <p className="text-2xs uppercase tracking-wider text-ink-400">Viable alternatives</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {a.model.alternatives.map((m) => (
+                      <span
+                        key={m.id}
+                        className="rounded-md border border-ink-700 px-2 py-1 font-mono text-2xs text-ink-400"
+                        title={`${m.provider} · ${fmt.usd(m.inputPer1M, 2)} in / ${fmt.usd(m.outputPer1M, 2)} out per 1M tokens (list price)`}
+                      >
+                        {m.displayName}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
-      </Panel>
+        </Panel>
+      )}
 
       {/* ---------------------------------------------------------------- */}
       <Panel
@@ -329,8 +428,9 @@ export default async function Report({
         subtitle="Derived from the data classes and the action surface you described — not a generic checklist."
       >
         <div className="flex flex-wrap items-center gap-2">
-          <Badge tone={RISK_TONE[a.security.level]}>{a.security.level}</Badge>
-          <span className="font-mono text-2xs text-ink-500">risk score {Math.round(a.security.score)}/100</span>
+          <Badge tone="neutral">{a.security.level}</Badge>
+          <span className="font-mono text-2xs text-ink-400">risk score {Math.round(a.security.score)}/100</span>
+          <BasisTag basis="heuristic" source={RISK_SOURCE} />
           {a.security.complianceFlags.map((f) => (
             <Badge key={f} tone="info">{f}</Badge>
           ))}
@@ -347,30 +447,31 @@ export default async function Report({
         )}
 
         <div className="mt-6">
-          <Table head={['', 'Requirement', 'Why', 'How ARK Control verifies it at runtime']}>
-            {a.security.controls.map((c) => (
-              <tr key={c.id} className="border-t border-ink-800 align-top">
-                <Td mono>
-                  <span className={c.blocking ? 'text-danger' : 'text-ink-500'}>{c.id}</span>
-                </Td>
-                <Td align="left" className="pr-4">
+          <CardTable
+            columns={[
+              { label: 'Control', mono: true },
+              { label: 'Requirement', align: 'left', className: 'pr-4' },
+              { label: 'Why', align: 'left', className: 'pr-4' },
+              { label: notAi ? 'How it is verified' : 'How ARK Control verifies it at runtime', align: 'left' },
+            ]}
+            rows={a.security.controls.map((c) => ({
+              key: c.id,
+              cells: [
+                <span key="id" className={c.blocking ? 'font-mono text-danger' : 'font-mono text-ink-400'}>{c.id}</span>,
+                <span key="req">
                   <span className="text-ink-200">{c.requirement}</span>
                   {c.blocking && (
-                    <span className="ml-2 rounded bg-danger/15 px-1.5 py-0.5 text-2xs text-danger">
+                    <span className="ml-2 whitespace-nowrap rounded bg-danger/15 px-1.5 py-0.5 text-2xs text-danger">
                       blocks launch
                     </span>
                   )}
-                </Td>
-                <Td align="left" className="pr-4">
-                  <span className="text-xs leading-relaxed text-ink-400">{c.why}</span>
-                </Td>
-                <Td align="left">
-                  <span className="text-xs leading-relaxed text-ink-400">{c.verifiedBy}</span>
-                </Td>
-              </tr>
-            ))}
-          </Table>
-          <p className="mt-3 text-2xs leading-relaxed text-ink-500">
+                </span>,
+                <span key="why" className="text-xs leading-relaxed text-ink-400">{c.why}</span>,
+                <span key="how" className="text-xs leading-relaxed text-ink-400">{c.verifiedBy}</span>,
+              ],
+            }))}
+          />
+          <p className="mt-3 text-xs leading-relaxed text-ink-400">
             The last column is the point. A control nobody can verify after launch is a paragraph in a
             document, and paragraphs do not stop anything.
           </p>
@@ -379,37 +480,72 @@ export default async function Report({
 
       {/* ---------------------------------------------------------------- */}
       <Panel
-        title="Evaluation plan"
-        subtitle="What has to be true before this is allowed to carry production traffic."
+        title={a.evaluation.kind === 'deterministic' ? 'Test plan' : 'Evaluation plan'}
+        subtitle={a.evaluation.kind === 'deterministic'
+          ? 'A rule has a right answer, so it is tested like code. There is no golden set to label.'
+          : 'What has to be true before this is allowed to carry production traffic.'}
       >
         <Grid cols={3}>
-          <Stat label="Golden set" value={fmt.int(a.evaluation.goldenSetSize)} unit="examples" hint="Labelled, held out, never trained or prompted against." />
-          <Stat label="Cadence" value={a.evaluation.cadence} />
-          <Stat label="Blocking metrics" value={fmt.int(a.evaluation.metrics.filter((m) => m.blocksLaunch).length)} unit={`of ${a.evaluation.metrics.length}`} />
+          {a.evaluation.goldenSetSize !== null && (
+            <Stat
+              label="Golden set"
+              value={fmt.int(a.evaluation.goldenSetSize)}
+              unit="examples"
+              hint="Labelled, held out, never trained or prompted against."
+              footer={<BasisTag basis="heuristic" source={GOLDEN_SET_RULE} />}
+            />
+          )}
+          <Stat label="Cadence" value={<span className="font-sans text-sm leading-snug">{a.evaluation.cadence}</span>} />
+          <Stat
+            label="Blocking metrics"
+            value={fmt.int(a.evaluation.metrics.filter((m) => m.blocksLaunch).length)}
+            unit={`of ${a.evaluation.metrics.length}`}
+          />
         </Grid>
 
         <div className="mt-6">
-          <Table head={['Metric', 'Threshold', 'Measured how', '']}>
-            {a.evaluation.metrics.map((m) => (
-              <tr key={m.name} className="border-t border-ink-800 align-top">
-                <Td align="left" className="pr-4"><span className="text-ink-200">{m.name}</span></Td>
-                <Td mono><span className="text-ink-100">{m.threshold}</span></Td>
-                <Td align="left" className="px-4">
-                  <span className="text-xs leading-relaxed text-ink-400">{m.measuredHow}</span>
-                </Td>
-                <Td align="right">
-                  {m.blocksLaunch
-                    ? <Badge tone="danger">blocks launch</Badge>
-                    : <span className="text-2xs text-ink-600">monitored</span>}
-                </Td>
-              </tr>
-            ))}
-          </Table>
+          <CardTable
+            columns={[
+              { label: 'Metric', align: 'left', className: 'pr-4' },
+              { label: 'Threshold', mono: true },
+              { label: 'Measured how', align: 'left', className: 'px-4' },
+              { label: '' },
+            ]}
+            rows={a.evaluation.metrics.map((m) => ({
+              key: m.name,
+              cells: [
+                <span key="n" className="text-ink-200">{m.name}</span>,
+                <span key="t" className="text-ink-100">{m.threshold}</span>,
+                <span key="h" className="text-xs leading-relaxed text-ink-400">{m.measuredHow}</span>,
+                m.blocksLaunch
+                  ? <Badge key="b" tone="danger">blocks launch</Badge>
+                  : <span key="b" className="text-2xs text-ink-400">monitored</span>,
+              ],
+            }))}
+          />
+          <p className="mt-3 flex flex-wrap items-center gap-2 text-xs leading-relaxed text-ink-400">
+            {a.evaluation.kind === 'deterministic' ? (
+              <>
+                <span>The latency budget is your input. The other thresholds are the rubric&apos;s defaults for a rules build:</span>
+                <BasisTag basis="heuristic" source="ARK evaluation rubric — deterministic test plan" />
+              </>
+            ) : (
+              <>
+                <span>
+                  Thresholds restate your error tolerance and latency budget (your input). Turning a tolerance
+                  into a percentage is the rubric&apos;s step:
+                </span>
+                <BasisTag basis="heuristic" source="ARK evaluation rubric — tolerance none 99%, low 97%, medium 93%, high 85%" />
+              </>
+            )}
+          </p>
         </div>
 
-        <Callout tone="info" title="The baseline nobody measures">
-          <p>{a.evaluation.humanBaselineNote}</p>
-        </Callout>
+        <div className="mt-5">
+          <Callout tone="info" title="The baseline nobody measures">
+            <p>{a.evaluation.humanBaselineNote}</p>
+          </Callout>
+        </div>
 
         <p className="mt-4 text-xs leading-relaxed text-ink-400">
           <span className="text-ink-200">Regression policy.</span> {a.evaluation.regressionPolicy}
@@ -417,7 +553,11 @@ export default async function Report({
       </Panel>
 
       {/* ---------------------------------------------------------------- */}
-      <Panel title="Roadmap" subtitle="Every phase has a kill criterion. A plan without one is a commitment device.">
+      <Panel
+        title="Roadmap"
+        subtitle="Every phase has a kill criterion. A plan without one is a commitment device."
+        right={<BasisTag basis="heuristic" source={ROADMAP_SOURCE} />}
+      >
         <ol className="space-y-5">
           {a.phases.map((p, i) => (
             <li key={p.name} className="relative border-l border-ink-700 pl-6">
@@ -426,19 +566,19 @@ export default async function Report({
               </span>
               <div className="flex flex-wrap items-baseline gap-3">
                 <h3 className="text-sm font-medium text-ink-100">{p.name}</h3>
-                <span className="font-mono text-2xs text-ink-500">
-                  {p.durationWeeks} week{p.durationWeeks === 1 ? '' : 's'}
+                <span className="font-mono text-2xs text-ink-400">
+                  about {p.durationWeeks} week{p.durationWeeks === 1 ? '' : 's'}
                 </span>
               </div>
               <p className="mt-1.5 max-w-3xl text-xs leading-relaxed text-ink-300">{p.goal}</p>
               <ul className="mt-2.5 space-y-1">
                 {p.exitCriteria.map((e, n) => (
-                  <li key={n} className="text-2xs leading-relaxed text-ink-400">
+                  <li key={n} className="text-xs leading-relaxed text-ink-400">
                     &#10003; {e}
                   </li>
                 ))}
               </ul>
-              <p className="mt-2 text-2xs leading-relaxed text-danger/80">
+              <p className="mt-2 text-xs leading-relaxed text-danger/90">
                 <span className="font-medium">Kill if:</span> {p.killCriteria}
               </p>
             </li>
@@ -462,7 +602,11 @@ export default async function Report({
         </Panel>
       )}
 
-      <Panel title="How it scored" subtitle="Seven weighted dimensions. The weakest one usually decides the verdict.">
+      <Panel
+        title="How it scored"
+        subtitle="Seven weighted dimensions. The weakest one usually decides the verdict."
+        right={<Tag e={a.suitability.score} />}
+      >
         <DimensionList dimensions={a.suitability.dimensions} showWeight />
       </Panel>
 
@@ -471,44 +615,50 @@ export default async function Report({
         <ul className="space-y-2.5">
           {a.trust.unknowns.map((u, i) => (
             <li key={i} className="flex gap-2 text-xs leading-relaxed text-ink-400">
-              <span className="text-warn">&middot;</span>
+              <span className="text-warn" aria-hidden>&middot;</span>
               {u}
             </li>
           ))}
           {a.trust.unknowns.length === 0 && (
-            <li className="text-xs text-ink-500">
+            <li className="text-xs text-ink-400">
               Nothing material. Every driving figure is calibrated or measured.
             </li>
           )}
         </ul>
       </Panel>
 
-      <section className="flex flex-wrap items-center gap-3 border-t border-ink-800 pt-6">
-        <Link
-          href="/assess"
-          className="rounded-lg border border-ink-600 px-4 py-2 text-sm text-ink-100 transition hover:border-ink-500 hover:bg-ink-800"
-        >
-          Assess another workload
-        </Link>
-        <a
-          href={process.env.ARK_CONTROL_URL ?? 'http://localhost:3002'}
-          className="rounded-lg bg-signal px-4 py-2 text-sm font-medium text-ink-950 transition hover:bg-signal-glow"
-        >
-          Open ARK Control
-        </a>
-        <Link href="/methodology" className="px-2 py-2 text-sm text-ink-400 transition hover:text-ink-200">
-          How this was scored
-        </Link>
-      </section>
+      <ReportFooter edit={{ href: intakeHref(encoded), label: 'Edit answers' }} />
     </div>
   );
 }
 
-function Line({ label, value, tone }: { label: string; value: string; tone?: Tone }) {
+type Assessment = ReturnType<typeof assess>;
+
+function Payback({ a, wouldBe }: { a: Assessment; wouldBe: Tone }) {
+  const p = a.value.paybackMonths;
+  return (
+    <Stat
+      label="Payback"
+      value={p ? `${p.value.toFixed(1)} mo` : 'unknowable'}
+      tone={toneFor(p, wouldBe)}
+      hint={p ? 'Months to repay the build from run savings.' : 'You did not supply what this costs today.'}
+      footer={p ? <Tag e={p} /> : undefined}
+    />
+  );
+}
+
+function Tag({ e }: { e: Estimate<unknown> }) {
+  return <BasisTag basis={e.basis} source={e.source} sampleSize={e.sampleSize} />;
+}
+
+function Line({ label, value, e, tone }: { label: string; value: string; e: Estimate<unknown>; tone?: Tone }) {
   return (
     <div>
       <p className="text-2xs uppercase tracking-wider text-ink-400">{label}</p>
       <p className={'mt-1 font-mono text-lg ' + (tone ? toneText(tone) : 'text-ink-100')}>{value}</p>
+      <div className="mt-1.5">
+        <Tag e={e} />
+      </div>
     </div>
   );
 }
@@ -518,10 +668,17 @@ function Route({ label, id, name, note }: { label: string; id: string; name: str
     <div className="rounded-lg border border-ink-800 bg-ink-850 p-4">
       <p className="text-2xs uppercase tracking-wider text-ink-400">{label}</p>
       <p className="mt-1 text-sm text-ink-100">{name}</p>
-      <p className="font-mono text-2xs text-ink-600">{id}</p>
-      <p className="mt-2 text-2xs leading-relaxed text-ink-500">{note}</p>
+      <p className="font-mono text-2xs text-ink-500">{id}</p>
+      <p className="mt-2 text-xs leading-relaxed text-ink-400">{note}</p>
     </div>
   );
+}
+
+/** "query" → "queries", "ticket" → "tickets". English enough for a unit label. */
+function plural(unit: string): string {
+  if (/[^aeiou]y$/i.test(unit)) return unit.slice(0, -1) + 'ies';
+  if (/(s|x|ch|sh)$/i.test(unit)) return unit + 'es';
+  return unit + 's';
 }
 
 function toneText(t: Tone): string {

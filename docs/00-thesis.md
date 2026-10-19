@@ -59,7 +59,7 @@ These refusals are published on the methodology page inside the product, not bur
 
 ## Positioning
 
-The distribution advantage is that most teams will meet this system through the consumer surface — one task, six questions, a minute — and arrive at the business surface already understanding what a basis tag means and already having seen the tool decline to recommend AI once. That is a far better qualification mechanism than a demo request form, and it is why the consumer app is not a marketing artifact but the same engine at a narrower aperture.
+The three products do not feed each other. AI Fit is a personal quiz and stays one; it is not a qualification funnel for the business surfaces, because a funnel would pressure it to recommend AI. AI Fit Teams is the estimator a team takes into a planning meeting. What is sold is Control's Observe loop — see [ADR-0008](adr/0008-what-is-sold.md) for the commercial unit, the paying customer, and the refusals that bind every pilot.
 
 Control is where the relationship becomes durable. An estimate is consumed once. A system that measures what the estimate got wrong, every month, and re-labels the next estimate accordingly, is consumed continuously — and it is the only part of this that a competitor cannot replicate by copying a rubric.
 

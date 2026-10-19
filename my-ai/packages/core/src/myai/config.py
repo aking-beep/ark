@@ -66,6 +66,16 @@ EVENT_TO_METRICS: dict[str, tuple[str, ...]] = {
     "chose_best_quality": ("quality_preference",),
 }
 
+# Trade-off pairs: choosing one side inside a scenario nets against the other.
+OPPOSING_METRICS: dict[str, str] = {
+    "speed_preference": "depth_preference",
+    "depth_preference": "speed_preference",
+    "local_control_preference": "cloud_preference",
+    "cloud_preference": "local_control_preference",
+    "budget_sensitivity": "quality_preference",
+    "quality_preference": "budget_sensitivity",
+}
+
 PRICING_RANK = {
     "free": 0,
     "low": 1,

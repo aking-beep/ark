@@ -46,13 +46,14 @@ export default async function AssurancePage() {
 
       <Grid cols={4}>
         <Stat label="Agents assessed" value={fmt.int(assessed.length)} hint={`${fmt.int(agents.length)} registered.`} />
-        <Stat label="Pass / Warn" value={`${fmt.int(pass)} / ${fmt.int(warn)}`} tone={warn ? 'warn' : 'good'} />
-        <Stat label="Fail" value={fmt.int(fail)} tone={fail ? 'danger' : 'good'} />
-        <Stat label="Unknown" value={fmt.int(unknown)} hint="Unknown means the field was not recorded, not that it passed." />
+        {/* These count agents by their latest run's status; the table below counts checks. */}
+        <Stat label="Agents passing / warning" value={`${fmt.int(pass)} / ${fmt.int(warn)}`} tone={warn ? 'warn' : 'good'} hint="Latest run status, per agent." />
+        <Stat label="Agents failing" value={fmt.int(fail)} tone={fail ? 'danger' : 'good'} hint="An agent fails if any check in its latest run fails." />
+        <Stat label="Agents unknown" value={fmt.int(unknown)} hint="Unknown means a field was not recorded, not that it passed." />
       </Grid>
 
       <Panel title="Agents" subtitle="Latest run per agent. Re-run from the agent page or here.">
-        <Table head={['Agent', 'Environment', 'Latest status', 'Pass', 'Warn', 'Fail', 'Unknown', '']}>
+        <Table head={['Agent', 'Environment', 'Latest status', 'Checks pass', 'Warn', 'Fail', 'Unknown', '']} align={['left', 'left', 'left', 'right', 'right', 'right', 'right', 'right']}>
           {agents.map((a) => {
             const r = latest.get(a.id);
             return (
@@ -64,7 +65,7 @@ export default async function AssurancePage() {
                 </Td>
                 <Td align="left">{a.environment}</Td>
                 <Td align="left">
-                  {r ? <Badge tone={TONE[r.status] ?? 'neutral'}>{r.status}</Badge> : <span className="text-ink-600">not run</span>}
+                  {r ? <Badge tone={TONE[r.status] ?? 'neutral'}>{r.status}</Badge> : <span className="text-ink-500">not run</span>}
                 </Td>
                 <Td mono>{r ? fmt.int(r.report.summary.pass) : '—'}</Td>
                 <Td mono>{r ? fmt.int(r.report.summary.warn) : '—'}</Td>
@@ -97,10 +98,10 @@ export default async function AssurancePage() {
         {findings.length === 0 ? (
           <p className="text-sm text-ink-500">No findings yet.</p>
         ) : (
-          <Table head={['When', 'Agent', 'Severity', 'Finding']}>
+          <Table head={['When', 'Agent', 'Severity', 'Finding']} align={['left', 'left', 'left', 'left']}>
             {findings.slice(0, 40).map((f, i) => (
               <tr key={`${f.agentId}-${f.checkId}-${i}`}>
-                <Td mono>{fmt.when(f.createdAt)}</Td>
+                <Td mono align="left" className="whitespace-nowrap pr-4">{fmt.when(f.createdAt)}</Td>
                 <Td align="left">
                   <Link href={`/agents/${f.agentId}`} className="hover:text-signal">
                     {f.agentId}

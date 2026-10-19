@@ -19,7 +19,7 @@ Four rungs, rendered inline next to every user-facing number by one component.
 |---|---|
 | `heuristic` | A rule of thumb from the rubric. Defensible, arguable, not observed. |
 | `benchmark` | A published figure — list price, stated context window, third-party benchmark. |
-| `calibrated` | Derived from measurements on systems like yours, not yours. |
+| `calibrated` | Derived from measurements but not itself observed: fleet priors from systems like yours, or your own observed call shape priced at list rates. |
 | `measured` | Computed from your own telemetry, above the 30-trace sample floor. |
 
 Three rules make it real rather than decorative:

@@ -30,20 +30,27 @@ EventType = Literal[
 ]
 
 
+# Input limits. A full quiz is 8 scenarios x 3 turns x ~3 events, so these
+# leave generous headroom while keeping one request (and one stored session) small.
+MAX_ID_LENGTH = 64
+MAX_TEXT_LENGTH = 2000
+MAX_SESSION_EVENTS = 500
+
+
 class InteractionEvent(BaseModel):
     event_type: EventType
-    scenario_id: str = ""
-    turn_id: str | None = None
+    scenario_id: str = Field(default="", max_length=MAX_ID_LENGTH)
+    turn_id: str | None = Field(default=None, max_length=MAX_ID_LENGTH)
     strength: float = Field(default=1.0, ge=0, le=1)
-    evidence: str | None = None
-    source_text: str | None = None
-    classifier: str = "choice"
-    metadata: dict[str, Any] = Field(default_factory=dict)
+    evidence: str | None = Field(default=None, max_length=MAX_TEXT_LENGTH)
+    source_text: str | None = Field(default=None, max_length=MAX_TEXT_LENGTH)
+    classifier: str = Field(default="choice", max_length=MAX_ID_LENGTH)
+    metadata: dict[str, Any] = Field(default_factory=dict, max_length=20)
 
 
 class AssessmentSession(BaseModel):
-    session_id: str
-    events: list[InteractionEvent] = Field(default_factory=list)
+    session_id: str = Field(max_length=MAX_ID_LENGTH)
+    events: list[InteractionEvent] = Field(default_factory=list, max_length=MAX_SESSION_EVENTS)
 
 
 class MetricResult(BaseModel):

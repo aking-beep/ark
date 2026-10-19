@@ -1,23 +1,45 @@
 import Link from 'next/link';
 import { substitutionOpportunities, spendSummary, wasteBreakdown } from '@ark/db';
-import { Panel, Grid, Stat, Badge, BasisTag, Callout, Table, Td, fmt } from '@ark/ui';
+import { Panel, Grid, Stat, Badge, Callout, Table, Td, fmt } from '@ark/ui';
 import { byId } from '@ark/core';
 import { requireOrg, WINDOW_DAYS } from '@/lib/org';
+import { dollarBasis, projectionBasis, weaker, type BasisClaim } from '@/lib/basis';
+import { costProvenance } from '@/lib/queries';
+import { Basis } from '@/components/basis';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Optimize() {
   const { orgId } = await requireOrg();
-  const [opps, spend, waste] = await Promise.all([
+  const [opps, spend, waste, provenance] = await Promise.all([
     substitutionOpportunities(orgId, WINDOW_DAYS),
     spendSummary(orgId, WINDOW_DAYS),
     wasteBreakdown(orgId, WINDOW_DAYS),
+    costProvenance(orgId, WINDOW_DAYS),
   ]);
 
   // Only count the best option per workload, or the total double-counts.
   const best = new Map<string, (typeof opps)[number]>();
   for (const o of opps) if (!best.has(o.workloadId)) best.set(o.workloadId, o);
   const headline = [...best.values()].reduce((s, o) => s + o.monthlySavingUsd, 0);
+
+  // A saving is a counterfactual price: the measured call shape, priced at
+  // list rates for both models. It is never stronger than calibrated, even
+  // though the shape under it was measured, and the annual figure is a
+  // straight line on top of that.
+  const dollars = dollarBasis(spend.traces, provenance);
+  const calls = [...best.values()].reduce((s, o) => s + (o.confidence.sampleSize ?? 0), 0);
+  const savingBasis = (basis: BasisClaim['basis'], n: number): BasisClaim => ({
+    basis: weaker(basis, 'calibrated'),
+    source: `observed call shape over ${fmt.int(n)} calls, both models priced at catalog list rates — a counterfactual, not a quote`,
+    sampleSize: n,
+    belowFloor: false,
+  });
+  const saving = savingBasis(
+    [...best.values()].reduce<BasisClaim['basis']>((b, o) => weaker(b, o.confidence.basis), 'measured'),
+    calls,
+  );
+  const annual = projectionBasis(saving, 'straight-line twelve months of the monthly saving');
 
   return (
     <div className="space-y-6">
@@ -36,25 +58,28 @@ export default async function Optimize() {
           value={fmt.usd(headline, 2)}
           tone="signal"
           hint="Best single substitution per workload. Requires an eval to confirm quality holds."
+          footer={best.size > 0 ? <Basis claim={saving} /> : undefined}
         />
         <Stat
           label="Annualised"
           value={fmt.usd(headline * 12, 2)}
           hint="Straight-line. Assumes volume holds and prices do not move — both of which they will."
+          footer={best.size > 0 ? <Basis claim={annual} /> : undefined}
         />
         <Stat
           label="Recoverable waste"
           value={fmt.usd(waste.runawayUsd, 2)}
           tone={waste.runawayUsd > 0 ? 'warn' : 'neutral'}
           hint={`${fmt.int(waste.runawayTraces)} runaway traces. A turn ceiling recovers most of this without touching model choice.`}
+          footer={spend.traces > 0 ? <Basis claim={dollars} /> : undefined}
         />
       </Grid>
 
       <Callout tone="warn" title="Read this before acting on any row">
         Model substitution is the easiest lever and the one most likely to quietly degrade output. Run the
         workload&apos;s eval set against the proposed model before switching, and keep sampling accuracy for two
-        weeks after. A substitution that saves {fmt.usd(headline, 0)}/mo and drops accuracy three points is
-        usually a loss, because the rework lands on a human.
+        weeks after. A substitution that saves {fmt.usd(headline, 0)}/mo — the calibrated total of the rows
+        below — and drops accuracy three points is usually a loss, because the rework lands on a human.
       </Callout>
 
       <Panel title="Substitution opportunities" subtitle="Ordered by monthly saving.">
@@ -77,13 +102,16 @@ export default async function Optimize() {
                       </Link>
                       <p className="mt-1 flex flex-wrap items-center gap-2 font-mono text-xs text-ink-400">
                         <span>{from?.displayName ?? o.fromModelId}</span>
-                        <span className="text-ink-600">→</span>
+                        <span className="text-ink-500">→</span>
                         <span className="text-signal">{to?.displayName ?? o.toModelId}</span>
                         {to?.tier && <Badge tone="neutral">{to.tier}</Badge>}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-mono text-lg text-good">−{fmt.usd(o.monthlySavingUsd, 2)}/mo</p>
+                      {/* Green only on evidence: a heuristic saving is not painted as a fact. */}
+                      <p className={`font-mono text-lg ${o.confidence.basis === 'heuristic' ? 'text-ink-100' : 'text-good'}`}>
+                        −{fmt.usd(o.monthlySavingUsd, 2)}/mo
+                      </p>
                       <p className="font-mono text-2xs text-ink-500">
                         {fmt.usd(o.currentMonthlyUsd, 2)} → {fmt.usd(o.proposedMonthlyUsd, 2)} &middot;{' '}
                         {fmt.pct(o.savingPct, 0)} &middot; {fmt.usd(o.annualisedSavingUsd, 0)}/yr
@@ -95,11 +123,7 @@ export default async function Optimize() {
                     {o.risk}
                   </p>
                   <div className="mt-2.5">
-                    <BasisTag
-                      basis={o.confidence.basis}
-                      source={o.confidence.source}
-                      sampleSize={o.confidence.sampleSize}
-                    />
+                    <Basis claim={savingBasis(o.confidence.basis, o.confidence.sampleSize ?? 0)} />
                   </div>
                 </div>
               );
@@ -108,8 +132,12 @@ export default async function Optimize() {
         )}
       </Panel>
 
-      <Panel title="Where the money went that bought nothing" subtitle={`Last ${WINDOW_DAYS} days.`}>
-        <Table head={['Category', 'Cost', 'Share of spend', 'Lever']}>
+      <Panel
+        title="Where the money went that bought nothing"
+        subtitle={`Last ${WINDOW_DAYS} days.`}
+        right={spend.traces > 0 ? <Basis claim={dollars} /> : undefined}
+      >
+        <Table head={['Category', 'Cost', 'Share of spend', 'Lever']} align={['left', 'right', 'right', 'left']}>
           <WasteRow label="Failed outcomes" usd={waste.failedUsd} total={spend.totalUsd} lever="Eval and prompt work, or a stronger model on the hard slice only." />
           <WasteRow label="Escalated to a human" usd={waste.escalatedUsd} total={spend.totalUsd} lever="Not always waste — escalation can be the correct design. Compare against the human-only baseline." />
           <WasteRow label="Abandoned" usd={waste.abandonedUsd} total={spend.totalUsd} lever="Usually timeouts or user drop-off. Check latency before touching cost." />

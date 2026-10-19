@@ -5,6 +5,7 @@ export type {
   ProviderAdapter,
   Residency,
   FetchFn,
+  CompleteOptions,
 } from './types.js';
 export {
   OllamaAdapter,
@@ -14,7 +15,7 @@ export {
 } from './ollama.js';
 export { BedrockAdapter } from './bedrock.js';
 export { OpenAICompatibleAdapter } from './openai-compatible.js';
-export { adaptersFromEnv } from './from-env.js';
+export { adaptersFromEnv, frontierFromEnv } from './from-env.js';
 export {
   parseOllamaChat,
   parseOpenAIChat,
@@ -22,4 +23,5 @@ export {
   toBedrockConverseBody,
   chatCompletionsUrl,
 } from './parse.js';
-export { signBedrockConverse } from './sigv4.js';
+export { signBedrockConverse, signV4, canonicalUri, awsUriEncode, deriveSigningKey } from './sigv4.js';
+export { Deadline, requestJson } from './http.js';

@@ -4,13 +4,17 @@ import { AgentManifest, type AgentManifest as Manifest } from '../agents/manifes
 export const CheckStatus = z.enum(['pass', 'warn', 'fail', 'unknown']);
 export type CheckStatus = z.infer<typeof CheckStatus>;
 
+const CHECK_DETAIL_MAX = 600;
+const CHECK_EVIDENCE_MAX = 16;
+const CHECK_EVIDENCE_ITEM_MAX = 500;
+
 export const AssuranceCheck = z.object({
   id: z.string().max(80),
   group: z.enum(['identity', 'provenance', 'model', 'tools', 'permissions', 'data', 'production']),
   title: z.string().max(200),
   status: CheckStatus,
-  detail: z.string().max(600),
-  evidence: z.array(z.string().max(500)).max(16).default([]),
+  detail: z.string().max(CHECK_DETAIL_MAX),
+  evidence: z.array(z.string().max(CHECK_EVIDENCE_ITEM_MAX)).max(CHECK_EVIDENCE_MAX).default([]),
 });
 export type AssuranceCheck = z.infer<typeof AssuranceCheck>;
 
@@ -52,7 +56,17 @@ function worst(statuses: CheckStatus[]): CheckStatus {
 export function runAssurance(raw: unknown, now = Date.now()): AssuranceReport {
   const agent = AgentManifest.parse(raw);
   const checks: AssuranceCheck[] = [];
-  const push = (c: AssuranceCheck) => checks.push(AssuranceCheck.parse(c));
+  // Details and evidence carry manifest text (a purpose, policy refs), which
+  // the manifest bounds more loosely than a check does. Cap here, once, so a
+  // long but valid manifest yields a report instead of a ZodError.
+  const push = (c: AssuranceCheck) =>
+    checks.push(
+      AssuranceCheck.parse({
+        ...c,
+        detail: c.detail.slice(0, CHECK_DETAIL_MAX),
+        evidence: c.evidence.slice(0, CHECK_EVIDENCE_MAX).map((e) => e.slice(0, CHECK_EVIDENCE_ITEM_MAX)),
+      }),
+    );
 
   identityChecks(agent, push);
   provenanceChecks(agent, push);
@@ -288,49 +302,114 @@ function dataChecks(a: Manifest, push: (c: AssuranceCheck) => void) {
   });
 }
 
+/**
+ * Production gates.
+ *
+ * Each one needs three facts — is this production, how risky is it, what can
+ * it touch — and a manifest may record none of them. A gate passes only when
+ * the facts it needs are recorded and satisfy it; when one is missing the
+ * gate is `unknown`, never `pass`. An unrecorded environment is not "not
+ * production".
+ */
 function productionChecks(a: Manifest, push: (c: AssuranceCheck) => void) {
+  const envUnknown = a.environment === 'unknown';
   const prod = a.environment === 'production';
   const evals = a.governance?.evaluationRefs?.length ?? 0;
   const policies = a.governance?.policyRefs?.length ?? 0;
+  const riskUnknown = a.riskLevel === 'unknown';
   const high = a.riskLevel === 'high' || a.riskLevel === 'critical';
-  const destructive = a.permissions?.destructive || a.permissions?.financial || a.permissions?.wildcard;
+  const p = a.permissions;
+  const destructive = !!(p?.destructive || p?.financial || p?.wildcard);
+  // Not destructive *as far as recorded*: one of the three flags is absent.
+  const permsUnknown = !destructive && (p?.destructive === undefined || p?.financial === undefined || p?.wildcard === undefined);
+  const approval = a.governance?.approvalRequired;
+  const escalation = a.governance?.humanEscalation;
 
+  const refGate = (count: number, what: string): { status: CheckStatus; detail: string } => {
+    if (count > 0) return { status: 'pass', detail: `${count} ${what} ref(s)` };
+    if (prod) return { status: 'fail', detail: `Production agent has no ${what} refs.` };
+    if (envUnknown) return { status: 'unknown', detail: `Environment is not recorded; cannot tell whether ${what} refs are required.` };
+    return { status: 'pass', detail: 'Not production.' };
+  };
+
+  const evalGate = refGate(evals, 'evaluation');
   push({
     id: 'prod.evals',
     group: 'production',
     title: 'Production agent has evaluations',
-    status: !prod ? 'pass' : evals > 0 ? 'pass' : 'fail',
-    detail: !prod ? 'Not production.' : evals ? `${evals} evaluation ref(s)` : 'Production agent has no evaluation refs.',
+    status: evalGate.status,
+    detail: evalGate.detail,
     evidence: a.governance?.evaluationRefs ?? [],
   });
+  const policyGate = refGate(policies, 'policy');
   push({
     id: 'prod.policies',
     group: 'production',
     title: 'Production agent has policy references',
-    status: !prod ? 'pass' : policies > 0 ? 'pass' : 'fail',
-    detail: !prod ? 'Not production.' : policies ? `${policies} policy ref(s)` : 'Production agent has no policy refs.',
+    status: policyGate.status,
+    detail: policyGate.detail,
     evidence: a.governance?.policyRefs ?? [],
   });
+
+  let approvalStatus: CheckStatus;
+  let approvalDetail: string;
+  if (!prod && !envUnknown) {
+    approvalStatus = 'unknown';
+    approvalDetail = 'Not production.';
+  } else if (approval) {
+    approvalStatus = 'pass';
+    approvalDetail = 'approvalRequired=true';
+  } else if (envUnknown) {
+    approvalStatus = 'unknown';
+    approvalDetail = 'Environment is not recorded; cannot tell whether approval is required.';
+  } else if (high || destructive) {
+    approvalStatus = 'fail';
+    approvalDetail = 'High-risk production actions without approvalRequired.';
+  } else if (riskUnknown || permsUnknown) {
+    approvalStatus = 'unknown';
+    approvalDetail = riskUnknown
+      ? 'Risk level is not recorded; cannot tell whether approval is required.'
+      : 'Destructive, financial and wildcard permissions are not all recorded; cannot tell whether approval is required.';
+  } else {
+    approvalStatus = 'pass';
+    approvalDetail = 'Low-risk production agent with no destructive, financial or wildcard permissions.';
+  }
   push({
     id: 'prod.approval',
     group: 'production',
     title: 'Human approval for high-risk actions',
-    status: !(prod && (high || destructive))
-      ? prod
-        ? 'pass'
-        : 'unknown'
-      : a.governance?.approvalRequired
-        ? 'pass'
-        : 'fail',
-    detail: a.governance?.approvalRequired ? 'approvalRequired=true' : 'High-risk production actions without approvalRequired.',
+    status: approvalStatus,
+    detail: approvalDetail,
     evidence: [],
   });
+
+  let escalationStatus: CheckStatus;
+  let escalationDetail: string;
+  if (!prod && !envUnknown) {
+    escalationStatus = 'unknown';
+    escalationDetail = 'Not production.';
+  } else if (escalation) {
+    escalationStatus = 'pass';
+    escalationDetail = 'humanEscalation=true';
+  } else if (envUnknown) {
+    escalationStatus = 'unknown';
+    escalationDetail = 'Environment is not recorded; cannot tell whether escalation is required.';
+  } else if (high) {
+    escalationStatus = 'fail';
+    escalationDetail = 'High-risk production without humanEscalation.';
+  } else if (riskUnknown) {
+    escalationStatus = 'unknown';
+    escalationDetail = 'Risk level is not recorded; cannot tell whether escalation is required.';
+  } else {
+    escalationStatus = 'pass';
+    escalationDetail = 'Production agent below high risk.';
+  }
   push({
     id: 'prod.escalation',
     group: 'production',
     title: 'Human escalation exists where appropriate',
-    status: !(prod && high) ? (prod ? 'pass' : 'unknown') : a.governance?.humanEscalation ? 'pass' : 'fail',
-    detail: a.governance?.humanEscalation ? 'humanEscalation=true' : 'High-risk production without humanEscalation.',
+    status: escalationStatus,
+    detail: escalationDetail,
     evidence: [],
   });
 }

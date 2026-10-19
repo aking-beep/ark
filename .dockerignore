@@ -1,9 +1,25 @@
-node_modules
-.next
-dist
-dist-test
-*.db
+# Build artefacts and installs are rebuilt inside the image.
+**/node_modules
+**/.next
+**/dist
+**/dist-test
+**/*.tsbuildinfo
+# Local databases and secrets never enter the build context.
+**/*.db
+**/*.db-journal
+**/.env*
+# Python caches and virtualenvs.
+**/.venv
+**/__pycache__
+**/.pytest_cache
+# Test output.
+**/playwright-report
+**/test-results
+**/coverage
+# Repo plumbing the runtime does not need.
 .git
 worktrees
 evidence
 specs
+# Last so it wins over **/.env* above: the documented example is safe to ship.
+!.env.example

@@ -30,6 +30,16 @@ describe('ingest contract', () => {
     });
     assert.equal(p.priced, false);
     assert.equal(p.costUsd, 0);
+    assert.equal(p.source, 'unpriced');
+  });
+
+  test('a caller-reported cost and a catalog price are different sources', () => {
+    const base = {
+      id: 'e', traceId: 't', workloadId: 'w', provider: 'anthropic', modelId: 'claude-haiku-4.5',
+      turn: 0, inputTokens: 1000, outputTokens: 100, cachedInputTokens: 0, latencyMs: 0, status: 'ok' as const,
+    };
+    assert.equal(priceEvent({ ...base, costUsd: 0.002 }).source, 'reported');
+    assert.equal(priceEvent(base).source, 'catalog');
   });
 
   test('detectSensitive returns labels and not the matched text', () => {

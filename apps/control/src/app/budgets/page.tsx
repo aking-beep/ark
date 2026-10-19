@@ -1,6 +1,7 @@
 import { budgetStatus, recentAlerts, actionAudit } from '@ark/db';
-import { Panel, Badge, Meter, Table, Td, Callout, fmt, type Tone } from '@ark/ui';
+import { Panel, Badge, BasisTag, Meter, Table, Td, Callout, fmt, type Tone } from '@ark/ui';
 import { requireOrg, WINDOW_DAYS } from '@/lib/org';
+import { costProvenance } from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,11 +16,20 @@ const ENFORCEMENT_MEANING: Record<string, string> = {
 
 export default async function Budgets() {
   const { orgId } = await requireOrg();
-  const [budgets, alerts, actions] = await Promise.all([
+  const [budgets, alerts, actions, provenance] = await Promise.all([
     budgetStatus(orgId),
     recentAlerts(orgId, 40),
     actionAudit(orgId, WINDOW_DAYS),
+    costProvenance(orgId, WINDOW_DAYS),
   ]);
+  // Spent is event cost in the budget's own period, so it carries the same
+  // caveat as Spend: priced, not invoiced, unless every cost was reported.
+  // The ceiling is the operator's input. The projection is a straight line.
+  const spentMeasured =
+    provenance.reportedCostEvents != null && provenance.reportedCostEvents >= provenance.events && provenance.events > 0;
+  const spentSource = spentMeasured
+    ? 'Spent: caller-reported event costs in the period. Ceiling: your input.'
+    : 'Spent: observed tokens in the period, priced at catalog list rates — not your invoice. Ceiling: your input.';
 
   const unapproved = actions.filter((a) => a.unapproved > 0);
   const observeOnly = budgets.filter((b) => b.enforcement === 'observe' || b.enforcement === 'warn');
@@ -41,7 +51,11 @@ export default async function Budgets() {
         </Callout>
       )}
 
-      <Panel title="Ceilings" subtitle="Projection is month-to-date spend extrapolated over the full month.">
+      <Panel
+        title="Ceilings"
+        subtitle="Projection is month-to-date spend extrapolated over the full month."
+        right={<BasisTag basis={spentMeasured ? 'measured' : 'calibrated'} source={spentSource} />}
+      >
         <div className="space-y-5">
           {budgets.map((b) => (
             <div key={b.id}>
@@ -64,10 +78,14 @@ export default async function Budgets() {
               <p className="mt-1.5 text-2xs leading-relaxed text-ink-500">
                 <span className="font-mono text-ink-400">{b.enforcement}</span> —{' '}
                 {ENFORCEMENT_MEANING[b.enforcement] ?? ''} Projected{' '}
-                <span className={b.projectedUsd > b.limitUsd ? 'font-mono text-danger' : 'font-mono text-ink-400'}>
-                  {fmt.usd(b.projectedUsd, 2)}
-                </span>{' '}
-                by month end (tick mark).
+                {/* A straight line, so it is tagged heuristic and not painted red. */}
+                <span className="font-mono text-ink-200">{fmt.usd(b.projectedUsd, 2)}</span> by month end (tick
+                mark){b.projectedUsd > b.limitUsd ? ', over the ceiling' : ''}.{' '}
+                <BasisTag
+                  basis="heuristic"
+                  source="Straight-line run rate from spend so far in the period to its end."
+                  className="align-middle"
+                />
               </p>
             </div>
           ))}
@@ -78,8 +96,15 @@ export default async function Budgets() {
         <Panel
           title="Actions taken without the approval they required"
           subtitle="SEC-05. This is the finding that ends a pilot, and it is invisible in a cost report."
+          right={
+            <BasisTag
+              basis="measured"
+              source="Action records as ingested; value moved is the amount the caller reported."
+              sampleSize={unapproved.reduce((s, a) => s + a.count, 0)}
+            />
+          }
         >
-          <Table head={['Action', 'System', 'Blast radius', 'Executed', 'Unapproved', 'Value moved']}>
+          <Table head={['Action', 'System', 'Blast radius', 'Executed', 'Unapproved', 'Value moved']} align={['left', 'left', 'left', 'right', 'right', 'right']}>
             {unapproved.map((a) => (
               <tr key={`${a.name}-${a.system}`}>
                 <Td align="left" className="text-ink-100">{a.name}</Td>
@@ -99,7 +124,7 @@ export default async function Budgets() {
       )}
 
       <Panel title="Alert log" subtitle={`${alerts.length} most recent.`}>
-        <Table head={['When', 'Kind', 'Severity', 'Workload', 'Message']}>
+        <Table head={['When', 'Kind', 'Severity', 'Workload', 'Message']} align={['left', 'left', 'left', 'left', 'left']}>
           {alerts.map((a) => (
             <tr key={a.id}>
               <Td align="left"><span className="whitespace-nowrap font-mono text-2xs text-ink-500">{fmt.when(a.ts)}</span></Td>

@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from collections import Counter
+from collections import Counter, deque
 from datetime import datetime, timezone
 
-_EVENTS: list[dict] = []
+# Bounded so a long-lived process cannot grow without limit.
+MAX_EVENTS = 5000
+_EVENTS: deque[dict] = deque(maxlen=MAX_EVENTS)
 
 
 def track(name: str, *, session_id: str | None = None, metadata: dict | None = None) -> dict:
@@ -24,8 +26,18 @@ def summary() -> dict:
     return {
         "event_count": len(_EVENTS),
         "counts": dict(counts),
-        "retention": "Anonymous in-memory events for the current process only. Not written to disk.",
+        "retention": "Anonymous in-memory events for the current process only (last 5000). Not written to disk.",
     }
+
+
+def scrub_session(session_id: str) -> int:
+    """Forget which session produced each event (used when a session is deleted)."""
+    scrubbed = 0
+    for event in _EVENTS:
+        if event.get("session_id") == session_id:
+            event["session_id"] = None
+            scrubbed += 1
+    return scrubbed
 
 
 def reset() -> None:

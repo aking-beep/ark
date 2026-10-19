@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { protocolSummary, recentEvidence, type ProtocolRollup, type EvidenceRow } from '@ark/db';
 import { PROTOCOL_LABELS, PROTOCOL_DESCRIPTIONS, PROTOCOL_SPEC_VERSIONS } from '@ark/protocols';
-import { Panel, Grid, Stat, Badge, Table, Td, Callout, fmt, type Tone } from '@ark/ui';
+import { Panel, Grid, Stat, Badge, BasisTag, Table, Td, Callout, fmt, type Tone } from '@ark/ui';
 import { requireOrg, WINDOW_DAYS } from '@/lib/org';
 
 export const dynamic = 'force-dynamic';
@@ -20,6 +20,10 @@ export default async function Protocols() {
   if (summary.total === 0) return <Empty />;
 
   const byProtocol = new Map(summary.byProtocol.map((p) => [p.protocol, p]));
+  // Everything on this page is counted from observations as they arrived,
+  // including the money: an amount is what the protocol carried, not a price
+  // ARK computed. So all four headlines are measured.
+  const observed = (source: string, n: number) => <BasisTag basis="measured" source={source} sampleSize={n} />;
 
   return (
     <div className="space-y-6">
@@ -44,18 +48,21 @@ export default async function Protocols() {
           label="Protocol events"
           value={fmt.int(summary.total)}
           hint={`${byProtocol.size === ORDER.length ? 'All six' : `${byProtocol.size} of six`} protocols active. Each observation is one thing an agent did over a protocol.`}
+          footer={observed('Protocol observations ingested in the window.', summary.total)}
         />
         <Stat
           label="Blocked or denied"
           value={fmt.int(summary.blockedOrDenied)}
           tone={summary.blockedOrDenied > 0 ? 'warn' : 'good'}
           hint="Operations a policy, a peer or a human refused. These are the control plane working, not failing."
+          footer={observed('Observations whose outcome was blocked or denied.', summary.total)}
         />
         <Stat
           label="Missing approvals"
           value={fmt.int(summary.missingApprovals)}
           tone={summary.missingApprovals > 0 ? 'danger' : 'good'}
           hint={`Of ${fmt.int(summary.approvalsRequired)} operations that required a human signature, this many completed without one.`}
+          footer={observed('Operations that required approval, as observed.', summary.approvalsRequired)}
         />
         <Stat
           label="Value acted on"
@@ -67,6 +74,7 @@ export default async function Protocols() {
               ? ` USD only — ${fmt.int(summary.nonUsdEvents)} ${summary.nonUsdEvents === 1 ? 'observation was' : 'observations were'} in another currency and ${summary.nonUsdEvents === 1 ? 'is' : 'are'} excluded rather than converted at a rate nobody chose.`
               : '')
           }
+          footer={observed('Amounts as the protocol reported them, USD only. ARK priced none of it.', summary.total)}
         />
       </Grid>
 
@@ -94,7 +102,7 @@ export default async function Protocols() {
         subtitle="One row per normalised observation. Nothing here is a payload — every field is a name, a reference, a count or an amount."
         right={<span className="font-mono">{fmt.int(evidence.length)} shown</span>}
       >
-        <Table head={['Protocol', 'Operation', 'Actor → Target', 'Outcome', 'Approval', 'Value', 'Time']}>
+        <Table head={['Protocol', 'Operation', 'Actor → Target', 'Outcome', 'Approval', 'Value', 'Time']} align={['left', 'left', 'left', 'right', 'right', 'right', 'right']}>
           {evidence.map((e) => (
             <EvidenceTr key={e.id} e={e} />
           ))}
@@ -114,10 +122,10 @@ function ProtocolCard({ protocol, rollup }: { protocol: keyof typeof PROTOCOL_LA
       <div className="rounded-xl border border-dashed border-ink-700 bg-ink-850/40 px-5 py-4">
         <div className="flex items-baseline justify-between gap-2">
           <span className="font-mono text-sm font-semibold text-ink-400">{label}</span>
-          <span className="text-2xs text-ink-600">silent</span>
+          <span className="text-2xs text-ink-500">silent</span>
         </div>
         <p className="mt-1.5 text-xs leading-relaxed text-ink-500">{description}</p>
-        <p className="mt-2.5 border-t border-ink-800 pt-2.5 font-mono text-2xs text-ink-600">
+        <p className="mt-2.5 border-t border-ink-800 pt-2.5 font-mono text-2xs text-ink-500">
           adapter built against spec {builtAgainst}
         </p>
       </div>
@@ -149,10 +157,17 @@ function ProtocolCard({ protocol, rollup }: { protocol: keyof typeof PROTOCOL_LA
         <Cell term="Pending" value={fmt.int(rollup.pending)} />
       </dl>
 
-      <p className="mt-2.5 border-t border-ink-800 pt-2.5 font-mono text-2xs text-ink-600">
+      <p className="mt-2.5 border-t border-ink-800 pt-2.5 font-mono text-2xs text-ink-500">
         {rollup.protocolVersion ? `observed ${rollup.protocolVersion}` : 'version not declared'} &middot; adapter{' '}
         {builtAgainst} &middot; last {fmt.when(rollup.lastSeen)}
       </p>
+      <div className="mt-2">
+        <BasisTag
+          basis="measured"
+          source="Counted from protocol evidence. Amounts are as the protocol reported them; ARK prices none of them."
+          sampleSize={rollup.events}
+        />
+      </div>
     </div>
   );
 }
@@ -184,28 +199,28 @@ function EvidenceTr({ e }: { e: EvidenceRow }) {
     <tr className="hover:bg-ink-800/40">
       <Td align="left">
         <span className="font-mono text-2xs text-ink-300">{label}</span>
-        <span className="ml-2 text-2xs text-ink-600">{e.kind}</span>
+        <span className="ml-2 text-2xs text-ink-500">{e.kind}</span>
       </Td>
       <Td align="left">
         <span className="font-mono text-xs text-ink-100">{e.operation}</span>
-        {e.evidenceRef && <span className="ml-2 font-mono text-2xs text-ink-600">{e.evidenceRef}</span>}
+        {e.evidenceRef && <span className="ml-2 font-mono text-2xs text-ink-500">{e.evidenceRef}</span>}
       </Td>
       <Td align="left">
         {e.actor || e.target ? (
           <span className="font-mono text-2xs text-ink-300">
-            {e.actor ?? '—'} <span className="text-ink-600">→</span> {e.target ?? '—'}
+            {e.actor ?? '—'} <span className="text-ink-500">→</span> {e.target ?? '—'}
           </span>
         ) : (
-          <span className="text-2xs text-ink-600">—</span>
+          <span className="text-2xs text-ink-500">—</span>
         )}
       </Td>
       <Td>
         <Badge tone={OUTCOME_TONE[e.outcome] ?? 'neutral'}>{e.outcome}</Badge>
-        {e.latencyMs != null && <span className="ml-2 font-mono text-2xs text-ink-600">{fmt.int(e.latencyMs)}ms</span>}
+        {e.latencyMs != null && <span className="ml-2 font-mono text-2xs text-ink-500">{fmt.int(e.latencyMs)}ms</span>}
       </Td>
       <Td>
         {!e.requiredApproval ? (
-          <span className="text-2xs text-ink-600">not required</span>
+          <span className="text-2xs text-ink-500">not required</span>
         ) : missing ? (
           <Badge tone="danger">missing</Badge>
         ) : e.approvedBy ? (
@@ -223,7 +238,7 @@ function EvidenceTr({ e }: { e: EvidenceRow }) {
             {e.currency}
           </span>
         ) : (
-          <span className="text-ink-600">—</span>
+          <span className="text-ink-500">—</span>
         )}
       </Td>
       <Td mono className="text-ink-500">

@@ -6,7 +6,7 @@ import { useState } from "react";
 import { ExternalLink } from "lucide-react";
 import { api } from "@/lib/api";
 import type { ScoreResult } from "@/lib/types";
-import { clearSession, encodeSharePayload, loadSession, saveResult } from "@/lib/session-store";
+import { LOCAL_SHARE_PATH, clearSession, encodeSharePayload, loadSession, saveResult } from "@/lib/session-store";
 import { copyText, isAppleTouch, shareOrCopy } from "@/lib/copy-text";
 import { useReadingLevel } from "@/components/reading-level";
 import { cleanModelName, friendlyCategory, friendlyMetric, friendlyWorkload, metricHelp, productHomepage } from "@/lib/friendly";
@@ -80,6 +80,18 @@ export function ResultsView({
   const topTool =
     (stack ?? [])[0]?.product?.name ?? current.primary_stack.slots[0]?.recommendation?.name ?? null;
   const firstGuide = guides[0];
+  // The "where to paste" hint must belong to the app it names: match the top tool
+  // to its install guide, and fall back to the first guide's own app when the top
+  // tool has none (e.g. a search tool with no custom-instructions field).
+  const topGuide = topTool
+    ? guides.find((g) => {
+        const a = g.label.toLowerCase();
+        const b = topTool.toLowerCase();
+        return b.includes(a) || a.includes(b);
+      })
+    : undefined;
+  const startGuide = topGuide ?? firstGuide;
+  const startTool = topGuide ? topTool : firstGuide?.label ?? topTool;
   const useTarget = CHAT_TARGETS.find((item) => item.id === useToolId) ?? CHAT_TARGETS[0];
   const personaTitle = personaName.trim() || current.workstyle?.label || current.persona.label;
 
@@ -139,10 +151,11 @@ export function ResultsView({
   }
 
   async function share() {
-    let path = sessionId ? `/share/${sessionId}` : "/share/profile";
+    // Never put the session id in a share URL: it is the delete/export capability.
+    let path: string | null = null;
     let durable = false;
     try {
-      const created = await api.publishShare(current);
+      const created = await api.publishShare(current, sessionId);
       path = created.path;
       durable = Boolean(created.durable);
     } catch {
@@ -156,10 +169,13 @@ export function ResultsView({
         }
       }
     }
-    const encoded = await encodeSharePayload(current);
-    const url = durable
-      ? `${window.location.origin}${path}`
-      : `${window.location.origin}${path}#${encoded}`;
+    let url: string;
+    if (durable && path) {
+      url = `${window.location.origin}${path}`;
+    } else {
+      const encoded = await encodeSharePayload(current);
+      url = `${window.location.origin}${path ?? LOCAL_SHARE_PATH}#${encoded}`;
+    }
     setShareUrl(url);
     const outcome = await shareOrCopy(url, workstyle?.label ?? current.persona.label);
     if (outcome === "fallback") setFallback({ text: url, label: "share link" });
@@ -258,8 +274,8 @@ export function ResultsView({
             </li>
             <li>
               <span className="font-medium">2.</span> Open{" "}
-              <span className="font-medium">{topTool ?? "your main AI app"}</span>
-              {firstGuide ? <span className="text-muted-foreground"> ({firstGuide.where})</span> : null}.
+              <span className="font-medium">{startTool ?? "your main AI app"}</span>
+              {startGuide ? <span className="text-muted-foreground"> ({startGuide.where})</span> : null}.
             </li>
             <li>
               <span className="font-medium">3.</span> Paste the instructions in and start using it.

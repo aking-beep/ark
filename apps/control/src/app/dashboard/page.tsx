@@ -2,17 +2,21 @@ import Link from 'next/link';
 import { spendSummary, wasteBreakdown, recentAlerts, qualityByWorkload, agentInfrastructureSummary } from '@ark/db';
 import { Panel, Grid, Stat, Badge, Table, Td, Sparkline, Callout, Meter, fmt } from '@ark/ui';
 import { requireOrg, WINDOW_DAYS } from '@/lib/org';
+import { dollarBasis, telemetryBasis } from '@/lib/basis';
+import { costProvenance } from '@/lib/queries';
+import { Basis } from '@/components/basis';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Dashboard() {
   const { orgId } = await requireOrg();
-  const [spend, waste, alerts, quality, agents] = await Promise.all([
+  const [spend, waste, alerts, quality, agents, provenance] = await Promise.all([
     spendSummary(orgId, WINDOW_DAYS),
     wasteBreakdown(orgId, WINDOW_DAYS),
     recentAlerts(orgId, 8),
     qualityByWorkload(orgId, WINDOW_DAYS),
     agentInfrastructureSummary(orgId),
+    costProvenance(orgId, WINDOW_DAYS),
   ]);
 
   if (spend.traces === 0 && agents.registered === 0) {
@@ -26,6 +30,10 @@ export default async function Dashboard() {
 
   const qualityBy = new Map(quality.map((q) => [q.workloadId, q]));
   const critical = alerts.filter((a) => a.severity === 'critical').length;
+  // Every headline on this page is one of two kinds: dollars (calibrated
+  // unless every cost was caller-reported) or counts and rates (measured).
+  const dollars = dollarBasis(spend.traces, provenance);
+  const rates = telemetryBasis(spend.traces);
 
   return (
     <div className="space-y-6">
@@ -54,6 +62,7 @@ export default async function Dashboard() {
           value={fmt.usd(spend.costPerSuccessfulOutcomeUsd)}
           tone="signal"
           hint="Total spend divided by units of work that actually succeeded. Failed attempts and retries are in the numerator."
+          footer={<Basis claim={dollars} />}
         />
         <Stat
           label="Total spend"
@@ -61,34 +70,51 @@ export default async function Dashboard() {
           hint={`Cost per call would read ${fmt.usd(
             spend.totalUsd / Math.max(1, spend.byModel.reduce((s, m) => s + m.calls, 0)),
           )} — a number that hides the loops.`}
+          footer={<Basis claim={dollars} />}
         />
         <Stat
           label="Bought nothing"
           value={fmt.usd(waste.failedUsd + waste.escalatedUsd + waste.abandonedUsd, 2)}
           tone={spend.wastedPct > 12 ? 'danger' : spend.wastedPct > 6 ? 'warn' : 'good'}
           hint={`${fmt.pct(spend.wastedPct, 1)} of spend went to work that failed, escalated or was abandoned.`}
-          footer={<Meter pct={spend.wastedPct} tone={spend.wastedPct > 12 ? 'danger' : 'warn'} />}
+          footer={
+            <div className="space-y-2">
+              <Meter pct={spend.wastedPct} tone={spend.wastedPct > 12 ? 'danger' : 'warn'} />
+              <Basis claim={dollars} />
+            </div>
+          }
         />
         <Stat
           label="Success rate"
           value={fmt.pct((spend.successfulTraces / Math.max(1, spend.traces)) * 100, 1)}
           tone="neutral"
           hint={`${fmt.int(spend.traces - spend.successfulTraces)} of ${fmt.int(spend.traces)} units did not land.`}
+          footer={<Basis claim={rates} />}
         />
       </Grid>
+
+      <p className="-mt-2 max-w-3xl text-xs leading-relaxed text-ink-400">
+        <span className="font-mono text-ink-300">{dollars.basis}</span> dollars: {dollars.source}.{' '}
+        <span className="font-mono text-ink-300">{rates.basis}</span> rates and counts: {rates.source}.
+      </p>
 
       {waste.runawayTraces > 0 && (
         <Callout tone="danger" title="Runaway loops">
           {fmt.int(waste.runawayTraces)} traces ran more than three times the mean turn count and cost{' '}
           <span className="font-mono text-ink-100">{fmt.usd(waste.runawayUsd, 2)}</span> between them. Agent loops
           are the single largest source of surprise in an AI bill, and they are invisible on a per-call cost
-          report. <Link href="/budgets" className="text-signal underline underline-offset-2">Set a turn ceiling</Link>.
+          report. <Basis claim={dollars} /> <Link href="/budgets" className="text-signal underline underline-offset-2">Set a turn ceiling</Link>.
         </Callout>
       )}
 
       <Panel
         title="Daily spend"
-        subtitle="Watch for step changes, not slopes — they usually mean a prompt or model changed."
+        subtitle={
+          <>
+            Watch for step changes, not slopes — they usually mean a prompt or model changed.{' '}
+            <Basis claim={dollars} />
+          </>
+        }
         right={<span className="font-mono">{fmt.usd(spend.daily.at(-1)?.costUsd ?? 0, 2)} today</span>}
       >
         <Sparkline points={spend.daily.map((d) => d.costUsd)} height={72} />
@@ -101,7 +127,11 @@ export default async function Dashboard() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Panel
           title="By workload"
-          subtitle="Cost per outcome is the comparable number. Total spend is not."
+          subtitle={
+            <>
+              Cost per outcome is the comparable number. Total spend is not. <Basis claim={dollars} />
+            </>
+          }
           className="lg:col-span-2"
         >
           <Table head={['Workload', 'Spend', 'Units', 'Per outcome', 'Success', 'Accuracy']}>
@@ -129,7 +159,7 @@ export default async function Dashboard() {
                         <span className="ml-1 text-ink-500">n={q.sampleSize}</span>
                       </span>
                     ) : (
-                      <span className="text-ink-600">unsampled</span>
+                      <span className="text-ink-500">unsampled</span>
                     )}
                   </Td>
                 </tr>
@@ -143,7 +173,14 @@ export default async function Dashboard() {
         </Panel>
 
         <div className="space-y-6">
-          <Panel title="By model" subtitle="Share of spend, not share of calls.">
+          <Panel
+            title="By model"
+            subtitle={
+              <>
+                Share of spend, not share of calls. <Basis claim={dollars} />
+              </>
+            }
+          >
             <ul className="space-y-3">
               {spend.byModel.slice(0, 6).map((m) => (
                 <li key={m.modelId}>

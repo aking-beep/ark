@@ -5,8 +5,11 @@ import {
   richestProtocolTrace, traceStory, type TraceStory,
 } from '@ark/db';
 import { PROTOCOL_LABELS } from '@ark/protocols';
-import { Panel, Grid, Stat, Badge, BasisTag, Table, Td, Callout, fmt, type Tone } from '@ark/ui';
+import { Panel, Grid, Stat, Badge, Table, Td, Callout, fmt, type Tone } from '@ark/ui';
 import { requireOrg, WINDOW_DAYS } from '@/lib/org';
+import { dollarBasis, telemetryBasis } from '@/lib/basis';
+import { costProvenance } from '@/lib/queries';
+import { Basis } from '@/components/basis';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,12 +17,13 @@ export default async function WorkloadDetail({ params }: { params: Promise<{ id:
   const { id } = await params;
   const { orgId } = await requireOrg();
 
-  const [workloads, spend, shape, actions, quality] = await Promise.all([
+  const [workloads, spend, shape, actions, quality, provenance] = await Promise.all([
     listWorkloads(orgId),
     spendSummary(orgId, WINDOW_DAYS),
     observedShape(orgId, id, WINDOW_DAYS),
     actionAudit(orgId, WINDOW_DAYS),
     qualityByWorkload(orgId, WINDOW_DAYS),
+    costProvenance(orgId, WINDOW_DAYS),
   ]);
 
   const w = workloads.find((x) => x.id === id);
@@ -42,6 +46,11 @@ export default async function WorkloadDetail({ params }: { params: Promise<{ id:
       ? ((actualPerUnit - predictedPerUnit) / predictedPerUnit) * 100
       : null;
 
+  // Dollars rest on this workload's traces and are priced, not invoiced;
+  // turns and failure rate are counted straight off the same traces.
+  const dollars = dollarBasis(s?.traces ?? 0, provenance);
+  const rates = telemetryBasis(shape.sampleSize);
+
   const predictedTurns: number | null = a?.architecture?.callShape?.turnsPerOutcome ?? null;
   const predictedFailure: number | null = a?.architecture?.callShape?.failureRate ?? null;
 
@@ -62,24 +71,31 @@ export default async function WorkloadDetail({ params }: { params: Promise<{ id:
       </header>
 
       <Grid cols={4}>
-        <Stat label="Spend" value={fmt.usd(s?.costUsd ?? 0, 2)} hint={`Last ${WINDOW_DAYS} days.`} />
+        <Stat
+          label="Spend"
+          value={fmt.usd(s?.costUsd ?? 0, 2)}
+          hint={`Last ${WINDOW_DAYS} days.`}
+          footer={<Basis claim={dollars} />}
+        />
         <Stat
           label="Cost per outcome"
           value={fmt.usd(actualPerUnit ?? 0)}
           tone="signal"
-          footer={<BasisTag basis="measured" source="control-telemetry" sampleSize={shape.sampleSize} />}
+          footer={<Basis claim={dollars} />}
         />
         <Stat
           label="Turns per outcome"
           value={shape.turnsPerOutcome.toFixed(1)}
           tone={predictedTurns != null && shape.turnsPerOutcome > predictedTurns * 1.5 ? 'warn' : 'neutral'}
           hint={predictedTurns != null ? `Assessment assumed ${predictedTurns.toFixed(1)}.` : undefined}
+          footer={<Basis claim={rates} />}
         />
         <Stat
           label="Failure rate"
           value={fmt.pct(shape.failureRate * 100, 1)}
           tone={shape.failureRate > 0.1 ? 'danger' : shape.failureRate > 0.05 ? 'warn' : 'good'}
           hint={predictedFailure != null ? `Assessment assumed ${fmt.pct(predictedFailure * 100, 1)}.` : undefined}
+          footer={<Basis claim={rates} />}
         />
       </Grid>
 
@@ -125,7 +141,8 @@ export default async function WorkloadDetail({ params }: { params: Promise<{ id:
                     Effective cost per <em>correct</em> outcome:{' '}
                     <span className="font-mono text-ink-200">
                       {fmt.usd((actualPerUnit ?? 0) / Math.max(0.01, q.accuracy))}
-                    </span>
+                    </span>{' '}
+                    <Basis claim={dollars} />
                   </p>
                 </div>
               </div>
@@ -139,7 +156,7 @@ export default async function WorkloadDetail({ params }: { params: Promise<{ id:
 
           <Panel title="Actions taken" subtitle="What the system was allowed to do in the real world.">
             {actions.length ? (
-              <Table head={['Action', 'System', 'Count', 'Unapproved']}>
+              <Table head={['Action', 'System', 'Count', 'Unapproved']} align={['left', 'left', 'right', 'right']}>
                 {actions.map((x) => (
                   <tr key={`${x.name}-${x.system}`}>
                     <Td align="left">
@@ -168,7 +185,7 @@ export default async function WorkloadDetail({ params }: { params: Promise<{ id:
           title="Security controls"
           subtitle="Each control names how Control verifies it at runtime. A control nobody can verify is a paragraph."
         >
-          <Table head={['ID', 'Requirement', 'Verified by', 'Blocking']}>
+          <Table head={['ID', 'Requirement', 'Verified by', 'Blocking']} align={['left', 'left', 'left', 'right']}>
             {a.security.controls.map((c: any) => (
               <tr key={c.id}>
                 <Td align="left"><span className="font-mono text-2xs text-ink-300">{c.id}</span></Td>
@@ -225,7 +242,7 @@ function TraceStoryPanel({ story }: { story: TraceStory }) {
           >
             {e.actor || e.target ? (
               <span className="font-mono">
-                {e.actor ?? '—'} <span className="text-ink-600">→</span> {e.target ?? '—'}
+                {e.actor ?? '—'} <span className="text-ink-500">→</span> {e.target ?? '—'}
               </span>
             ) : null}
             {e.valueUsd != null && <> &middot; <span className="font-mono text-ink-200">{fmt.usd(e.valueUsd, 2)}</span></>}
@@ -242,7 +259,7 @@ function TraceStoryPanel({ story }: { story: TraceStory }) {
                 )}
               </>
             )}
-            {e.latencyMs != null && <span className="ml-2 font-mono text-ink-600">{fmt.int(e.latencyMs)}ms</span>}
+            {e.latencyMs != null && <span className="ml-2 font-mono text-ink-500">{fmt.int(e.latencyMs)}ms</span>}
           </StoryStep>
         ))}
 

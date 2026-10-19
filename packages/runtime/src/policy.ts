@@ -4,6 +4,7 @@ import {
   catalogModelId,
   completionFrom,
   costConstraintApplies,
+  effectiveModel,
   heuristicLatencyMs,
   latencyConstraintApplies,
   estimateCostUsd,
@@ -79,7 +80,11 @@ function excludeReason(
   }
   const usd = estimateCostUsd(adapter, req);
   if (costConstraintApplies(constraints, usd)) {
-    return `estimated $${usd!.toFixed(6)} exceeds maxCostUsd ${constraints.maxCostUsd} (catalog ${catalogModelId(adapter, req.model)})`;
+    const sent = effectiveModel(adapter, req);
+    if (usd === null) {
+      return `cost unknown: model ${sent} is not in the catalog and maxCostUsd ${constraints.maxCostUsd} is set (fail closed)`;
+    }
+    return `estimated $${usd.toFixed(6)} exceeds maxCostUsd ${constraints.maxCostUsd} (catalog ${catalogModelId(adapter, sent)})`;
   }
   const lat = heuristicLatencyMs(adapter);
   if (latencyConstraintApplies(constraints, lat)) {

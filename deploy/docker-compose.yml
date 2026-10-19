@@ -3,23 +3,46 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
+    restart: unless-stopped
     ports:
       - "3000:3000"
       - "3001:3001"
       - "3002:3002"
-      - "8472:8472"
+      # Operators only: bound to loopback so browsers go through the consumer
+      # proxy (body cap, header allow-list) rather than straight to the API.
+      - "127.0.0.1:8472:8472"
     environment:
-      ARK_DATABASE_URL: file:/data/ark.db
-      ARK_SESSION_SECRET: ${ARK_SESSION_SECRET:-change-me-in-production}
+      # Default is the volume file. Point at libSQL/Turso to share one DB across
+      # replicas; entrypoint's db:bootstrap only seeds when the orgs table is empty.
+      ARK_DATABASE_URL: ${ARK_DATABASE_URL:-file:/data/ark.db}
+      ARK_DATABASE_AUTH_TOKEN: ${ARK_DATABASE_AUTH_TOKEN:-}
+      # Control refuses to start in production with an empty, placeholder, or
+      # short secret. Generate one: openssl rand -hex 32
+      ARK_SESSION_SECRET: ${ARK_SESSION_SECRET:?set a 32+ char secret}
+      # Seed credentials. Required: the production seed refuses the demo defaults.
+      ARK_DEMO_PASSWORD: ${ARK_DEMO_PASSWORD:?set the Demo Co login password}
+      ARK_NORTHWIND_PASSWORD: ${ARK_NORTHWIND_PASSWORD:?set the Northwind login password}
+      ARK_INGEST_TOKEN_DEMO: ${ARK_INGEST_TOKEN_DEMO:?set the Demo Co ingest token}
+      ARK_INGEST_TOKEN_NORTHWIND: ${ARK_INGEST_TOKEN_NORTHWIND:?set the Northwind ingest token}
       ARK_CONTROL_URL: http://127.0.0.1:3002
-      ARK_CONTROL_TOKEN: ${ARK_CONTROL_TOKEN:-ark_dev_ingest_org_demo}
+      ARK_CONTROL_TOKEN: ${ARK_CONTROL_TOKEN:-${ARK_INGEST_TOKEN_DEMO}}
       API_ORIGIN: http://127.0.0.1:8472
       MYAI_ROOT: /app/my-ai
       ARK_WEBHOOK_URL: ${ARK_WEBHOOK_URL:-}
       ARK_SLACK_WEBHOOK_URL: ${ARK_SLACK_WEBHOOK_URL:-}
+      # Opt-ins, all off by default. See docs/05-hosting.md.
+      ARK_SHOW_DEMO_LOGIN: ${ARK_SHOW_DEMO_LOGIN:-}
+      ARK_MEASURE_ENABLED: ${ARK_MEASURE_ENABLED:-}
+      ARK_ALLOW_SEED: ${ARK_ALLOW_SEED:-}
       NODE_ENV: production
     volumes:
       - ark-data:/data
+    healthcheck:
+      test: ["CMD", "/app/deploy/healthcheck.sh"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+      start_period: 90s
 
 volumes:
   ark-data:

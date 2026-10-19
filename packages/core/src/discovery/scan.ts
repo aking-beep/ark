@@ -170,31 +170,61 @@ export function discoverRepository(raw: unknown): DiscoveryResult {
     evidence: evidence.length,
   });
 
+  // Every array and string is capped to the result schema here, in one place,
+  // before the parse. A repository is attacker-shaped input: forty agent
+  // definitions or a 250-character MCP server name is a reason to truncate
+  // the report, never a reason for discovery to throw.
+  const paths = (ps: string[], max: number) => ps.slice(0, max).map((p) => cut(p, 500));
   return DiscoveryResult.parse({
     repository: snap.repository,
     branch: snap.branch,
     commitSha: snap.commitSha,
-    candidates,
-    models: [...modelMap.values()].map((m) => ({
-      provider: m.provider,
-      modelId: m.modelId,
-      evidencePaths: m.paths.slice(0, 16),
+    candidates: candidates.slice(0, 32).map((c) => ({
+      id: cut(c.id, 128),
+      name: cut(c.name, 200),
+      ...(c.purpose !== undefined ? { purpose: cut(c.purpose, 2_000) } : {}),
+      evidencePaths: paths(c.evidencePaths, 32),
     })),
-    tools: [...toolMap.values()].map((t) => ({
-      name: t.name,
-      type: t.type,
-      evidencePaths: t.paths.slice(0, 16),
+    models: [...modelMap.values()].slice(0, 32).map((m) => ({
+      provider: cut(m.provider, 40),
+      modelId: cut(m.modelId, 200),
+      evidencePaths: paths(m.paths, 16),
     })),
-    mcpServers: [...mcpMap.values()],
-    integrations: [...integMap.values()],
-    infrastructure: infra.slice(0, 32),
-    frameworks: [...frameworks].slice(0, 32),
-    envVarRefs: [...envVarRefs].slice(0, 64),
-    evidence: evidence.slice(0, 200),
-    warnings: warnings.slice(0, 40),
+    tools: [...toolMap.values()].slice(0, 64).map((t) => ({
+      name: cut(t.name, 200),
+      type: cut(t.type, 40),
+      evidencePaths: paths(t.paths, 16),
+    })),
+    mcpServers: [...mcpMap.values()].slice(0, 32).map((m) => ({
+      name: cut(m.name, 200),
+      transport: cut(m.transport, 40),
+      ...(m.source !== undefined ? { source: cut(m.source, 500) } : {}),
+      ...(m.tools !== undefined ? { tools: m.tools.slice(0, 32).map((t) => cut(t, 120)) } : {}),
+      evidencePaths: paths(m.evidencePaths, 16),
+    })),
+    integrations: [...integMap.values()].slice(0, 32).map((i) => ({
+      name: cut(i.name, 200),
+      type: cut(i.type, 40),
+      evidencePaths: paths(i.evidencePaths, 16),
+    })),
+    infrastructure: infra.slice(0, 32).map((i) => ({
+      kind: cut(i.kind, 80),
+      name: cut(i.name, 200),
+      evidencePaths: paths(i.evidencePaths, 16),
+    })),
+    frameworks: [...frameworks].slice(0, 32).map((f) => cut(f, 80)),
+    envVarRefs: [...envVarRefs].slice(0, 64).map((e) => cut(e, 120)),
+    evidence: evidence.slice(0, 200).map((e) => ({
+      path: cut(e.path, 500),
+      kind: cut(e.kind, 80),
+      detail: cut(e.detail, 400),
+    })),
+    warnings: warnings.slice(0, 40).map((w) => cut(w, 400)),
     confidence,
   });
 }
+
+const cut = (s: string, max: number) => (s.length > max ? s.slice(0, max) : s);
 
 function slugFromRepo(url: string): string {
   const last = url.split('/').filter(Boolean).pop() ?? 'agent';

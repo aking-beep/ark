@@ -79,7 +79,7 @@ export function describeBasis(e: Estimate<unknown>): string {
     case 'measured':
       return `Measured from your own telemetry${e.sampleSize ? ` (${fmt(e.sampleSize)} observations)` : ''}.`;
     case 'calibrated':
-      return `Calibrated from comparable workloads in ARK Control${e.sampleSize ? ` (${fmt(e.sampleSize)} observations)` : ''}, not your own.`;
+      return `Calibrated from ARK Control observations${e.sampleSize ? ` (${fmt(e.sampleSize)} of them)` : ''} — derived from telemetry, not itself observed.`;
     case 'benchmark':
       return `Published figure${e.asOf ? ` as of ${e.asOf}` : ''}. Verify before you rely on it.`;
     case 'heuristic':
@@ -92,8 +92,13 @@ export function isUncalibrated(estimates: Estimate<unknown>[]): boolean {
   return estimates.every((e) => BASIS_RANK[e.basis] <= 1);
 }
 
-/** The weakest link. A report is only as trustworthy as its softest input. */
+/**
+ * The weakest link. A report is only as trustworthy as its softest input.
+ * A report with no inputs has nothing behind it, so it is `heuristic` — the
+ * same answer `isUncalibrated([])` gives — and never `measured`.
+ */
 export function weakestBasis(estimates: Estimate<unknown>[]): Basis {
+  if (estimates.length === 0) return 'heuristic';
   return estimates.reduce<Basis>(
     (worst, e) => (BASIS_RANK[e.basis] < BASIS_RANK[worst] ? e.basis : worst),
     'measured',

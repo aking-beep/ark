@@ -8,6 +8,12 @@ if [[ -z "$SLUG" ]]; then
   echo "usage: bash scripts/factory-ship.sh <slug>" >&2
   exit 2
 fi
+# Same rule as factory-new.sh. The slug is used as a path, a branch name and a
+# `git add` pathspec below; refuse anything that could escape those.
+if [[ ! "$SLUG" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
+  echo "slug must be kebab-case: [a-z0-9] separated by single hyphens" >&2
+  exit 2
+fi
 
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
@@ -26,8 +32,12 @@ fi
 echo "→ running the gate"
 python3 scripts/factory-gate.py "$SLUG"
 
-if [[ -n "$(git status --porcelain)" ]]; then
+# Tracked changes only. evidence/<slug>/ and specs/<slug>.md are normally
+# untracked here — they are exactly what the next step commits — so counting
+# untracked files made this refuse every ship that had not hand-committed them.
+if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
   echo "the main checkout has uncommitted changes; commit or stash them first" >&2
+  git status --short --untracked-files=no >&2
   exit 1
 fi
 

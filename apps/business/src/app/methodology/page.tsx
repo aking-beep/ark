@@ -1,5 +1,5 @@
-import { Panel, Table, Td, Badge, BasisTag } from '@ark/ui';
-import { CALL_SHAPE, PATTERN_LABEL, type Pattern } from '@ark/core';
+import { Panel, CardTable, BasisTag } from '@ark/ui';
+import { ASSESS_API_LIMITS, CALL_SHAPE, PATTERN_LABEL, SUITABILITY_RUBRIC, type Pattern } from '@ark/core';
 
 export const metadata = { title: 'Methodology — AI Fit Teams' };
 
@@ -43,7 +43,8 @@ export default function Methodology() {
             third-party benchmark. True of the world, not necessarily of you.
           </Rung>
           <Rung basis="calibrated">
-            Derived from measurements taken on systems like yours, but not yours. Useful, and still a prior.
+            Derived from measurements, but not itself a measurement: either observed on systems like yours,
+            or your own observed call shape priced at list rates. Useful, and still a prior.
           </Rung>
           <Rung basis="measured">
             Computed from telemetry emitted by your own running workload, above the sample floor. This is
@@ -61,23 +62,27 @@ export default function Methodology() {
         title="The seven suitability dimensions"
         subtitle="Weighted. The weakest dimension usually decides the verdict, which is deliberate."
       >
-        <Table head={['Dimension', 'Weight', 'What moves it']}>
-          {DIMENSIONS.map((d) => (
-            <tr key={d.key} className="border-t border-ink-800 align-top">
-              <Td align="left" className="pr-4">
-                <span className="text-ink-200">{d.label}</span>
-              </Td>
-              <Td mono>{d.weight.toFixed(2)}</Td>
-              <Td align="left" className="pl-4">
-                <span className="text-xs leading-relaxed text-ink-400">{d.drivers}</span>
-              </Td>
-            </tr>
-          ))}
-        </Table>
+        <CardTable
+          columns={[
+            { label: 'Dimension', align: 'left', className: 'pr-4' },
+            { label: 'Weight', mono: true },
+            { label: 'What moves it', align: 'left', className: 'pl-4' },
+          ]}
+          rows={SUITABILITY_RUBRIC.map((d) => ({
+            key: d.key,
+            cells: [
+              <span key="l" className="text-ink-200">{d.label}</span>,
+              d.weight.toFixed(2),
+              <span key="m" className="text-xs leading-relaxed text-ink-400">{d.movedBy}</span>,
+            ],
+          }))}
+        />
         <p className="mt-4 max-w-3xl text-xs leading-relaxed text-ink-400">
-          A weighted average alone would let a high volume score paper over a workload that must be exactly
-          right. It does not: a small number of conditions are hard blockers that cap the verdict regardless
-          of the total, and the report lists them by name.
+          This table is the engine&apos;s own rubric, rendered from the same constant the scoring code reads,
+          so it cannot describe a different rubric from the one that scored your report. A weighted average
+          alone would let a high volume score paper over a workload that must be exactly right. It does not:
+          a small number of conditions are hard blockers that cap the verdict regardless of the total, and
+          the report lists them by name. Totals below 40 are not-ai, below 58 not yet, below 72 assisted.
         </p>
       </Panel>
 
@@ -85,24 +90,33 @@ export default function Methodology() {
         title="Assumed call shapes"
         subtitle="Per architecture pattern. These are the figures ARK Control replaces with measurement."
       >
-        <Table head={['Pattern', 'Turns / outcome', 'Context growth / turn', 'Failure rate', 'Retries', 'Cache hit']}>
-          {(Object.keys(CALL_SHAPE) as Pattern[]).map((p) => {
+        <CardTable
+          columns={[
+            { label: 'Pattern', align: 'left', className: 'pr-4' },
+            { label: 'Turns / outcome', mono: true },
+            { label: 'Context growth / turn', mono: true },
+            { label: 'Failure rate', mono: true },
+            { label: 'Retries', mono: true },
+            { label: 'Cache hit', mono: true },
+          ]}
+          rows={(Object.keys(CALL_SHAPE) as Pattern[]).map((p) => {
             const s = CALL_SHAPE[p];
-            return (
-              <tr key={p} className="border-t border-ink-800">
-                <Td align="left" className="pr-4">
+            return {
+              key: p,
+              cells: [
+                <span key="p">
                   <span className="text-ink-200">{PATTERN_LABEL[p]}</span>
-                  <span className="mt-0.5 block font-mono text-2xs text-ink-600">{p}</span>
-                </Td>
-                <Td mono>{s.turnsPerOutcome}</Td>
-                <Td mono>{s.contextGrowthPerTurn}</Td>
-                <Td mono>{(s.failureRate * 100).toFixed(0)}%</Td>
-                <Td mono>{s.retriesPerFailure}</Td>
-                <Td mono>{(s.cacheHitRate * 100).toFixed(0)}%</Td>
-              </tr>
-            );
+                  <span className="mt-0.5 block font-mono text-2xs text-ink-500">{p}</span>
+                </span>,
+                s.turnsPerOutcome,
+                s.contextGrowthPerTurn,
+                `${(s.failureRate * 100).toFixed(0)}%`,
+                s.retriesPerFailure,
+                `${(s.cacheHitRate * 100).toFixed(0)}%`,
+              ],
+            };
           })}
-        </Table>
+        />
         <p className="mt-4 max-w-3xl text-xs leading-relaxed text-ink-400">
           Turns per outcome and failure rate are where cost estimates go wrong by an order of magnitude. An
           agent that averages seven turns in a benchmark and nineteen in production is not a rounding error
@@ -169,14 +183,64 @@ export default function Methodology() {
               routinely wrong.
             </span>
           </li>
+          <li className="flex gap-2">
+            <span className="text-warn">&middot;</span>
+            <span>
+              <span className="text-ink-100">A model for a not-ai job.</span> When the verdict is not-ai the
+              report names no model, prices no tokens, sizes no golden set and offers no sample. It sizes the
+              deterministic build and its tests instead. Recommending a model in the same breath as refusing
+              one would make the refusal decorative.
+            </span>
+          </li>
         </ul>
+      </Panel>
+
+      <Panel title="Use it from CI" subtitle="The same engine, without the form. Score a backlog on every change to it.">
+        <div className="space-y-4 text-sm leading-relaxed text-ink-300">
+          <p>
+            <code className="font-mono text-ink-100">POST /api/assess</code> takes one Workload, or an array of
+            up to {ASSESS_API_LIMITS.maxWorkloads}, as JSON. The body may be at most{' '}
+            {ASSESS_API_LIMITS.maxBodyBytes / 1024} KB. A larger batch is refused with 413 rather than
+            truncated; split it. <code className="font-mono text-ink-100">GET /api/assess</code> returns a
+            complete example Workload.
+          </p>
+          <pre className="overflow-x-auto rounded-lg border border-ink-700 bg-ink-950 p-4 font-mono text-xs leading-relaxed text-ink-200">
+{`curl -sS https://<this-host>/api/assess \\
+  -H 'content-type: application/json' \\
+  -d '{"id":"wl_triage","name":"Triage support tickets",
+       "task":["classify","summarize"],
+       "volume":{"unitsPerMonth":4000,"unitLabel":"ticket"},
+       "input":{"avgTokens":1200},"output":{"avgTokens":250},
+       "determinism":"tolerant","errorTolerance":"medium",
+       "dataClasses":["internal","pii"],"autonomy":"suggest",
+       "current":{"minutesPerUnit":6,"fullyLoadedHourlyUsd":62}}' \\
+  | jq '{verdict, modelId, costPerUnit: .costPerUnit.value, basis: .costPerUnit.basis}'`}
+          </pre>
+          <p>
+            Each result carries <span className="font-mono text-ink-100">verdict</span>,{' '}
+            <span className="font-mono text-ink-100">blockers</span>,{' '}
+            <span className="font-mono text-ink-100">pattern</span>, the cost and payback estimates with
+            their basis, the risk level, the <span className="font-mono text-ink-100">trust</span> block and
+            the full <span className="font-mono text-ink-100">assessment</span>. When the verdict is not-ai,{' '}
+            <span className="font-mono text-ink-100">modelId</span> and{' '}
+            <span className="font-mono text-ink-100">assessment.model</span> are{' '}
+            <span className="font-mono text-ink-100">null</span>, cost is zero with a deterministic source,
+            and <span className="font-mono text-ink-100">assessment.evaluation.kind</span> is{' '}
+            <span className="font-mono text-ink-100">deterministic</span>. A useful gate: fail the build when a
+            workload someone wants to fund comes back not-ai or not-yet.
+          </p>
+          <p className="text-ink-400">
+            A body that is not a Workload is a 422 with the schema issues. Nothing is stored: the response is
+            the only copy.
+          </p>
+        </div>
       </Panel>
 
       <Panel title="Known limitations" subtitle="Written down so they can be argued with rather than discovered.">
         <ul className="space-y-2.5 text-xs leading-relaxed text-ink-400">
           {LIMITATIONS.map((l, i) => (
             <li key={i} className="flex gap-2">
-              <span className="text-ink-600">&middot;</span>
+              <span className="text-ink-500" aria-hidden>&middot;</span>
               {l}
             </li>
           ))}
@@ -197,36 +261,6 @@ function Rung({ basis, children }: { basis: 'heuristic' | 'benchmark' | 'calibra
   );
 }
 
-const DIMENSIONS = [
-  {
-    key: 'taskFit', label: 'Task fit', weight: 0.22,
-    drivers: 'The shapes you selected. Calculate and Look up alone score near zero and raise a hard blocker; genuinely linguistic or judgement work scores high.',
-  },
-  {
-    key: 'determinism', label: 'Determinism demand', weight: 0.18,
-    drivers: 'Whether one answer is correct. "Exact" is the single strongest negative signal in the rubric, because probabilistic systems are a poor fit for verifiable questions.',
-  },
-  {
-    key: 'errorTolerance', label: 'Error tolerance', weight: 0.15,
-    drivers: 'What a wrong answer costs, adjusted by whether anyone would notice. Zero tolerance combined with nobody checking caps the verdict at assisted.',
-  },
-  {
-    key: 'volume', label: 'Volume', weight: 0.15,
-    drivers: 'Units per month against build cost. Below a few hundred, almost nothing repays the engineering, and the report says so rather than finding a way.',
-  },
-  {
-    key: 'dataRisk', label: 'Data sensitivity', weight: 0.12,
-    drivers: 'Data classes in scope and the regimes they trigger. Raises control requirements and lowers the autonomy ceiling.',
-  },
-  {
-    key: 'actionRisk', label: 'Action risk', weight: 0.10,
-    drivers: 'Write access and blast radius. An irreversible action with full autonomy is the one combination that is blocked outright.',
-  },
-  {
-    key: 'readiness', label: 'Team readiness', weight: 0.08,
-    drivers: 'Engineers, prior ML operations experience, security review, and out-of-hours coverage. Small teams get simpler patterns, not smaller versions of complex ones.',
-  },
-];
 
 const LIMITATIONS = [
   'Token estimates come from your description of the workload. If your real prompts are twice the size you think they are — and they usually are, once system prompts, few-shot examples and retrieved context are counted — every cost figure scales with them.',

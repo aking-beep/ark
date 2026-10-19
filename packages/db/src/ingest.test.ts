@@ -58,7 +58,7 @@ describe('applyIngest', () => {
         inputTokens: 10, outputTokens: 5,
       }],
     });
-    const r = await applyIngest(body, opts);
+    const r = await applyIngest('org_demo', body, opts);
     assert.equal(r.accepted, 1);
     assert.equal(r.unpriced, 1);
     const alerts = await client.execute(`SELECT kind FROM alerts WHERE message LIKE '%definitely-not-a-model%'`);
@@ -73,14 +73,14 @@ describe('applyIngest', () => {
       provider: 'anthropic', modelId: 'claude-haiku-4.5', turn: t,
       inputTokens: 10, outputTokens: 5, costUsd: 0.001,
     }));
-    const r = await applyIngest(IngestBody.parse({ events }), opts);
+    const r = await applyIngest('org_demo', IngestBody.parse({ events }), opts);
     assert.ok(r.circuitBreaks.some((b) => b.traceId === 'tr_loop'));
     const alerts = await client.execute(`SELECT kind FROM alerts WHERE message LIKE '%tr_loop%'`);
     assert.ok(alerts.rows.some((x) => String(x.kind) === 'loop_runaway'));
   });
 
   test('irreversible action with no approver emits unapproved_action', async () => {
-    const r = await applyIngest(IngestBody.parse({
+    const r = await applyIngest('org_demo', IngestBody.parse({
       actions: [{
         id: 'ac_bad', traceId: 'tr_act', workloadId: 'wl_test',
         name: 'Delete account', system: 'CRM', blastRadius: 'irreversible',
@@ -95,14 +95,14 @@ describe('applyIngest', () => {
     const samples = Array.from({ length: 20 }, (_, i) => ({
       id: `qs_${i}`, workloadId: 'wl_test', correct: i < 10, judgedBy: 'human' as const,
     }));
-    const r = await applyIngest(IngestBody.parse({ qualitySamples: samples }), opts);
+    const r = await applyIngest('org_demo', IngestBody.parse({ qualitySamples: samples }), opts);
     assert.equal(r.qualityAccepted, 20);
     const alerts = await client.execute(`SELECT kind FROM alerts WHERE kind='quality_regression'`);
     assert.ok(alerts.rows.length >= 1);
   });
 
   test('spend past a tiny budget emits budget_warn or budget_breach', async () => {
-    const r = await applyIngest(IngestBody.parse({
+    const r = await applyIngest('org_demo', IngestBody.parse({
       events: [{
         id: 'ev_budget', traceId: 'tr_budget', workloadId: 'wl_test',
         provider: 'anthropic', modelId: 'claude-haiku-4.5', turn: 0,
@@ -125,7 +125,7 @@ describe('applyIngest', () => {
             VALUES (?,?,?,?,?,?,?,?,?)`,
       args: ['bg_block', 'org_demo', 'workload', 'wl_block', 'month', 0.0001, 50, 'block', Date.now()],
     });
-    const first = await applyIngest(IngestBody.parse({
+    const first = await applyIngest('org_demo', IngestBody.parse({
       orgId: 'org_demo',
       events: [{
         id: 'ev_block_1', traceId: 'tr_block', workloadId: 'wl_block',
@@ -133,7 +133,7 @@ describe('applyIngest', () => {
       }],
     }), opts);
     assert.equal(first.accepted, 1);
-    const second = await applyIngest(IngestBody.parse({
+    const second = await applyIngest('org_demo', IngestBody.parse({
       orgId: 'org_demo',
       events: [{
         id: 'ev_block_2', traceId: 'tr_block_2', workloadId: 'wl_block',
@@ -147,7 +147,7 @@ describe('applyIngest', () => {
   });
 
   test('sample is not stored', async () => {
-    await applyIngest(IngestBody.parse({
+    await applyIngest('org_demo', IngestBody.parse({
       events: [{
         id: 'ev_pii', traceId: 'tr_pii', workloadId: 'wl_test',
         provider: 'anthropic', modelId: 'claude-haiku-4.5', turn: 0,
@@ -158,5 +158,25 @@ describe('applyIngest', () => {
     assert.match(String(ev.rows[0]?.sensitive_matches), /email/);
     const cols = await client.execute('PRAGMA table_info(events)');
     assert.ok(!cols.rows.some((c) => String(c.name) === 'sample'));
+  });
+});
+
+describe('cost source', () => {
+  test('records whether the caller reported the cost or ARK priced it', async () => {
+    await applyIngest('org_demo', IngestBody.parse({
+      events: [
+        { id: 'cs_rep', traceId: 'tr_cs', workloadId: 'wl_test', provider: 'anthropic', modelId: 'claude-haiku-4.5',
+          inputTokens: 100, outputTokens: 10, costUsd: 0.0004 },
+        { id: 'cs_cat', traceId: 'tr_cs', workloadId: 'wl_test', provider: 'anthropic', modelId: 'claude-haiku-4.5',
+          turn: 1, inputTokens: 100, outputTokens: 10 },
+        { id: 'cs_none', traceId: 'tr_cs', workloadId: 'wl_test', provider: 'anthropic', modelId: 'no-such-model',
+          turn: 2, inputTokens: 100, outputTokens: 10 },
+      ],
+    }), opts);
+    const r = await client.execute(`SELECT id, cost_source FROM events WHERE id LIKE 'cs_%' ORDER BY id`);
+    assert.deepEqual(
+      r.rows.map((x) => [String(x.id), String(x.cost_source)]),
+      [['cs_cat', 'catalog'], ['cs_none', 'unpriced'], ['cs_rep', 'reported']],
+    );
   });
 });

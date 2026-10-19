@@ -89,10 +89,21 @@ export function resolveCallShape(
   };
 }
 
-/** Promote an estimate's basis when the shape behind it was observed. */
+/**
+ * Promote an estimate's basis when the shape behind it was observed — but never
+ * past `calibrated`. A cost figure multiplies the observed call shape by list
+ * prices and the intake's assumed token sizes, so even when every turn count
+ * came from your own telemetry the figure itself was derived, not observed.
+ * Labelling it `measured` would put a guess and a measurement on screen as the
+ * same thing.
+ */
 export function withPriorBasis<T>(e: Estimate<T>, prior: CallShapePrior): Estimate<T> {
   if (prior.basis === 'heuristic') return e;
-  return estimate(e.value, prior.basis, prior.source, {
+  const basis = prior.basis === 'measured' ? 'calibrated' : prior.basis;
+  const source = prior.basis === 'measured'
+    ? `${prior.source}; call shape measured, priced at list rates for the recommended model`
+    : prior.source;
+  return estimate(e.value, basis, source, {
     low: e.low,
     high: e.high,
     sampleSize: prior.sampleSize,
@@ -140,6 +151,9 @@ export function buildCalibration(
       pattern,
       turnsPerOutcome: mean(rs.map((r) => r.turns)),
       contextGrowthPerTurn: growth.length ? mean(growth) : 0,
+      // Fraction of *units of work* that failed, and the retries those failed
+      // units burned beyond their first attempt — exactly the f and r that
+      // `attemptsPerSuccess` in economics/tokens.ts expects.
       failureRate: n ? (n - successes.length) / n : 0,
       retriesPerFailure: (() => {
         const failed = rs.filter((r) => !r.succeeded);

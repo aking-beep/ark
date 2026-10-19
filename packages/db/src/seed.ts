@@ -1,5 +1,7 @@
 import { createClient } from '@libsql/client';
+import { pathToFileURL } from 'node:url';
 import { databaseUrl } from './client.js';
+import { seedGuard } from './seed-guard.js';
 import { byId, assess, SUPPORT_TRIAGE, INVOICE_LOOKUP, CONTENT_DRAFTING, costOfCall } from '@ark/core';
 import { hashPassword, hashSecret } from './auth.js';
 import { NW_ORG, NORTHWIND_CLAIMS, NORTHWIND_BLOCKED_ID } from './northwind.js';
@@ -21,11 +23,24 @@ const rnd = mulberry32(20260914);
 
 const client = createClient({ url: databaseUrl(), authToken: process.env.ARK_DATABASE_AUTH_TOKEN });
 
+/**
+ * Wipe and reseed. Destructive: every table below is emptied first. Refused
+ * in production unless deliberately enabled with real credentials — see
+ * seed-guard.ts. `npm run bootstrap` calls this only on an empty database.
+ */
+export async function runSeed(): Promise<void> {
+  const guard = seedGuard();
+  if (!guard.ok) {
+    throw new Error(`Seed refused:\n  ${guard.problems.join('\n  ')}`);
+  }
+  await run();
+}
+
 async function run() {
   for (const t of [
     'alert_deliveries', 'alert_destinations', 'org_tokens', 'memberships', 'users',
     'quality_samples', 'alerts', 'actions', 'protocol_evidence', 'events', 'traces',
-    'budgets', 'workloads', 'calibration_snapshots', 'orgs',
+    'budgets', 'workloads', 'calibration_snapshots', 'assurance_runs', 'discovery_runs', 'agents', 'orgs',
   ]) {
     await client.execute(`DELETE FROM ${t}`);
   }
@@ -85,6 +100,12 @@ async function run() {
           traceCost += cost;
 
           const isLastTurn = t === turns - 1;
+          // Which agent made the call, so the registry can join to runtime.
+          // Support traces belong to support-agent; on every third one the
+          // closing turn is the refund specialist's. Keyed on the sequence, not
+          // on rnd(), so naming agents does not shift any other seeded number.
+          const agentId = def.w.id !== SUPPORT_TRIAGE.id ? null
+            : isLastTurn && t > 0 && trSeq % 3 === 0 ? 'refund-agent' : 'support-agent';
           const status = failed && isLastTurn ? (rnd() < 0.5 ? 'error' : 'timeout') : 'ok';
 
           // Seeded security signal: PII reaching an off-allow-list provider.
@@ -94,13 +115,13 @@ async function run() {
           await client.execute({
             sql: `INSERT INTO events (id,org_id,trace_id,workload_id,ts,provider,model_id,turn,
                   input_tokens,output_tokens,cached_input_tokens,cost_usd,latency_ms,status,error_kind,
-                  sensitive_matches,off_allowlist,user_id,application)
-                  VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                  sensitive_matches,off_allowlist,user_id,application,agent_id,cost_source)
+                  VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
             args: [`ev_${++evSeq}`, ORG, traceId, def.w.id, startedAt + t * 1200,
                    model.provider, model.id, t, inputTokens, outputTokens, cached,
                    cost, Math.round(400 + rnd() * 2600), status, status === 'ok' ? null : 'upstream',
                    sensitive ? JSON.stringify(['email', 'order_id']) : null, off ? 1 : 0,
-                   `user_${1 + Math.floor(rnd() * 40)}`, def.w.name],
+                   `user_${1 + Math.floor(rnd() * 40)}`, def.w.name, agentId, 'catalog'],
           });
 
           if (off) {
@@ -204,6 +225,7 @@ async function run() {
   }
 
   await seedProtocolEvidence(client, rnd);
+  const agentLine = await seedAgents(client, now);
 
   const counts = await client.execute('SELECT (SELECT COUNT(*) FROM events) e, (SELECT COUNT(*) FROM traces) t, (SELECT COUNT(*) FROM alerts) a');
   const row = counts.rows[0]!;
@@ -220,6 +242,7 @@ async function run() {
 
   const pe = await client.execute('SELECT COUNT(*) n FROM protocol_evidence');
   console.log(`Seeded ${row.e} events across ${row.t} traces, ${pe.rows[0]!.n} protocol observations, ${row.a} alerts, ${budgets.length} budgets, 1 calibration snapshot.`);
+  console.log(agentLine);
 
   await seedSecondOrg(client, now);
   await seedAuth(client, now);
@@ -439,12 +462,59 @@ async function seedProtocolEvidence(client: ReturnType<typeof createClient>, rnd
   }));
 
   const result = await applyIngest(
-    IngestBody.parse({ orgId: ORG, evidence: rows }),
+    ORG,
+    IngestBody.parse({ evidence: rows }),
     { client, allowlist: [], turnCeiling: 1e9, traceCostCeiling: 1e9 },
   );
   if (result.evidenceRedacted.length) {
     throw new Error(`seed evidence carried payload keys: ${result.evidenceRedacted.join(', ')}`);
   }
+}
+
+/**
+ * Discover → Register → Assure, already walked once, so none of the three
+ * pages opens on an empty state and the dashboard's agent tiles are not zero.
+ *
+ * The discovery run is the bundled sample repository put through the real
+ * scanner, not a hand-written result, and registration goes through the same
+ * `materializeAgentManifests` + `upsertAgent` the Register button calls. Two
+ * of the agents in the telemetry are registered; procurement-agent is left
+ * observed and unregistered on purpose — it is the shadow agent the Agents
+ * page has to be able to show. Northwind gets none of this.
+ */
+async function seedAgents(client: ReturnType<typeof createClient>, now: number): Promise<string> {
+  const { discoverRepository, sampleRepositorySnapshot, materializeAgentManifests, runAssurance } =
+    await import('@ark/core');
+  const { createDiscoveryRun, upsertAgent, createAssuranceRun } = await import('./agents.js');
+
+  const snapshot = sampleRepositorySnapshot();
+  const result = discoverRepository(snapshot);
+  const run = await createDiscoveryRun(ORG, {
+    repository: snapshot.repository,
+    branch: snapshot.branch,
+    status: 'complete',
+    result,
+    startedAt: now - 2 * 864e5,
+    completedAt: now - 2 * 864e5 + 1_400,
+  }, client);
+
+  const candidates = materializeAgentManifests(result, { discoveryMethod: 'snapshot' });
+  // Owner and environment are what an operator would type on Register: the
+  // support workload is live, so both agents run in production.
+  const registered = [];
+  for (const id of ['support-agent', 'refund-agent']) {
+    const hit = candidates.find((c) => c.manifest.id === id);
+    if (!hit) throw new Error(`sample repository no longer yields ${id}; the seeded walk would dead-end`);
+    registered.push(await upsertAgent(ORG, hit.manifest, {
+      owner: 'Support Platform', environment: 'production', status: 'registered',
+    }, client));
+  }
+
+  const support = registered[0]!;
+  const report = runAssurance(support.manifest, now - 864e5);
+  await createAssuranceRun(ORG, support.id, report, client);
+
+  return `Seeded discovery run ${run.id} (${result.candidates.length} candidates), registered ${registered.map((a) => a.id).join(' and ')}, 1 assurance run (${report.overallStatus}).`;
 }
 
 const round2 = (x: number) => Math.round(x * 100) / 100;
@@ -458,7 +528,14 @@ function mulberry32(seed: number) {
   };
 }
 
-await run();
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  try {
+    await runSeed();
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : err);
+    process.exit(1);
+  }
+}
 
 async function seedSecondOrg(client: ReturnType<typeof createClient>, now: number) {
   await client.execute({

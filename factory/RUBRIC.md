@@ -68,6 +68,8 @@ commented-out code, or debug output ships.
 ```markdown
 ## Round 1 — 2026-09-14 — 3/5
 
+**Reviewer:** factory-reviewer subagent, clean context (session 7f3a…)
+
 | # | Criterion | Point | Finding |
 |---|---|---|---|
 | 1 | Spec satisfied | ✅ | All four criteria met. |
@@ -79,6 +81,13 @@ commented-out code, or debug output ships.
 **Blocking:** criteria 3 and 4.
 **Non-blocking:** `EVIDENCE.md` would be stronger with the p95, not just the mean.
 ```
+
+Every round carries a **`Reviewer:`** line naming who scored it — a person, or
+the reviewer agent and the session it ran in. It must not be the builder or the
+context that built the change. The gate refuses a latest round that has no
+`Reviewer:` line or still holds the template placeholder: an unsigned score
+cannot be attributed, so nobody can check that the builder did not grade its own
+work. `templates/REVIEW.md` has the block to copy.
 
 ## Rules for the reviewer
 

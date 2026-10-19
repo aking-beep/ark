@@ -78,7 +78,9 @@ export function valueModel(
     netPerUnit: net === null ? null : estimate(round(net, 4), 'heuristic', src),
     netPerMonth: netMonth === null ? null : estimate(round(netMonth, 2), 'heuristic', src),
     paybackMonths: payback === null ? null : estimate(round(payback, 1), 'heuristic', src),
-    spendPerDollarOfValue: ratio === null ? null : estimate(round(ratio, 3), 'heuristic', src),
+    // Significant figures, not decimal places: a cheap model's ratio is tiny but real,
+    // and rounding it to 0.000 would claim inference is free.
+    spendPerDollarOfValue: ratio === null ? null : estimate(Number(ratio.toPrecision(3)), 'heuristic', src),
     unknowns,
   };
 }

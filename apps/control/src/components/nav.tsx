@@ -20,20 +20,23 @@ export function Nav({ orgName, email }: { orgName: string; email: string }) {
   const path = usePathname();
   return (
     <header className="sticky top-0 z-20 border-b border-ink-800 bg-ink-950/90 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3">
-        <Link href="/dashboard" className="flex shrink-0 items-baseline gap-2">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 sm:px-6">
+        <Link href="/dashboard" className="flex items-baseline gap-2">
           <span className="font-mono text-sm font-semibold tracking-tight text-signal">ARK</span>
           <span className="text-sm font-medium text-ink-100">Control</span>
         </Link>
-        <nav className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+        {/* Below lg the links get their own full-width row; min-w-0 lets it scroll
+            rather than push the page wider than the phone. */}
+        <nav aria-label="Control" className="order-last flex w-full min-w-0 items-center gap-1 overflow-x-auto lg:order-none lg:w-auto lg:flex-1">
           {LINKS.map((l) => {
             const active = path === l.href || path.startsWith(l.href + '/');
             return (
               <Link
                 key={l.href}
                 href={l.href}
+                aria-current={active ? 'page' : undefined}
                 className={
-                  'whitespace-nowrap rounded-md px-2 py-1.5 text-sm transition ' +
+                  'inline-flex min-h-10 items-center whitespace-nowrap rounded-md px-2.5 text-sm transition ' +
                   (active ? 'bg-ink-800 text-ink-100' : 'text-ink-400 hover:text-ink-200')
                 }
               >
@@ -42,8 +45,8 @@ export function Nav({ orgName, email }: { orgName: string; email: string }) {
             );
           })}
         </nav>
-        <div className="ml-auto flex items-center gap-3 text-2xs text-ink-500">
-          <span className="hidden sm:inline">{email}</span>
+        <div className="ml-auto flex shrink-0 items-center gap-3 text-2xs text-ink-500">
+          <span className="hidden 2xl:inline">{email}</span>
           <span className="font-mono text-ink-300">{orgName}</span>
           <Logout />
         </div>
@@ -56,7 +59,7 @@ function Logout() {
   return (
     <button
       type="button"
-      className="text-ink-400 hover:text-ink-200"
+      className="inline-flex min-h-10 items-center px-1 text-ink-400 hover:text-ink-200"
       onClick={async () => {
         await fetch('/api/session', { method: 'DELETE' });
         window.location.href = '/login';

@@ -1,4 +1,5 @@
 import * as React from 'react';
+import type { Tone } from './tone.js';
 
 export function cx(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(' ');
@@ -89,7 +90,7 @@ export function Stat({
 
 /* ------------------------------------------------------------------ badges */
 
-export type Tone = 'neutral' | 'good' | 'warn' | 'danger' | 'info' | 'signal';
+// Tone lives in tone.ts with the rule that decides when a figure earns one.
 
 const TONE_TEXT: Record<Tone, string> = {
   neutral: 'text-ink-100',
@@ -172,7 +173,7 @@ export function BasisTag({
 const BASIS_MEANING: Record<string, string> = {
   heuristic: 'A rule of thumb. Nobody measured this. Treat it as a starting hypothesis.',
   benchmark: 'Published vendor or third-party figures, not your workload.',
-  calibrated: 'Derived from measurements on systems like yours, not yours.',
+  calibrated: 'Derived from ARK Control observations, not itself observed.',
   measured: 'Observed in your own running system.',
 };
 
@@ -294,7 +295,7 @@ export function DimensionList({
             <span className="text-sm text-ink-200">
               {d.label}
               {showWeight && (
-                <span className="ml-2 font-mono text-2xs text-ink-600">
+                <span className="ml-2 font-mono text-2xs text-ink-500">
                   weight {d.weight.toFixed(2)}
                 </span>
               )}
@@ -303,7 +304,7 @@ export function DimensionList({
           </div>
           <Meter pct={d.score} tone={dimensionTone(d.score)} className="mt-1.5" />
           {d.reasoning && (
-            <p className="mt-1.5 max-w-3xl text-2xs leading-relaxed text-ink-500">{d.reasoning}</p>
+            <p className="mt-1.5 max-w-3xl text-xs leading-relaxed text-ink-400">{d.reasoning}</p>
           )}
         </li>
       ))}
@@ -315,10 +316,13 @@ export function DimensionList({
 
 export function Table({
   head,
+  align,
   children,
   className,
 }: {
   head: React.ReactNode[];
+  /** Per-column header alignment; defaults to left for the first, right for the rest. */
+  align?: ('left' | 'right' | undefined)[];
   children: React.ReactNode;
   className?: string;
 }) {
@@ -331,8 +335,8 @@ export function Table({
               <th
                 key={i}
                 className={cx(
-                  'whitespace-nowrap pb-2 text-2xs font-medium uppercase tracking-wider text-ink-400',
-                  i === 0 ? 'text-left' : 'text-right',
+                  'whitespace-nowrap px-3 pb-2 text-2xs font-medium uppercase tracking-wider text-ink-400 first:pl-0 last:pr-0',
+                  (align?.[i] ?? (i === 0 ? 'left' : 'right')) === 'left' ? 'text-left' : 'text-right',
                 )}
               >
                 {h}
@@ -360,7 +364,8 @@ export function Td({
   return (
     <td
       className={cx(
-        'py-2.5 align-top text-ink-200',
+        // Horizontal padding so two left-aligned columns never run into each other.
+        'px-3 py-2.5 align-top text-ink-200 first:pl-0 last:pr-0',
         align === 'left' ? 'text-left' : 'text-right',
         mono && 'font-mono tabular-nums',
         className,
@@ -368,6 +373,64 @@ export function Td({
     >
       {children}
     </td>
+  );
+}
+
+export interface CardColumn {
+  /** Header on wide screens and field label on a card. Empty means unlabelled. */
+  label: string;
+  align?: 'left' | 'right';
+  mono?: boolean;
+  className?: string;
+}
+
+/**
+ * A table at md and up; a stack of cards below it. Long prose columns in a
+ * 600px table become a sideways scroll on a phone, which is where planning
+ * documents get read the morning of the meeting.
+ */
+export function CardTable({
+  columns,
+  rows,
+  className,
+}: {
+  columns: CardColumn[];
+  rows: { key: string; cells: React.ReactNode[] }[];
+  className?: string;
+}) {
+  return (
+    <div className={className}>
+      <Table head={columns.map((c) => c.label)} align={columns.map((c, i) => c.align ?? (i === 0 ? 'left' : 'right'))} className="hidden md:block">
+        {rows.map((r) => (
+          <tr key={r.key} className="border-t border-ink-800 align-top">
+            {r.cells.map((cell, i) => (
+              <Td
+                key={i}
+                align={columns[i]?.align ?? (i === 0 ? 'left' : 'right')}
+                mono={columns[i]?.mono}
+                className={columns[i]?.className}
+              >
+                {cell}
+              </Td>
+            ))}
+          </tr>
+        ))}
+      </Table>
+      <ul className="space-y-3 md:hidden">
+        {rows.map((r) => (
+          <li key={r.key} className="rounded-lg border border-ink-700 bg-ink-900 p-4">
+            {r.cells.map((cell, i) => (
+              <div key={i} className={i === 0 ? 'text-sm text-ink-200' : 'mt-2.5'}>
+                {i > 0 && columns[i]?.label && (
+                  <p className="text-2xs font-medium uppercase tracking-wider text-ink-400">{columns[i]!.label}</p>
+                )}
+                <div className={cx(i > 0 && 'mt-0.5 text-sm text-ink-200', columns[i]?.mono && 'font-mono')}>{cell}</div>
+              </div>
+            ))}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -427,27 +490,5 @@ export function Button({
 
 /* ------------------------------------------------------------------ format */
 
-export const fmt = {
-  usd(v: number, digits?: number): string {
-    const d = digits ?? (Math.abs(v) < 1 ? 4 : Math.abs(v) < 100 ? 2 : 0);
-    return `$${v.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d })}`;
-  },
-  pct(v: number, digits = 0): string {
-    return `${v.toFixed(digits)}%`;
-  },
-  int(v: number): string {
-    return Math.round(v).toLocaleString('en-US');
-  },
-  compactUsd(v: number): string {
-    if (Math.abs(v) >= 1000) return `$${(v / 1000).toFixed(1)}k`;
-    return fmt.usd(v, 2);
-  },
-  when(ts: number): string {
-    // Clamped at zero. Clock skew between a caller and Control is normal, and
-    // a timestamp a minute ahead should read "0m ago", not "-1m ago".
-    const mins = Math.max(0, Math.round((Date.now() - ts) / 60000));
-    if (mins < 60) return `${mins}m ago`;
-    if (mins < 1440) return `${Math.round(mins / 60)}h ago`;
-    return `${Math.round(mins / 1440)}d ago`;
-  },
-};
+export { fmt } from './format.js';
+

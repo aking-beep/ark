@@ -69,10 +69,39 @@ export const MCP_TASK_EXTENSION_METHODS = ['tasks/get', 'tasks/update', 'tasks/c
 
 export type McpMethod = (typeof MCP_METHODS)[number] | (typeof MCP_LEGACY_METHODS)[number];
 
+/** The extension identifier a peer declares when it speaks the tasks extension. */
+export const MCP_TASKS_EXTENSION = 'io.modelcontextprotocol/tasks';
+
 const KNOWN = new Set<string>([...MCP_METHODS, ...MCP_LEGACY_METHODS, ...MCP_TASK_EXTENSION_METHODS]);
+const EXTENSION = new Set<string>(MCP_TASK_EXTENSION_METHODS);
+/** Methods that only ever existed in the legacy revision. */
 const LEGACY_ONLY = new Set<string>(
-  MCP_LEGACY_METHODS.filter((m) => !(MCP_METHODS as readonly string[]).includes(m)),
+  MCP_LEGACY_METHODS.filter((m) => !(MCP_METHODS as readonly string[]).includes(m) && !EXTENSION.has(m)),
 );
+/**
+ * Methods spelled the same in legacy core and in the tasks extension —
+ * `tasks/get` and `tasks/cancel`. The method name alone cannot say which
+ * revision the peer speaks; whether the request carried the extension can.
+ */
+const AMBIGUOUS = new Set<string>(MCP_LEGACY_METHODS.filter((m) => EXTENSION.has(m)));
+
+/**
+ * Which specification revision an observation of `method` is evidence of.
+ *
+ * A legacy-only method is an old peer. A tasks method shared between legacy
+ * core and the tasks extension is current only when the observer saw the
+ * extension on the request (`taskExtension`, or the extension id in
+ * `extensions`); otherwise it is labelled legacy, because a current peer that
+ * uses tasks must declare the extension and an old one cannot.
+ */
+export function mcpSpecVersion(method: string, o: Pick<McpObservation, 'taskExtension' | 'extensions'> = {}): string {
+  if (LEGACY_ONLY.has(method)) return MCP_LEGACY_SPEC_VERSION;
+  if (AMBIGUOUS.has(method)) {
+    const ext = o.taskExtension === true || !!o.extensions?.some((x) => String(x).trim() === MCP_TASKS_EXTENSION);
+    return ext ? MCP_SPEC_VERSION : MCP_LEGACY_SPEC_VERSION;
+  }
+  return MCP_SPEC_VERSION;
+}
 
 /** Transports MCP defines. `streamable-http` is the current HTTP binding. */
 export const MCP_TRANSPORTS = ['stdio', 'streamable-http', 'sse', 'http'] as const;
@@ -98,6 +127,14 @@ export interface McpObservation extends ObservationBase {
   errorCode?: number;
   /** A short error class — `timeout`, `not_found`. Never the error body. */
   errorKind?: string;
+  /**
+   * True when the request carried the tasks-extension params (the peer
+   * declared `io.modelcontextprotocol/tasks`). Decides the revision recorded
+   * for `tasks/get` and `tasks/cancel`; see `mcpSpecVersion`.
+   */
+  taskExtension?: boolean;
+  /** Extension identifiers the observer saw declared on the request. Same use as `taskExtension`. */
+  extensions?: readonly string[];
 }
 
 const KIND_BY_PREFIX: [prefix: string, kind: EvidenceKind][] = [
@@ -156,7 +193,7 @@ export function mcpEvidence(o: McpObservation): NormalisedEvidence {
     protocol: 'mcp',
     // An observation of a method that only ever existed in the old revision is
     // an observation of an old peer, and saying 2026-07-28 would be a lie.
-    protocolVersion: LEGACY_ONLY.has(method) ? MCP_LEGACY_SPEC_VERSION : MCP_SPEC_VERSION,
+    protocolVersion: mcpSpecVersion(method, o),
     kind: mcpKind(method),
     operation: mcpOperation(method, o.name),
     actor: o.client,

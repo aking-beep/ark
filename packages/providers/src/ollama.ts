@@ -1,9 +1,10 @@
 import type { Capability } from '@ark/core';
-import { fetchWithTimeout, readJson } from './http.js';
+import { Deadline, requestJson } from './http.js';
 import { parseOllamaChat } from './parse.js';
 import {
   CompletionRequest,
   ProviderError,
+  type CompleteOptions,
   type FetchFn,
   type NormalizedCompletion,
   type ProviderAdapter,
@@ -98,46 +99,50 @@ export class OllamaAdapter implements ProviderAdapter {
     return this.model;
   }
 
-  async complete(req: CompletionRequest): Promise<NormalizedCompletion> {
+  async complete(req: CompletionRequest, opts: CompleteOptions = {}): Promise<NormalizedCompletion> {
     const parsed = CompletionRequest.parse(req);
     if (!this.enabled) {
       throw new ProviderError('config', 'ollama is not configured (set ARK_OLLAMA_URL)', 'ollama');
     }
     const requested = ollamaNativeModel(parsed.model ?? this.model);
-    const model = this.allowPull ? requested : await this.resolveInstalled(requested);
-    const started = Date.now();
-    const res = await fetchWithTimeout(
-      this.fetchFn,
-      `${this.baseUrl}/api/chat`,
-      {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          model,
-          messages: parsed.messages,
-          stream: false,
-          options: {
-            ...(parsed.temperature !== undefined ? { temperature: parsed.temperature } : {}),
-            ...(parsed.maxTokens !== undefined ? { num_predict: parsed.maxTokens } : {}),
-          },
-        }),
-      },
-      this.timeoutMs,
-      'ollama',
-    );
-    const body = await readJson(res, 'ollama');
-    return parseOllamaChat(body, Date.now() - started, model);
+    // One deadline for the whole call: the tags lookup and the chat share it.
+    const deadline = new Deadline(this.timeoutMs, opts.signal);
+    try {
+      const model = this.allowPull ? requested : await this.resolveInstalled(requested, deadline);
+      const started = Date.now();
+      const body = await requestJson(
+        this.fetchFn,
+        `${this.baseUrl}/api/chat`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            model,
+            messages: parsed.messages,
+            stream: false,
+            options: {
+              ...(parsed.temperature !== undefined ? { temperature: parsed.temperature } : {}),
+              ...(parsed.maxTokens !== undefined ? { num_predict: parsed.maxTokens } : {}),
+            },
+          }),
+        },
+        deadline,
+        'ollama',
+      );
+      return parseOllamaChat(body, Date.now() - started, model);
+    } finally {
+      deadline.dispose();
+    }
   }
 
-  private async resolveInstalled(requested: string): Promise<string> {
-    const res = await fetchWithTimeout(
+  private async resolveInstalled(requested: string, deadline: Deadline): Promise<string> {
+    const body = await requestJson(
       this.fetchFn,
       `${this.baseUrl}/api/tags`,
       { method: 'GET', headers: { accept: 'application/json' } },
-      this.timeoutMs,
+      deadline,
       'ollama',
     );
-    const body = await readJson(res, 'ollama');
     const installed = parseOllamaTags(body);
     const resolved = resolveOllamaTag(requested, installed);
     if (resolved) return resolved;
