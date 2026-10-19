@@ -83,6 +83,12 @@ count is the same. Two things changed:
 The `after.txt` header now takes its timestamp from `captures.tsv`, so the two
 share one clock read (a review note).
 
+After merging `origin/main` (`e5eb6e6`), `npm run demo:guard` printed output
+byte-identical to `after.txt` (diffed with the temp-dir line excluded). The
+merge changed no guard source, so the `ec786f1` after capture still describes
+current behaviour, and no new capture row was stamped. `after-test.txt` was
+re-run at `e5eb6e6` to include the migration tests.
+
 **The tests can fail.** I ran two source mutations and reverted both:
 
 - Replacing the atomic `claim` with a plain insert failed 13 tests. Among them
