@@ -6,7 +6,10 @@ import path from 'node:path';
 import { createClient } from '@libsql/client';
 import type { ActionReceipt } from '@ark/core';
 import { DDL, MIGRATIONS, pushSchema } from './sql.js';
-import { LibsqlActionReceiptStore, openActionReceiptStore, ACTION_RECEIPTS_DDL, ACTION_RECEIPTS_MIGRATIONS } from './action-receipts.js';
+import {
+  LibsqlActionReceiptStore, openActionReceiptStore, ACTION_RECEIPTS_DDL, ACTION_RECEIPTS_MIGRATIONS,
+  listActionReceipts, countActionReceipts,
+} from './action-receipts.js';
 
 function tempUrl(name: string): string {
   return `file:${path.join(mkdtempSync(path.join(tmpdir(), 'ark-receipts-')), name)}`;
@@ -169,5 +172,50 @@ describe('LibsqlActionReceiptStore', () => {
     assert.equal(rows.filter((r) => r.executionStatus === 'attempted').length, 1);
     a.close();
     b.close();
+  });
+});
+
+describe('Control read path: listActionReceipts / countActionReceipts', () => {
+  test('org isolation: each org reads only its own receipts, and an unknown org reads nothing', async () => {
+    const url = tempUrl('read.db');
+    const { store, close } = await openActionReceiptStore(url);
+    const client = createClient({ url });
+    // Same decision ids in both orgs on purpose: the key is (org_id, id).
+    await store.record(receipt({ orgId: 'org_a', id: 'dec_1', decision: 'deny', idempotencyKeyHash: null, createdAt: 1_000 }));
+    await store.claim(receipt({ orgId: 'org_a', id: 'dec_2', createdAt: 2_000 }));
+    await store.finish('org_a', 'dec_2', 'completed', 2_001);
+    await store.record(receipt({ orgId: 'org_b', id: 'dec_1', decision: 'require_approval', idempotencyKeyHash: null, resourceId: 'ord_b' }));
+    await store.claim(receipt({ orgId: 'org_b', id: 'dec_3', resourceId: 'ord_b2', idempotencyKeyHash: 'b'.repeat(64) }));
+
+    const a = await listActionReceipts('org_a', {}, client);
+    assert.deepEqual(a.map((r) => [r.orgId, r.id]), [['org_a', 'dec_2'], ['org_a', 'dec_1']], 'newest first, org_a only');
+    const b = await listActionReceipts('org_b', {}, client);
+    assert.ok(b.length === 2 && b.every((r) => r.orgId === 'org_b'));
+    assert.ok(!b.some((r) => r.resourceId === 'ord_1'), 'no org_a resource leaks into org_b');
+    assert.deepEqual(await listActionReceipts('org_none', {}, client), []);
+
+    assert.deepEqual(await countActionReceipts('org_a', client), {
+      total: 2, byDecision: { deny: 1, allow: 1 }, byExecutionStatus: { not_attempted: 1, completed: 1 },
+    });
+    assert.deepEqual(await countActionReceipts('org_b', client), {
+      total: 2, byDecision: { require_approval: 1, allow: 1 }, byExecutionStatus: { not_attempted: 1, attempted: 1 },
+    });
+    assert.deepEqual(await countActionReceipts('org_none', client), { total: 0, byDecision: {}, byExecutionStatus: {} });
+    client.close();
+    close();
+  });
+
+  test('the list is bounded; the counts are not', async () => {
+    const url = tempUrl('limit.db');
+    const { store, close } = await openActionReceiptStore(url);
+    const client = createClient({ url });
+    for (let i = 0; i < 5; i++) {
+      await store.record(receipt({ id: `dec_${i}`, decision: 'deny', idempotencyKeyHash: null, createdAt: 1_000 + i }));
+    }
+    const listed = await listActionReceipts('org_a', { limit: 3 }, client);
+    assert.deepEqual(listed.map((r) => r.id), ['dec_4', 'dec_3', 'dec_2']);
+    assert.equal((await countActionReceipts('org_a', client)).total, 5);
+    client.close();
+    close();
   });
 });

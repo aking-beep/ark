@@ -9,6 +9,7 @@ import type {
   ReceiptReasonCode,
 } from '@ark/core';
 import { MIGRATIONS, type Migration } from './sql.js';
+import { raw } from './queries.js';
 
 /**
  * libSQL adapter for `ActionReceiptStore` (guarded-refund-tool).
@@ -115,6 +116,50 @@ export class LibsqlActionReceiptStore implements ActionReceiptStore {
     });
     return res.rows.map(fromRow);
   }
+}
+
+/**
+ * Control's read path (action-receipts-view). Both reads take the org from the
+ * caller's session and put it in the WHERE clause; there is no unscoped
+ * variant. `client` is for tests; Control uses the shared lazy client.
+ */
+export async function listActionReceipts(
+  orgId: string,
+  opts: { limit?: number } = {},
+  client?: Client,
+): Promise<ActionReceipt[]> {
+  const limit = Math.max(1, Math.min(opts.limit ?? 200, 1_000));
+  const res = await (client ?? raw()).execute({
+    sql: `SELECT * FROM action_receipts WHERE org_id = ? ORDER BY created_at DESC, id DESC LIMIT ?`,
+    args: [orgId, limit],
+  });
+  return res.rows.map(fromRow);
+}
+
+export interface ActionReceiptCounts {
+  /** Every receipt this org has, not only the ones a list page shows. */
+  total: number;
+  /** Raw stored values -> count, e.g. `{ allow: 3, require_approval: 2 }`. */
+  byDecision: Record<string, number>;
+  byExecutionStatus: Record<string, number>;
+}
+
+export async function countActionReceipts(orgId: string, client?: Client): Promise<ActionReceiptCounts> {
+  const res = await (client ?? raw()).execute({
+    sql: `SELECT decision, execution_status, COUNT(*) n FROM action_receipts
+          WHERE org_id = ? GROUP BY decision, execution_status`,
+    args: [orgId],
+  });
+  const out: ActionReceiptCounts = { total: 0, byDecision: {}, byExecutionStatus: {} };
+  for (const row of res.rows) {
+    const n = Number(row.n);
+    const d = String(row.decision);
+    const e = String(row.execution_status);
+    out.total += n;
+    out.byDecision[d] = (out.byDecision[d] ?? 0) + n;
+    out.byExecutionStatus[e] = (out.byExecutionStatus[e] ?? 0) + n;
+  }
+  return out;
 }
 
 /** The tracked migrations (0008-0010) that create `action_receipts` and its indexes. */

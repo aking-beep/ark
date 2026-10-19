@@ -131,6 +131,30 @@ describe('bootstrap with the real seed', () => {
     }
   });
 
+  test('Demo Co has the guard demo scenarios as receipts; Northwind has none', async () => {
+    const demo = await rows(
+      `SELECT resource_id, decision, execution_status, reason_code, sender_reported_approval, policy_id, created_at
+       FROM action_receipts WHERE org_id='org_demo' ORDER BY created_at, id`,
+    );
+    // Produced by guardTool running the PR-3 scenarios, in scenario order.
+    assert.deepEqual(
+      demo.map((r) => [r.resource_id, r.decision, r.execution_status, r.reason_code, Number(r.sender_reported_approval)]),
+      [
+        ['ord_1001', 'allow', 'completed', 'rule_matched', 0],
+        ['ord_1002', 'require_approval', 'not_attempted', 'rule_matched', 0],
+        ['ord_1003', 'deny', 'not_attempted', 'rule_matched', 0],
+        ['ord_1004', 'unknown', 'not_attempted', 'no_matching_policy', 0],
+        ['ord_1006', 'require_approval', 'not_attempted', 'rule_matched', 1],
+        ['ord_1001', 'allow', 'not_attempted', 'idempotency_replay', 0],
+        ['ord_1007', 'allow', 'outcome_unknown', 'rule_matched', 0],
+      ],
+    );
+    for (const r of demo) assert.ok(Number(r.created_at) <= Date.now(), 'never dated in the future');
+    assert.equal(await count(`SELECT COUNT(*) n FROM action_receipts WHERE org_id='org_northwind'`), 0);
+    // The cross-tenant scenario's receipt lands under the context's org, not Demo Co's.
+    assert.equal(await count(`SELECT COUNT(*) n FROM action_receipts WHERE org_id='org_other' AND resource_id='ord_1005'`), 1);
+  });
+
   test('a second boot never re-seeds', async () => {
     assert.equal(await bootstrap({ client, env: {}, log: quiet }), 'already-seeded');
     assert.equal(await count(`SELECT COUNT(*) n FROM discovery_runs`), 1);
