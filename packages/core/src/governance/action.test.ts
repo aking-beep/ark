@@ -289,13 +289,13 @@ describe('decideAction — determinism and purity', () => {
     }
   });
 
-  test('the module imports only zod and its own sha256; neither touches I/O, clock or randomness', () => {
+  test('the module imports only zod and its sha256 wrapper over @noble/hashes; neither touches I/O, clock or randomness', () => {
     const read = (f: string) => readFileSync(fileURLToPath(new URL(f, import.meta.url)), 'utf8');
     const importsOf = (src: string) => [...src.matchAll(/^import .* from '([^']+)';$/gm)].map((m) => m[1]).sort();
     const action = read('./action.js');
     const hash = read('./sha256.js');
     assert.deepEqual(importsOf(action), ['./sha256.js', 'zod']);
-    assert.deepEqual(importsOf(hash), []);
+    assert.deepEqual(importsOf(hash), ['@noble/hashes/sha2', '@noble/hashes/utils']);
     for (const src of [action, hash]) {
       assert.ok(!/\bDate\b|Math\.random|\bfetch\(|process\.|require\(|import\(/.test(src));
     }
