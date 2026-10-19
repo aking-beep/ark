@@ -1,0 +1,15 @@
+captured at revision 32451b7 (stamp in captures.tsv), 2026-10-19T06:03:27Z
+$ node --version
+v22.22.0
+$ node evidence/action-decision-kernel/decide-demo.mjs
+file:///home/user/ark/.claude/worktrees/agent-ac3c0e84c9752c454/evidence/action-decision-kernel/decide-demo.mjs:10
+import { decideAction, DEMO_REFUND_POLICY } from '../../packages/core/dist/index.js';
+                       ^^^^^^^^^^^^^^^^^^
+SyntaxError: The requested module '../../packages/core/dist/index.js' does not provide an export named 'DEMO_REFUND_POLICY'
+    at ModuleJob._instantiate (node:internal/modules/esm/module_job:226:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:335:5)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v22.22.0
+exit code: 1
