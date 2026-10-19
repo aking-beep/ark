@@ -1,0 +1,26 @@
+$ node --test packages/db/dist/migrations.test.js   # at commit b80dedf (filtered to test lines and summary)
+# Subtest: MIGRATIONS
+    ok 1 - ids are unique
+ok 1 - MIGRATIONS
+# Subtest: pushSchema migration tracking
+    ok 1 - a fresh database records every migration once
+    ok 2 - a second push is a no-op that records nothing new
+    ok 3 - a pre-tracking database whose columns already exist is backfilled without error
+    ok 4 - a failing migration rejects with its id and leaves later migrations unapplied
+    ok 5 - a non-benign error on an ALTER TABLE is not swallowed
+    ok 6 - the legacy rebuild pass uses the same tolerance rule
+ok 2 - pushSchema migration tracking
+# Subtest: isBenignMigrationError
+    ok 1 - tolerates duplicate column only on ALTER TABLE ... ADD COLUMN
+    ok 2 - tolerates already exists only on CREATE INDEX IF NOT EXISTS
+    ok 3 - anything else is a real failure
+ok 3 - isBenignMigrationError
+# tests 10
+# suites 3
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 673.183483
+exit=0
