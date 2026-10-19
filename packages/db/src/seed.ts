@@ -226,7 +226,6 @@ async function run() {
 
   await seedProtocolEvidence(client, rnd);
   const agentLine = await seedAgents(client, now);
-  const receiptLine = await seedActionReceipts(client, now);
 
   const counts = await client.execute('SELECT (SELECT COUNT(*) FROM events) e, (SELECT COUNT(*) FROM traces) t, (SELECT COUNT(*) FROM alerts) a');
   const row = counts.rows[0]!;
@@ -244,10 +243,13 @@ async function run() {
   const pe = await client.execute('SELECT COUNT(*) n FROM protocol_evidence');
   console.log(`Seeded ${row.e} events across ${row.t} traces, ${pe.rows[0]!.n} protocol observations, ${row.a} alerts, ${budgets.length} budgets, 1 calibration snapshot.`);
   console.log(agentLine);
-  console.log(receiptLine);
 
   await seedSecondOrg(client, now);
   await seedAuth(client, now);
+
+  // Last: it imports @ark/guard at runtime. If that package is unbuilt the
+  // throw lands after logins exist, so the DB is usable rather than half-seeded.
+  console.log(await seedActionReceipts(client, now));
 }
 
 /**
