@@ -35,7 +35,7 @@ cannot change it, because the kernel reads no state.
 
 ## Before / after
 
-| | Before (`32451b7`) | After (`22546e7`) |
+| | Before (`32451b7`) | After (`7a91a43`) |
 |---|---|---|
 | Artefact | `before.txt` | `after.txt` |
 | Measurement | exit code 1: `SyntaxError: ... does not provide an export named 'DEMO_REFUND_POLICY'`. No kernel exists. | exit code 0. 11 cases, **2 `allow`** ($75, $100). $100.01 / $750 / $1,000 are `require_approval`. $1,000.01 / $5,000 are `deny`. Unknown tool and other-org are `unknown` `no_matching_policy`. Forged role is `deny`, with a digest identical to the plain $5,000 request. Version mismatch is `unknown` `policy_version_mismatch`. **0 network/model calls.** |
@@ -43,11 +43,19 @@ cannot change it, because the kernel reads no state.
 | `npm test` (repo) | — | exit 0. 615 tests, 0 failures across 12 suite runs |
 | `npm run typecheck` | — | exit 0 |
 | `npm run build --workspace @ark/business` | — | exit 0 (see deviation 1) |
+| `npm run build --workspace @ark/control` | — | exit 0 |
 
-`captures.tsv` has two `after` rows. The first (`8535621`) was taken before the
-decisionId fix (deviation 2) and its `after.txt` was overwritten. The second
-(`22546e7`) is current. It reads `dirty=2` because `captures.tsv` and `after.txt`
-themselves were uncommitted at the time of capture. No source file was dirty.
+`captures.tsv` has three `after` rows, and only the last is current.
+- `8535621` was taken before the decisionId fix (deviation 2). Its `after.txt`
+  was overwritten.
+- `22546e7` used the hand-rolled SHA-256 that was later removed. It reads
+  `dirty=2` because `captures.tsv` and `after.txt` themselves were uncommitted
+  at the time. No source file was dirty.
+- `7a91a43` is current: `@noble/hashes`, `dirty=0`.
+
+The `7a91a43` output is byte-identical to `22546e7` apart from the header line.
+Every `decisionId` and digest is the same, so swapping the hash implementation
+did not change behaviour.
 
 `policy.ts`, `enforce.ts`, `policy.test.ts` and `enforce.test.ts` are unchanged.
 `git diff edba21e -- <those four files>` is empty.
@@ -68,10 +76,11 @@ themselves were uncommitted at the time of capture. No source file was dirty.
 - **The thresholds are synthetic.** `DEMO_REFUND_POLICY` is a demo policy and
   says so in the code, the ADR and this output. Nothing here says what a real org
   should allow.
-- **The SHA-256 is hand-written** (deviation 1). It matches `node:crypto` on the
-  NIST vectors, on every length from 0 to 300, on multi-byte UTF-8 and on a 1 MB
-  input. It is not constant-time, and it is used for identifiers only, never for
-  secrets or MACs.
+- **The SHA-256 comes from a third-party package** (`@noble/hashes` 1.8.0,
+  deviation 1). `sha256.test.ts` checks the wrapper against the NIST vectors and
+  against `node:crypto`: every length from 0 to 300, multi-byte UTF-8, and a 1 MB
+  input. That checks correctness. It does not audit the package's supply chain
+  beyond the exact pin and the lockfile integrity hash.
 - **Purity is evidenced, not proven.** Traps on `Date.now`/`Math.random`/`fetch`
   and a check of the compiled module's imports show the absence of the obvious
   side effects. They do not rule out every possible one.
@@ -82,8 +91,8 @@ themselves were uncommitted at the time of capture. No source file was dirty.
 
 ## Deviations
 
-1. **No `node:crypto`. A dependency-free synchronous SHA-256
-   (`packages/core/src/governance/sha256.ts`) instead.** The build instruction
+1. **No `node:crypto`. `@noble/hashes` instead, behind a thin internal
+   wrapper (`packages/core/src/governance/sha256.ts`).** The build instruction
    said to use `node:crypto` because "core already runs on Node". It does not
    only run on Node. `apps/business/src/components/intake/steps.tsx` is a client
    component that imports `estimateTokens` from the `@ark/core` barrel. With
@@ -94,8 +103,20 @@ themselves were uncommitted at the time of capture. No source file was dirty.
    spec does not name a hash implementation. The alternatives were changing
    `next.config.mjs`, changing the client component, or adding a non-barrel
    subpath export. All of those are outside the spec's scope, and the last one
-   conflicts with "exported from `@ark/core`". No package dependency was added.
-   `sha256.ts` is not exported from the barrel.
+   conflicts with "exported from `@ark/core`". `sha256.ts` is not exported from
+   the barrel.
+
+   **New dependency: `@noble/hashes` at exactly `1.8.0`** (published
+   2025-04-21, the latest 1.x), a runtime dependency of `@ark/core`. It was
+   *authorized by the coordinator in lieu of `node:crypto`, which breaks the
+   business client bundle*. It replaced a hand-rolled SHA-256 from an earlier
+   commit (`7a565dc`), which the coordinator rejected for authorization code. It
+   is synchronous, pure JS, audited, and works in both the browser and Node.
+   Imports used: `sha256` from `@noble/hashes/sha2`, and `bytesToHex` and
+   `utf8ToBytes` from `@noble/hashes/utils`. npm updated the lockfile
+   (`npm install --save-exact`). In the same write, npm also synced the
+   lockfile's root `engines.node` from `>=20` to `>=22.6`, which is what the root
+   `package.json` already declares. I did not edit `package-lock.json` by hand.
 2. **`decisionId` preimage includes `decision` and `reasonCode`.** The spec
    says "sha256 over policy id, version and request digest". Built literally, the
    first after capture (stamped at `8535621`, then overwritten, never

@@ -1,4 +1,4 @@
-captured at revision 22546e7 (stamp in captures.tsv), 2026-10-19T06:13:22Z
+captured at revision 7a91a43 (stamp in captures.tsv), 2026-10-19T06:20:31Z
 $ node --version
 v22.22.0
 $ node evidence/action-decision-kernel/decide-demo.mjs
