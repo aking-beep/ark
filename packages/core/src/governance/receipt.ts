@@ -39,6 +39,8 @@ export type FinalExecutionStatus = Extract<ExecutionStatus, 'completed' | 'faile
  * receipt's `reasonCode` is the guard's.
  */
 export const GUARD_REASON_CODES = [
+  /** No trusted context could be resolved. No receipt is stored: there is no org to store it under. */
+  'context_unavailable',
   'invalid_arguments',
   'idempotency_key_missing',
   'policy_source_failed',
@@ -48,9 +50,6 @@ export const GUARD_REASON_CODES = [
   'idempotency_conflict',
   'receipt_conflict',
   'receipt_store_failed',
-  'handler_failed',
-  'handler_threw',
-  'handler_timeout',
 ] as const;
 export type GuardReasonCode = (typeof GUARD_REASON_CODES)[number];
 

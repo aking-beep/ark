@@ -42,6 +42,10 @@ It executes nothing — no tool call, no task submission, no render, no checkout
 
 Protocol evidence is a **fourth grain**, in `protocol_evidence`, correlated to model events, actions and traces by trace id rather than merged with them. An MCP `tools/list` has no cost; folding it into `events` would make `SUM(cost_usd)` meaningless. See [Protocol evidence](07-protocol-evidence.md) and [ADR-0007](adr/0007-protocols-are-adapters-not-surfaces.md).
 
+## Action enforcement layer
+
+`@ark/guard` is a library in `packages/guard`, not a proxy and not a service. `guardTool` wraps one tool handler in the customer's own process: identity from a trusted `resolveContext()`, arguments validated with zod, `decideAction` (`@ark/core`) on the guard's clock, and the handler invoked only on an unexpired `allow` whose idempotency key it claimed atomically. Every attempt leaves a privacy-safe receipt in `action_receipts` (org-scoped, `(org_id, id)` keyed, no arguments) through an `ActionReceiptStore` — libSQL in `@ark/db`, in-memory in the guard. Telemetry goes through `@ark/sdk` and is best-effort. Only tools routed through `guardTool` are protected; see [`packages/guard/README.md`](../packages/guard/README.md) and [ADR-0009](adr/0009-action-accountability-wedge.md).
+
 ## Data flow, end to end
 
 1. **Runtime emits.** A workload in production — including `@ark/runtime` via AI Fit Teams `POST /api/measure` — POSTs to `/api/v1/events` — one row per model call, tagged with a trace id, a turn index, model, provider, token counts, latency, and an outcome when the trace closes.
