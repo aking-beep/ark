@@ -254,6 +254,16 @@ describe('decideAction — determinism and purity', () => {
     assert.equal(decide(req(7_500), [v2]).requestDigest, decide(req(7_500)).requestDigest);
   });
 
+  test('different outcomes for the same request and policy never share a decisionId', () => {
+    const allow = decide(req(7_500));
+    const mismatch = decide(req(7_500), [DEMO_REFUND_POLICY], { expectedPolicyVersion: 2 });
+    const strict = policy({ id: 'pol_z_strict', rules: [{ when: {}, effect: 'require_approval' }] });
+    const conflict = decide(req(7_500), [DEMO_REFUND_POLICY, strict]);
+    assert.equal(allow.policyId, mismatch.policyId);
+    assert.equal(allow.policyId, conflict.policyId);
+    assert.equal(new Set([allow.decisionId, mismatch.decisionId, conflict.decisionId]).size, 3);
+  });
+
   test('canonical JSON sorts keys and has no whitespace', () => {
     assert.equal(canonicalJson({ b: 1, a: { d: [1, 'x'], c: null } }), '{"a":{"c":null,"d":[1,"x"]},"b":1}');
   });

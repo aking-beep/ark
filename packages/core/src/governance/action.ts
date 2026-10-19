@@ -110,7 +110,7 @@ export type ActionReasonCode = z.infer<typeof ActionReasonCode>;
 
 export interface ActionDecision {
   decision: ActionDecisionValue;
-  /** sha256 over policy id, policy version and request digest. */
+  /** sha256 over decision, policy id, policy version, reason code and request digest. */
   decisionId: string;
   policyId: string | null;
   policyVersion: number | null;
@@ -274,7 +274,9 @@ export function decideAction(
   ): ActionDecision => {
     const policyId = policy?.id ?? null;
     const policyVersion = policy?.version ?? null;
-    const decisionId = sha256(canonicalJson({ policyId, policyVersion, requestDigest }));
+    // decision and reasonCode are in the preimage too: without them an `allow`
+    // and a `policy_version_mismatch` for the same request and policy would share an id.
+    const decisionId = sha256(canonicalJson({ decision, policyId, policyVersion, reasonCode, requestDigest }));
     const out: ActionDecision = { decision, decisionId, policyId, policyVersion, reasonCode, requestDigest };
     if (expiresAt !== undefined) out.expiresAt = expiresAt;
     return out;
