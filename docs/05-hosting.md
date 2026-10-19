@@ -86,4 +86,4 @@ Several containers can share one libSQL URL. Because bootstrap seeds only an emp
 
 ## What this is not
 
-A managed AWS/Vercel/Railway account. The compose file is the portable unit. Put a reverse proxy with TLS in front of the four ports — Control's session cookie is `Secure` in production, so it needs HTTPS to log in from anything but localhost. Consumer MY AI on Vercel uses `vercel.consumer.json` (web + API services) instead of this image.
+A managed AWS/Vercel/Railway account. The compose file is the portable unit. Put a reverse proxy with TLS in front of the four ports — Control's session cookie is `Secure` in production, so it needs HTTPS to log in from anything but localhost. Consumer MY AI on Vercel uses the root `vercel.json` (web + API services; projects rooted at `apps/*` ignore it) instead of this image.
