@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { canonicalJson, type Json } from './canonical-json.js';
 import { sha256Hex as sha256 } from './sha256.js';
 
 /**
@@ -9,7 +10,24 @@ import { sha256Hex as sha256 } from './sha256.js';
  * list of `ActionPolicy` values. No I/O, no clock reads (`request.now` is the
  * time), no randomness, no model calls. A protected action is authorized only
  * by an explicit `allow`; every other path is `deny`, `require_approval` or
- * `unknown`, and there is no fallback `allow`.
+ * `unknown`, and there is no fallback `allow`. It never throws: any unexpected
+ * failure is returned as `unknown` `invalid_request`.
+ *
+ * Inputs are snapshotted before anything is decided: only own data properties
+ * of plain objects are read, each exactly once. Accessor (getter) properties and
+ * non-plain objects are rejected; inherited (prototype) properties are never
+ * read. The decision carries `normalizedRequest`, the exact values it was made
+ * on — a guard must execute those values, not its own copy of the request.
+ *
+ * `decisionId` is a deterministic content hash (a content address) of the
+ * decision, the request digest, the governing policies' content digests and
+ * `expiresAt`. It is NOT an unforgeable token: anyone who knows the inputs can
+ * compute it. An approval or execution credential, if one is ever needed, must be
+ * a separate signed (HMAC or signature under a server key), single-use credential
+ * bound to `expiresAt`.
+ *
+ * `request.now` is trusted from the caller. The guard that calls this kernel
+ * owns the clock; `now` must never come from the agent.
  *
  * This is not `policy.ts` (manifest posture) and not `enforce.ts` (model-call
  * gate in `@ark/runtime`). A manifest `pass` is not authorization to act.
@@ -19,39 +37,46 @@ const Id = z.string().min(1).max(128);
 /** ISO-4217 shape: three upper-case letters. Not checked against the full list. */
 const CurrencyCode = z.string().regex(/^[A-Z]{3}$/);
 const MinorUnits = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
+const EpochMs = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 
-export const ActionResource = z.object({
-  type: z.string().min(1).max(64),
-  id: z.string().min(1).max(256),
-});
+export const ActionResource = z
+  .object({
+    type: z.string().min(1).max(64),
+    id: z.string().min(1).max(256),
+  })
+  .strict();
 export type ActionResource = z.infer<typeof ActionResource>;
 
-export const ActionAttributes = z.object({
-  /** Amount in the currency's minor unit (cents for USD). Integer, >= 0. */
-  amountMinor: MinorUnits,
-  /** ISO-4217 code, e.g. `USD`. */
-  currency: CurrencyCode,
-});
+export const ActionAttributes = z
+  .object({
+    /** Amount in the currency's minor unit (cents for USD). Integer, >= 0. */
+    amountMinor: MinorUnits,
+    /** ISO-4217 code, e.g. `USD`. */
+    currency: CurrencyCode,
+  })
+  .strict();
 export type ActionAttributes = z.infer<typeof ActionAttributes>;
 
 /**
  * One protected action, built only from trusted server context. `orgId` and
  * `agentId` must already be verified by the caller. There is deliberately no
- * `role` or `permissions` field: anything not listed here is dropped before
- * the decision and before the digest, so a forged field changes nothing.
+ * `role` or `permissions` field: anything not listed here is never read, so it
+ * cannot reach the digest or the decision.
  */
-export const ActionRequest = z.object({
-  orgId: Id,
-  agentId: Id,
-  /** Authenticated delegating user id, when the agent acts for a person. */
-  principal: Id.optional(),
-  tool: Id,
-  action: Id,
-  resource: ActionResource,
-  attributes: ActionAttributes,
-  /** Request time in ms since the epoch, supplied by the caller. */
-  now: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
-});
+export const ActionRequest = z
+  .object({
+    orgId: Id,
+    agentId: Id,
+    /** Authenticated delegating user id, when the agent acts for a person. */
+    principal: Id.optional(),
+    tool: Id,
+    action: Id,
+    resource: ActionResource,
+    attributes: ActionAttributes,
+    /** Request time in ms since the epoch, from the guard's clock. */
+    now: EpochMs,
+  })
+  .strict();
 export type ActionRequest = z.infer<typeof ActionRequest>;
 
 export const ActionEffect = z.enum(['allow', 'deny', 'require_approval']);
@@ -64,11 +89,18 @@ export const AmountComparison = z
   .strict();
 export type AmountComparison = z.infer<typeof AmountComparison>;
 
-/** A rule matches when every condition it states holds. Amount and currency only. */
-export const ActionRule = z.object({
-  when: z.object({ amountMinor: AmountComparison.optional(), currency: CurrencyCode.optional() }).strict(),
-  effect: ActionEffect,
-});
+/**
+ * A rule matches when every condition it states holds. Amount and currency only.
+ * Strict at every level: a key the schema does not know (a condition placed at
+ * the wrong level, an `unless`) makes the whole policy invalid rather than being
+ * stripped into a match-everything rule.
+ */
+export const ActionRule = z
+  .object({
+    when: z.object({ amountMinor: AmountComparison.optional(), currency: CurrencyCode.optional() }).strict(),
+    effect: ActionEffect,
+  })
+  .strict();
 export type ActionRule = z.infer<typeof ActionRule>;
 
 export const ActionPolicy = z
@@ -78,7 +110,10 @@ export const ActionPolicy = z
     orgId: Id,
     tool: Id,
     action: Id,
-    /** The currency this policy governs. A request in any other currency is denied. */
+    /**
+     * The currency this policy governs. Policies are selected by org, tool,
+     * action and currency; a request in a currency no policy governs is denied.
+     */
     currency: CurrencyCode,
     /** Ordered; the first matching rule decides. */
     rules: z.array(ActionRule).min(1).max(64),
@@ -110,13 +145,24 @@ export type ActionReasonCode = z.infer<typeof ActionReasonCode>;
 
 export interface ActionDecision {
   decision: ActionDecisionValue;
-  /** sha256 over decision, policy id, policy version, reason code and request digest. */
+  /**
+   * Deterministic content hash: sha256 over decision, reason code, request
+   * digest, reported policy id/version, every governing policy's content digest,
+   * and `expiresAt`. A content address, not an authenticator (see module doc).
+   */
   decisionId: string;
   policyId: string | null;
   policyVersion: number | null;
+  /** sha256 of the canonical JSON of the reported policy's full content. */
+  policyDigest: string | null;
   reasonCode: ActionReasonCode;
   /** sha256 of the canonical JSON of the normalized request. */
   requestDigest: string;
+  /**
+   * The exact request values the decision was made on, frozen. `null` when the
+   * request itself was rejected. A guard executes these values.
+   */
+  normalizedRequest: Readonly<ActionRequest> | null;
   /** Set for `allow` and `require_approval` only: `request.now + decisionTtlMs`. */
   expiresAt?: number;
 }
@@ -154,6 +200,7 @@ export const DEMO_REFUND_POLICY: ActionPolicy = deepFreeze(
 );
 
 // ---------------------------------------------------------------------------
+// Snapshotting: own data properties of plain objects only, each read once.
 
 function deepFreeze<T>(value: T): T {
   if (typeof value === 'object' && value !== null) {
@@ -163,57 +210,105 @@ function deepFreeze<T>(value: T): T {
   return value;
 }
 
-type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
+/** Thrown inside the kernel when an input cannot be read safely; caught by `decideAction`. */
+class Unreadable extends Error {}
 
-/** Canonical JSON: object keys sorted, no whitespace, `undefined` keys omitted. */
-export function canonicalJson(value: Json): string {
-  if (value === null || typeof value !== 'object') {
-    if (typeof value === 'number' && !Number.isFinite(value)) return JSON.stringify(String(value));
-    return JSON.stringify(value);
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) return false;
+  const proto = Object.getPrototypeOf(v);
+  return proto === Object.prototype || proto === null;
+}
+
+/** Own data property, or `undefined` if absent. An accessor property is unreadable. */
+function ownData(obj: object, key: string): unknown {
+  const d = Object.getOwnPropertyDescriptor(obj, key);
+  if (d === undefined) return undefined;
+  if (!('value' in d)) throw new Unreadable(key);
+  return d.value;
+}
+
+/** Deep copy of plain JSON-shaped data (own data properties only); anything else is unreadable. */
+function plainCopy(v: unknown, depth = 0): unknown {
+  if (depth > 8) throw new Unreadable('too deep');
+  if (v === null || typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') return v;
+  if (Array.isArray(v)) {
+    if (Object.getPrototypeOf(v) !== Array.prototype) throw new Unreadable('array');
+    const len = ownData(v, 'length') as number;
+    const out: unknown[] = [];
+    for (let i = 0; i < len; i++) out.push(plainCopy(ownData(v, String(i)), depth + 1));
+    return out;
   }
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
-  const keys = Object.keys(value)
-    .filter((k) => value[k] !== undefined)
-    .sort();
-  return `{${keys.map((k) => `${JSON.stringify(k)}:${canonicalJson(value[k] as Json)}`).join(',')}}`;
+  if (isPlainObject(v)) {
+    const out: Record<string, unknown> = {};
+    for (const k of Object.keys(v)) out[k] = plainCopy(ownData(v, k), depth + 1);
+    return out;
+  }
+  throw new Unreadable(typeof v);
 }
 
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
-
-function pickString(v: unknown): string | undefined {
-  return typeof v === 'string' ? v : undefined;
-}
-
-function pickNumber(v: unknown): number | undefined {
-  return typeof v === 'number' ? v : undefined;
+interface RequestSnapshot {
+  orgId: unknown;
+  agentId: unknown;
+  principal: unknown;
+  tool: unknown;
+  action: unknown;
+  /** `undefined` when absent or not a plain object. */
+  resource: { type: unknown; id: unknown } | undefined;
+  /** Raw attribute values; `undefined` when absent. */
+  amountMinor: unknown;
+  currency: unknown;
+  now: unknown;
 }
 
 /**
- * Keep only the fields `ActionRequest` defines, and only when they have the
- * right primitive type. Everything else — `role`, `permissions`, extra
- * attributes — is dropped here, so it cannot reach the digest or the decision.
+ * Read only the fields `ActionRequest` defines. Unknown fields (`role`,
+ * `permissions`, extra attributes) are never touched. Returns `null` when the
+ * request is not a plain object; throws `Unreadable` on an accessor property.
  */
-function normalize(raw: unknown): { [key: string]: Json } {
-  const r = isRecord(raw) ? raw : {};
-  const res = isRecord(r.resource) ? r.resource : undefined;
-  const attrs = isRecord(r.attributes) ? r.attributes : {};
-  const out: Record<string, Json | undefined> = {
-    orgId: pickString(r.orgId),
-    agentId: pickString(r.agentId),
-    principal: pickString(r.principal),
-    tool: pickString(r.tool),
-    action: pickString(r.action),
-    resource: res ? { type: pickString(res.type) ?? null, id: pickString(res.id) ?? null } : undefined,
-    attributes: {
-      amountMinor: pickNumber(attrs.amountMinor) ?? null,
-      currency: pickString(attrs.currency) ?? null,
-    },
-    now: pickNumber(r.now),
+function snapshotRequest(raw: unknown): RequestSnapshot | null {
+  if (!isPlainObject(raw)) return null;
+  const res = ownData(raw, 'resource');
+  const attrs = ownData(raw, 'attributes');
+  const a = isPlainObject(attrs) ? attrs : undefined;
+  return {
+    orgId: ownData(raw, 'orgId'),
+    agentId: ownData(raw, 'agentId'),
+    principal: ownData(raw, 'principal'),
+    tool: ownData(raw, 'tool'),
+    action: ownData(raw, 'action'),
+    resource: isPlainObject(res) ? { type: ownData(res, 'type'), id: ownData(res, 'id') } : undefined,
+    amountMinor: a ? ownData(a, 'amountMinor') : undefined,
+    currency: a ? ownData(a, 'currency') : undefined,
+    now: ownData(raw, 'now'),
   };
-  return out as { [key: string]: Json };
 }
+
+/** JSON-safe, type-tagged projection of one snapshot value, for the digest of any request. */
+function digestValue(v: unknown): Json | undefined {
+  if (v === undefined) return undefined;
+  if (v === null || typeof v === 'string' || typeof v === 'boolean') return v;
+  if (typeof v === 'number') return Number.isFinite(v) ? (Object.is(v, -0) ? 0 : v) : { $nonFinite: String(v) };
+  return { $type: Array.isArray(v) ? 'array' : typeof v };
+}
+
+function digestSnapshot(s: RequestSnapshot | null): string {
+  if (s === null) return sha256(canonicalJson({ $type: 'not-a-plain-object' }));
+  return sha256(
+    canonicalJson({
+      orgId: digestValue(s.orgId),
+      agentId: digestValue(s.agentId),
+      principal: digestValue(s.principal),
+      tool: digestValue(s.tool),
+      action: digestValue(s.action),
+      resource: s.resource ? { type: digestValue(s.resource.type), id: digestValue(s.resource.id) } : undefined,
+      attributes: { amountMinor: digestValue(s.amountMinor) ?? null, currency: digestValue(s.currency) ?? null },
+      now: digestValue(s.now),
+    }),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Evaluation.
 
 function amountMatches(cmp: AmountComparison, amount: number): boolean {
   if (cmp.gt !== undefined && !(amount > cmp.gt)) return false;
@@ -232,7 +327,6 @@ function evaluatePolicy(
   policy: ActionPolicy,
   attrs: ActionAttributes,
 ): { effect: ActionEffect; reasonCode: ActionReasonCode } {
-  if (attrs.currency !== policy.currency) return { effect: 'deny', reasonCode: 'currency_mismatch' };
   for (const rule of policy.rules) {
     if (rule.when.currency !== undefined && rule.when.currency !== attrs.currency) continue;
     if (rule.when.amountMinor && !amountMatches(rule.when.amountMinor, attrs.amountMinor)) continue;
@@ -241,11 +335,58 @@ function evaluatePolicy(
   return { effect: policy.defaultEffect, reasonCode: 'default_deny' };
 }
 
+interface Governing {
+  policy: ActionPolicy;
+  digest: string;
+}
+
+function makeResult(
+  requestDigest: string,
+  normalizedRequest: Readonly<ActionRequest> | null,
+  decision: ActionDecisionValue,
+  reasonCode: ActionReasonCode,
+  reported: Governing | null = null,
+  governing: readonly Governing[] = [],
+  expiresAt?: number,
+): ActionDecision {
+  const policyId = reported?.policy.id ?? null;
+  const policyVersion = reported?.policy.version ?? null;
+  const policyDigest = reported?.digest ?? null;
+  // Every input that can change the outcome is in the preimage: two different
+  // outcomes, policy contents or expiries never share an id.
+  const decisionId = sha256(
+    canonicalJson({
+      decision,
+      reasonCode,
+      requestDigest,
+      policyId,
+      policyVersion,
+      policyDigests: governing.map((g) => g.digest).sort(),
+      expiresAt: expiresAt ?? null,
+    }),
+  );
+  const out: ActionDecision = {
+    decision,
+    decisionId,
+    policyId,
+    policyVersion,
+    policyDigest,
+    reasonCode,
+    requestDigest,
+    normalizedRequest,
+  };
+  if (expiresAt !== undefined) out.expiresAt = expiresAt;
+  return out;
+}
+
 /**
- * Decide one protected action. Pure and synchronous.
+ * Decide one protected action. Pure, synchronous, and never throws.
  *
  * Fail-closed order:
- * 1. malformed identity/time -> `deny` `invalid_request`;
+ * 0. options not an object, an unreadable input (accessor property, Proxy
+ *    trap that throws), or any unexpected error -> `unknown` `invalid_request`.
+ * 1. request not a plain object, malformed identity/time, or a `principal`
+ *    that is present but not a valid id -> `deny` `invalid_request`;
  *    missing resource -> `deny` `resource_missing`;
  *    amount negative / non-integer / non-finite -> `deny` `invalid_amount`;
  *    currency missing or not ISO-4217 shaped -> `deny` `invalid_currency`.
@@ -253,92 +394,135 @@ function evaluatePolicy(
  *    shown not to claim) this org/tool/action -> `unknown` `policy_invalid`.
  * 3. no valid policy for this org + tool + action -> `unknown`
  *    `no_matching_policy`. A policy for another org is never matched.
- * 4. `expectedPolicyVersion` supplied and any governing policy differs ->
+ * 4. two policies with the same id but different content (e.g. v1 and v2
+ *    together) -> `unknown` `policy_conflict`. Identical duplicates collapse.
+ * 5. no claiming policy governs the request's currency -> `deny`
+ *    `currency_mismatch`. Otherwise only the policies for that currency govern.
+ * 6. `expectedPolicyVersion` supplied and any governing policy differs ->
  *    `unknown` `policy_version_mismatch`.
- * 5. each governing policy yields an effect (currency mismatch -> `deny`);
- *    governing policies that disagree -> `deny` `policy_conflict`.
+ * 7. governing policies whose effects disagree -> `deny` `policy_conflict`.
  */
 export function decideAction(
   request: ActionRequest | unknown,
   policies: readonly (ActionPolicy | unknown)[] | unknown,
-  options: DecideActionOptions = {},
+  options?: DecideActionOptions | unknown,
 ): ActionDecision {
-  const normalized = normalize(request);
-  const requestDigest = sha256(canonicalJson(normalized));
+  let requestDigest = sha256(canonicalJson({ $type: 'unreadable' }));
+  try {
+    return decide(request, policies, options, (d) => {
+      requestDigest = d;
+    });
+  } catch {
+    return makeResult(requestDigest, null, 'unknown', 'invalid_request');
+  }
+}
 
+function decide(
+  request: unknown,
+  policies: unknown,
+  options: unknown,
+  onDigest: (digest: string) => void,
+): ActionDecision {
+  // 1. Snapshot the request (an accessor property throws -> `unknown`).
+  const s = snapshotRequest(request);
+  const requestDigest = digestSnapshot(s);
+  onDigest(requestDigest);
+
+  // 0. Options: absent, or a plain object with an own data property.
+  let expected: unknown;
+  if (options !== undefined) {
+    if (!isPlainObject(options)) throw new Unreadable('options');
+    expected = ownData(options, 'expectedPolicyVersion');
+  }
+
+  // 1 (cont). Validate the request, most specific reasons first.
+  const reject = (code: ActionReasonCode) => makeResult(requestDigest, null, 'deny', code);
+  if (s === null) return reject('invalid_request');
+  const identity = z
+    .object({ orgId: Id, agentId: Id, principal: Id.optional(), tool: Id, action: Id, now: EpochMs })
+    .strict()
+    .safeParse({ orgId: s.orgId, agentId: s.agentId, principal: s.principal, tool: s.tool, action: s.action, now: s.now });
+  if (!identity.success) return reject('invalid_request');
+  const resource = ActionResource.safeParse(s.resource);
+  if (!resource.success) return reject('resource_missing');
+  const amount = MinorUnits.safeParse(s.amountMinor);
+  if (!amount.success) return reject('invalid_amount');
+  const currency = CurrencyCode.safeParse(s.currency);
+  if (!currency.success) return reject('invalid_currency');
+  const id = identity.data;
+  const attrs: ActionAttributes = { amountMinor: amount.data === 0 ? 0 : amount.data, currency: currency.data };
+  const normalized: ActionRequest = deepFreeze({
+    orgId: id.orgId,
+    agentId: id.agentId,
+    ...(id.principal !== undefined ? { principal: id.principal } : {}),
+    tool: id.tool,
+    action: id.action,
+    resource: { type: resource.data.type, id: resource.data.id },
+    attributes: attrs,
+    now: id.now === 0 ? 0 : id.now,
+  });
   const result = (
     decision: ActionDecisionValue,
-    reasonCode: ActionReasonCode,
-    policy: ActionPolicy | null = null,
+    code: ActionReasonCode,
+    reported: Governing | null = null,
+    governing: readonly Governing[] = [],
     expiresAt?: number,
-  ): ActionDecision => {
-    const policyId = policy?.id ?? null;
-    const policyVersion = policy?.version ?? null;
-    // decision and reasonCode are in the preimage too: without them an `allow`
-    // and a `policy_version_mismatch` for the same request and policy would share an id.
-    const decisionId = sha256(canonicalJson({ decision, policyId, policyVersion, reasonCode, requestDigest }));
-    const out: ActionDecision = { decision, decisionId, policyId, policyVersion, reasonCode, requestDigest };
-    if (expiresAt !== undefined) out.expiresAt = expiresAt;
-    return out;
-  };
+  ) => makeResult(requestDigest, normalized, decision, code, reported, governing, expiresAt);
 
-  // 1. Validate the request, most specific reasons first.
-  const n = normalized as Record<string, unknown>;
-  const identity = ActionRequest.pick({ orgId: true, agentId: true, principal: true, tool: true, action: true, now: true });
-  const id = identity.safeParse({
-    orgId: n.orgId,
-    agentId: n.agentId,
-    principal: n.principal,
-    tool: n.tool,
-    action: n.action,
-    now: n.now,
-  });
-  if (!id.success) return result('deny', 'invalid_request');
-  const resource = ActionResource.safeParse(n.resource);
-  if (!resource.success) return result('deny', 'resource_missing');
-  const rawAttrs = n.attributes as { amountMinor: unknown; currency: unknown };
-  const amount = MinorUnits.safeParse(rawAttrs.amountMinor);
-  if (!amount.success) return result('deny', 'invalid_amount');
-  const currency = CurrencyCode.safeParse(rawAttrs.currency);
-  if (!currency.success) return result('deny', 'invalid_currency');
-  const req = id.data;
-  const attrs: ActionAttributes = { amountMinor: amount.data, currency: currency.data };
-
-  // 2-3. Find the governing policies. Wrong-org policies never match.
-  if (!Array.isArray(policies)) return result('unknown', 'policy_invalid');
-  const governing: ActionPolicy[] = [];
-  for (const raw of policies as unknown[]) {
+  // 2-3. Find the policies that claim this org/tool/action. Wrong-org policies never match.
+  if (!Array.isArray(policies) || Object.getPrototypeOf(policies) !== Array.prototype) {
+    return result('unknown', 'policy_invalid');
+  }
+  const claiming: Governing[] = [];
+  const count = ownData(policies, 'length') as number;
+  for (let i = 0; i < count; i++) {
+    let raw: unknown;
+    try {
+      raw = plainCopy(ownData(policies, String(i)));
+    } catch {
+      return result('unknown', 'policy_invalid');
+    }
     const parsed = ActionPolicy.safeParse(raw);
     if (parsed.success) {
-      if (claims(parsed.data, req)) governing.push(parsed.data);
+      if (claims(parsed.data, id)) claiming.push({ policy: parsed.data, digest: sha256(canonicalJson(parsed.data as Json)) });
       continue;
     }
     // An invalid policy is ignored only when it plainly governs something else.
     const plainlyElsewhere =
-      isRecord(raw) &&
+      isPlainObject(raw) &&
       typeof raw.orgId === 'string' &&
       typeof raw.tool === 'string' &&
       typeof raw.action === 'string' &&
-      !claims(raw, req);
+      !claims(raw, id);
     if (!plainlyElsewhere) return result('unknown', 'policy_invalid');
   }
-  if (governing.length === 0) return result('unknown', 'no_matching_policy');
-  governing.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : a.version - b.version));
+  if (claiming.length === 0) return result('unknown', 'no_matching_policy');
 
-  // 4. Version pin.
-  const expected = options.expectedPolicyVersion;
-  if (expected !== undefined && governing.some((p) => p.version !== expected)) {
-    return result('unknown', 'policy_version_mismatch', governing[0] ?? null);
+  // 4. One id, one content. Identical duplicates collapse; anything else conflicts.
+  const byId = new Map<string, Governing>();
+  for (const g of claiming) {
+    const seen = byId.get(g.policy.id);
+    if (seen && seen.digest !== g.digest) return result('unknown', 'policy_conflict');
+    byId.set(g.policy.id, g);
+  }
+  const unique = [...byId.values()].sort((a, b) => (a.policy.id < b.policy.id ? -1 : 1));
+
+  // 5. Currency is part of the governing key.
+  const governing = unique.filter((g) => g.policy.currency === attrs.currency);
+  if (governing.length === 0) return result('deny', 'currency_mismatch', unique[0]!, unique);
+  const first = governing[0]!;
+
+  // 6. Version pin.
+  if (expected !== undefined && governing.some((g) => g.policy.version !== expected)) {
+    return result('unknown', 'policy_version_mismatch', first, governing);
   }
 
-  // 5. Evaluate; disagreement denies.
-  const outcomes = governing.map((p) => ({ policy: p, ...evaluatePolicy(p, attrs) }));
-  const first = outcomes[0]!;
-  if (outcomes.some((o) => o.effect !== first.effect)) {
-    return result('deny', 'policy_conflict', first.policy);
-  }
-  if (first.effect === 'deny') return result('deny', first.reasonCode, first.policy);
+  // 7. Evaluate; disagreement denies.
+  const outcomes = governing.map((g) => evaluatePolicy(g.policy, attrs));
+  const effect = outcomes[0]!.effect;
+  if (outcomes.some((o) => o.effect !== effect)) return result('deny', 'policy_conflict', first, governing);
+  if (effect === 'deny') return result('deny', outcomes[0]!.reasonCode, first, governing);
   // allow / require_approval: the shortest TTL among agreeing policies bounds expiry.
-  const ttl = Math.min(...outcomes.map((o) => o.policy.decisionTtlMs));
-  return result(first.effect, first.reasonCode, first.policy, req.now + ttl);
+  const ttl = Math.min(...governing.map((g) => g.policy.decisionTtlMs));
+  return result(effect, outcomes[0]!.reasonCode, first, governing, id.now + ttl);
 }

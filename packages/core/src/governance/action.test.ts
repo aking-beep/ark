@@ -3,13 +3,18 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
+  ActionAttributes,
   ActionPolicy,
   ActionReasonCode,
+  ActionRequest,
+  ActionResource,
+  ActionRule,
+  AmountComparison,
   DEMO_REFUND_POLICY,
-  canonicalJson,
   decideAction,
-  type ActionRequest,
 } from './action.js';
+import { canonicalJson } from './canonical-json.js';
+import { sha256Hex } from './sha256.js';
 
 const NOW = 1_760_000_000_000;
 
@@ -264,8 +269,10 @@ describe('decideAction — determinism and purity', () => {
     assert.equal(new Set([allow.decisionId, mismatch.decisionId, conflict.decisionId]).size, 3);
   });
 
-  test('canonical JSON sorts keys and has no whitespace', () => {
+  test('canonical JSON sorts keys, has no whitespace, and refuses non-finite numbers', () => {
     assert.equal(canonicalJson({ b: 1, a: { d: [1, 'x'], c: null } }), '{"a":{"c":null,"d":[1,"x"]},"b":1}');
+    assert.throws(() => canonicalJson(Number.NaN));
+    assert.throws(() => canonicalJson({ a: Number.POSITIVE_INFINITY }));
   });
 
   test('synchronous, and reads no clock, randomness or network', () => {
@@ -294,9 +301,11 @@ describe('decideAction — determinism and purity', () => {
     const importsOf = (src: string) => [...src.matchAll(/^import .* from '([^']+)';$/gm)].map((m) => m[1]).sort();
     const action = read('./action.js');
     const hash = read('./sha256.js');
-    assert.deepEqual(importsOf(action), ['./sha256.js', 'zod']);
+    const canon = read('./canonical-json.js');
+    assert.deepEqual(importsOf(action), ['./canonical-json.js', './sha256.js', 'zod']);
     assert.deepEqual(importsOf(hash), ['@noble/hashes/sha2', '@noble/hashes/utils']);
-    for (const src of [action, hash]) {
+    assert.deepEqual(importsOf(canon), []);
+    for (const src of [action, hash, canon]) {
       assert.ok(!/\bDate\b|Math\.random|\bfetch\(|process\.|require\(|import\(/.test(src));
     }
   });
@@ -308,5 +317,167 @@ describe('decideAction — determinism and purity', () => {
       assert.ok(ActionReasonCode.options.includes(d.reasonCode));
       if (d.decision === 'allow') assert.equal(d.reasonCode, 'rule_matched');
     }
+  });
+});
+
+describe('decideAction — review round 1 / security fixes', () => {
+  const FIVE_K = 500_000;
+
+  test('H1: a rule with an unknown key is invalid, not a match-everything rule', () => {
+    const malformedRules: unknown[] = [
+      { when: {}, effect: 'allow', amountMinor: { lte: 10_000 } },
+      { when: { currency: 'USD' }, effect: 'allow', unless: { amountMinor: { gt: 10_000 } } },
+    ];
+    for (const rule of malformedRules) {
+      const bad = { ...structuredClone(DEMO_REFUND_POLICY), rules: [rule] };
+      const d = decide(req(FIVE_K), [bad]);
+      assert.equal(d.decision, 'unknown', JSON.stringify(rule));
+      assert.equal(d.reasonCode, 'policy_invalid');
+    }
+  });
+
+  test('H1: every object schema in the module is strict', () => {
+    const extra = { surprise: true };
+    assert.equal(ActionPolicy.safeParse({ ...structuredClone(DEMO_REFUND_POLICY), ...extra }).success, false);
+    for (const schema of [ActionRequest, ActionResource, ActionAttributes, ActionRule, AmountComparison]) {
+      assert.equal((schema as unknown as { _def: { unknownKeys: string } })._def.unknownKeys, 'strict');
+    }
+  });
+
+  test('criterion 4 / L3: a present but invalid principal is denied, not dropped', () => {
+    for (const principal of [42, { admin: true }, ['user_1'], '', null, true]) {
+      const d = decide({ ...req(7_500), principal });
+      assert.equal(d.decision, 'deny', JSON.stringify(principal));
+      assert.equal(d.reasonCode, 'invalid_request');
+      assert.notEqual(d.requestDigest, decide({ ...req(7_500), principal: undefined }).requestDigest);
+    }
+    const { principal: _p, ...noPrincipal } = req(7_500);
+    assert.equal(decide(noPrincipal).decision, 'allow');
+    assert.equal(decide({ ...req(7_500), principal: undefined }).decision, 'allow');
+  });
+
+  test('M1: decisionId binds policy content, not just id and version', () => {
+    const loose = policy({ rules: [{ when: {}, effect: 'allow' }] });
+    assert.equal(loose.id, DEMO_REFUND_POLICY.id);
+    assert.equal(loose.version, DEMO_REFUND_POLICY.version);
+    const a = decide(req(7_500));
+    const b = decide(req(7_500), [loose]);
+    assert.equal(a.decision, b.decision);
+    assert.notEqual(a.policyDigest, b.policyDigest);
+    assert.notEqual(a.decisionId, b.decisionId);
+    assert.equal(a.policyDigest, sha256Hex(canonicalJson(DEMO_REFUND_POLICY as never)));
+  });
+
+  test('M1: decisionId binds expiresAt and every governing policy', () => {
+    const longer = policy({ decisionTtlMs: 600_000 });
+    assert.notEqual(decide(req(7_500), [longer]).decisionId, decide(req(7_500)).decisionId);
+    const second = policy({ id: 'pol_z_second' });
+    const both = decide(req(7_500), [DEMO_REFUND_POLICY, second]);
+    assert.equal(both.policyId, DEMO_REFUND_POLICY.id);
+    assert.notEqual(both.decisionId, decide(req(7_500)).decisionId);
+  });
+
+  test('M3: the decision returns the frozen normalized request it was made on', () => {
+    const d = decide({ ...req(75_000), role: 'admin', attributes: { amountMinor: 75_000, currency: 'USD', amount: 1 } });
+    assert.deepEqual(d.normalizedRequest, req(75_000));
+    assert.ok(Object.isFrozen(d.normalizedRequest) && Object.isFrozen(d.normalizedRequest!.attributes));
+    assert.equal(d.requestDigest, sha256Hex(canonicalJson(d.normalizedRequest as never)));
+    assert.equal(decide(req(-1)).normalizedRequest, null);
+  });
+
+  test('M3: a getter that changes value between reads cannot produce allow for the larger amount', () => {
+    let reads = 0;
+    const attributes = {
+      currency: 'USD',
+      get amountMinor() {
+        reads += 1;
+        return reads === 1 ? 100 : 99_999_999;
+      },
+    };
+    const d = decide({ ...req(0), attributes });
+    assert.notEqual(d.decision, 'allow');
+    assert.equal(d.decision, 'unknown');
+    assert.equal(d.reasonCode, 'invalid_request');
+    assert.equal(reads, 0, 'accessor is never invoked');
+    const outer = { ...req(0) } as Record<string, unknown>;
+    Object.defineProperty(outer, 'attributes', { enumerable: true, get: () => ({ amountMinor: 100, currency: 'USD' }) });
+    assert.equal(decide(outer).decision, 'unknown');
+  });
+
+  test('M3 / L4: inherited and polluted prototype properties are never read', () => {
+    const inherited = { ...req(0), attributes: Object.create({ amountMinor: 100, currency: 'USD' }) };
+    assert.equal(decide(inherited).reasonCode, 'invalid_amount');
+    const { now: _n, ...noNow } = req(7_500);
+    const proto = Object.prototype as Record<string, unknown>;
+    proto.now = NOW;
+    proto.principal = 'user_polluted';
+    try {
+      assert.equal(decide(noNow).reasonCode, 'invalid_request');
+      const ok = decide(req(7_500, { principal: undefined }));
+      assert.equal(ok.normalizedRequest?.principal, undefined);
+    } finally {
+      delete proto.now;
+      delete proto.principal;
+    }
+    class Req {
+      constructor(public orgId = 'org_demo') {}
+    }
+    assert.equal(decide(Object.assign(new Req(), req(7_500))).reasonCode, 'invalid_request');
+  });
+
+  test('M3: an unreadable policy (getter, class instance) is policy_invalid', () => {
+    const getterPolicy = { ...structuredClone(DEMO_REFUND_POLICY) } as Record<string, unknown>;
+    Object.defineProperty(getterPolicy, 'rules', { enumerable: true, get: () => [{ when: {}, effect: 'allow' }] });
+    assert.equal(decide(req(FIVE_K), [getterPolicy]).reasonCode, 'policy_invalid');
+    const instance = Object.assign(Object.create({ x: 1 }), structuredClone(DEMO_REFUND_POLICY));
+    assert.equal(decide(req(7_500), [instance]).reasonCode, 'policy_invalid');
+  });
+
+  test('L2: hostile options or inputs return unknown and never throw', () => {
+    const throwingOptions = {
+      get expectedPolicyVersion(): number {
+        throw new Error('boom');
+      },
+    };
+    const proxy = new Proxy(req(7_500), {
+      getOwnPropertyDescriptor() {
+        throw new Error('trap');
+      },
+    });
+    const cases: [unknown, unknown, unknown][] = [
+      [req(7_500), [DEMO_REFUND_POLICY], null],
+      [req(7_500), [DEMO_REFUND_POLICY], 'v1'],
+      [req(7_500), [DEMO_REFUND_POLICY], throwingOptions],
+      [proxy, [DEMO_REFUND_POLICY], undefined],
+    ];
+    for (const [r, ps, o] of cases) {
+      const d = decideAction(r, ps, o);
+      assert.equal(d.decision, 'unknown');
+      assert.equal(d.reasonCode, 'invalid_request');
+      assert.match(d.requestDigest, /^[0-9a-f]{64}$/);
+    }
+  });
+
+  test('currency is part of the governing key: per-currency limits work, an ungoverned currency is denied', () => {
+    const eur = policy({ id: 'pol_eur', currency: 'EUR', rules: [{ when: { amountMinor: { lte: 1_000 } }, effect: 'allow' }] });
+    const usd = decide(req(7_500), [DEMO_REFUND_POLICY, eur]);
+    assert.equal(usd.decision, 'allow');
+    assert.equal(usd.policyId, DEMO_REFUND_POLICY.id);
+    const e = decide(req(7_500, { attributes: { amountMinor: 7_500, currency: 'EUR' } }), [DEMO_REFUND_POLICY, eur]);
+    assert.equal(e.decision, 'deny');
+    assert.equal(e.reasonCode, 'default_deny');
+    assert.equal(e.policyId, 'pol_eur');
+    const gbp = decide(req(7_500, { attributes: { amountMinor: 7_500, currency: 'GBP' } }), [DEMO_REFUND_POLICY, eur]);
+    assert.equal(gbp.reasonCode, 'currency_mismatch');
+  });
+
+  test('two versions of one policy id together, unpinned, are a conflict, not two policies', () => {
+    const v2 = policy({ version: 2 });
+    for (const set of [[DEMO_REFUND_POLICY, v2], [v2, DEMO_REFUND_POLICY]]) {
+      const d = decide(req(7_500), set);
+      assert.equal(d.decision, 'unknown');
+      assert.equal(d.reasonCode, 'policy_conflict');
+    }
+    assert.equal(decide(req(7_500), [DEMO_REFUND_POLICY, structuredClone(DEMO_REFUND_POLICY)]).decision, 'allow');
   });
 });
