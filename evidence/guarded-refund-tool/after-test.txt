@@ -1,0 +1,107 @@
+# guarded-refund-tool integration test run
+# commit 2b8c55f  node v22.22.0  2026-10-19T07:27:08Z
+
+$ cd packages/guard && node --test --test-reporter=spec dist/demo/refund.test.js dist/guard.test.js dist/memory-store.test.js
+▶ synthetic refund scenarios through guardTool
+  ✔ in-memory receipts (14.981996ms)
+  ✔ libSQL receipts in a temporary database (51.826577ms)
+✔ synthetic refund scenarios through guardTool (67.849964ms)
+▶ trusted context
+  ✔ identity in the arguments is ignored; the receipt carries the resolved context (5.59124ms)
+  ✔ a resolver that throws, hangs or returns a malformed context blocks with no receipt (21.666005ms)
+✔ trusted context (28.339994ms)
+▶ validation and the clock
+  ✔ invalid arguments are blocked before any side effect, with a receipt (4.455067ms)
+  ✔ the idempotency key is required (4.018687ms)
+  ✔ `now` is the guard clock, never a value from the arguments (1.197909ms)
+  ✔ the handler receives the decided request, and the decision id is the receipt id (2.242746ms)
+✔ validation and the clock (12.216014ms)
+▶ policy failures fail closed
+  ✔ a policy source that throws is unknown and blocked (1.045767ms)
+  ✔ a policy source that rejects is unknown and blocked (0.678591ms)
+  ✔ a policy source that hangs is unknown and blocked (24.743714ms)
+  ✔ a policy source that returns garbage is unknown and blocked (1.005719ms)
+  ✔ a policy source that returns nothing is unknown and blocked (0.458221ms)
+  ✔ a pinned policy version that is not in force is unknown and blocked (0.756774ms)
+✔ policy failures fail closed (29.235227ms)
+▶ expired and stale decisions
+  ✔ a decision that expires before the claim never executes (2.426278ms)
+  ✔ a clock that runs backwards (stale decision) never executes (0.666771ms)
+  ✔ a decision that expires during the claim is recorded failed and never executes (1.486912ms)
+✔ expired and stale decisions (4.726159ms)
+▶ idempotency
+  ✔ same key, same request: the first outcome is returned and the handler is not called again (1.998927ms)
+  ✔ same key, different request is idempotency_conflict (1.7043ms)
+  ✔ same key from a different agent of the same org is a conflict, not a replay (1.114117ms)
+  ✔ the same key in another org is a different key (1.022873ms)
+  ✔ an outcome_unknown is never retried, even when the caller sends the key again (1.068143ms)
+  ✔ two calls with different keys colliding on one decision id (same request, same ms) execute once (1.075546ms)
+✔ idempotency (8.254152ms)
+▶ race on the idempotency claim
+  ✔ in-memory, one clock tick: 12 concurrent calls with one key run the handler exactly once (10.697514ms)
+  ✔ in-memory, distinct ticks: 12 concurrent calls with one key run the handler exactly once (9.305052ms)
+  ✔ libSQL, two connections to one file, one clock tick: 12 concurrent calls with one key run the handler exactly once (43.22798ms)
+  ✔ libSQL, two connections to one file, distinct ticks: 12 concurrent calls with one key run the handler exactly once (39.076104ms)
+✔ race on the idempotency claim (102.723404ms)
+▶ execution status
+  ✔ a handler that times out is outcome_unknown, aborted, and not retried (22.336296ms)
+  ✔ a handler that reports a definitive failure is failed, not completed (1.074159ms)
+  ✔ a handler that throws synchronously is outcome_unknown (0.752527ms)
+✔ execution status (24.374459ms)
+▶ receipt store failures
+  ✔ a claim that throws blocks: no receipt, no execution (0.896123ms)
+  ✔ a receipt that cannot be written does not change a block (0.559887ms)
+  ✔ a final status that cannot be written is reported, and the receipt still reads attempted (0.616721ms)
+✔ receipt store failures (2.18975ms)
+▶ sender-reported approval
+  ✔ approval fields are ignored and flagged, even under a strict schema (1.570147ms)
+  ✔ no approval field, no flag (0.414921ms)
+✔ sender-reported approval (2.070643ms)
+▶ privacy-safe receipts
+  ✔ no raw arguments, free text, secrets or the raw idempotency key reach a stored receipt (13.588803ms)
+✔ privacy-safe receipts (13.701254ms)
+▶ telemetry is best-effort
+  ✔ a telemetry sink that throws changes no decision and no execution (3.759697ms)
+  ✔ telemetry that works authorizes nothing, and never reports a sender approval (3.069868ms)
+  ✔ via @ark/sdk: a failing transport rejects flush and leaves outcomes untouched (8.232285ms)
+✔ telemetry is best-effort (15.247961ms)
+▶ MemoryReceiptStore
+  ✔ record is not_attempted, refuses a duplicate id, and does not own the key (1.042359ms)
+  ✔ claim refuses a non-allow decision or a missing key, like the SQL CHECKs (0.781523ms)
+  ✔ one key, one owner, per org; concurrent claims land once (3.132389ms)
+  ✔ a claim colliding on id alone returns existing: null (0.289387ms)
+  ✔ finish moves attempted once; stored rows are copies (0.303114ms)
+✔ MemoryReceiptStore (8.041246ms)
+ℹ tests 44
+ℹ suites 13
+ℹ pass 44
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 845.501231
+[exit 0]
+
+$ cd packages/db && node --test --test-reporter=spec dist/action-receipts.test.js
+▶ action_receipts DDL
+  ✔ is part of the DDL list, so pushSchema creates it with an (org_id, id) key (76.264061ms)
+  ✔ CHECKs refuse an executed receipt for a non-allow decision or with no key (7.168923ms)
+✔ action_receipts DDL (84.450134ms)
+▶ LibsqlActionReceiptStore
+  ✔ record stores not_attempted and refuses a duplicate (org_id, id) (8.444587ms)
+  ✔ round-trips every field (8.350999ms)
+  ✔ claim: one key, one owner; a second claim gets the owner back (9.45537ms)
+  ✔ claim colliding on (org_id, id) only returns existing: null (8.550079ms)
+  ✔ keys and ids are org-scoped (9.758757ms)
+  ✔ finish moves attempted to a final status once, and never touches not_attempted (11.59706ms)
+  ✔ race: 20 concurrent claims for one key over two connections, exactly one lands (19.17613ms)
+✔ LibsqlActionReceiptStore (76.277311ms)
+ℹ tests 9
+ℹ suites 2
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 405.859543
+[exit 0]

@@ -1,0 +1,65 @@
+# guarded-refund-tool after capture
+# commit 2b8c55f  node v22.22.0  2026-10-19T07:26:53Z
+
+$ node evidence/guarded-refund-tool/unguarded-demo.mjs
+@ark/guard: present (not used by this script: the handler is called directly)
+
+$75                                  decision=none  execution=executed                                         calls(this)=1 receipt=none
+$750                                 decision=none  execution=executed                                         calls(this)=1 receipt=none
+$5,000                               decision=none  execution=executed                                         calls(this)=1 receipt=none
+unknown tool or policy               decision=none  execution=executed                                         calls(this)=1 receipt=none
+context for another org              decision=none  execution=executed                                         calls(this)=1 receipt=none
+forged approvedBy "ceo" on $750      decision=none  execution=executed                                         calls(this)=1 receipt=none
+$75 replayed, same idempotency key   decision=none  execution=executed                                         calls(this)=1 receipt=none
+handler throws after starting        decision=none  execution=threw: synthetic processor crash after start     calls(this)=1 receipt=none
+
+handler calls: 8
+ledger entries: 7, refunded: $6800.00
+$5,000 executed: true
+forged approval executed: true
+receipts written: 0
+[exit 0]
+
+$ npm run demo:guard
+
+> ark@0.1.0 demo:guard
+> npm run --silent demo --workspace @ark/guard
+
+guarded refund_order — synthetic, DEMO_REFUND_POLICY (<= $100 allow, <= $1,000 approval, else deny)
+receipts: temporary libSQL database (ark-guard-demo-oQPD1I/receipts.db)
+
+$75                                  outcome=executed         decision=allow            reason=rule_matched        execution=completed       calls(this)=1
+                                     expected: allowed, executes once
+                                     receipt: org=org_demo id=1012276844ce129d… agent=agent_support_bot principal=user_ops_1 payments.refund order:ord_1001 $75.00 USD policy=pol_demo_refund_synthetic@1 decision=allow reason=rule_matched execution=completed key_hash=56dc0ef19ed1… sender_reported_approval=false digest=09b1d2875fb6…
+$750                                 outcome=pending_approval decision=require_approval reason=rule_matched        execution=not_attempted   calls(this)=0
+                                     expected: pending approval, 0 calls
+                                     receipt: org=org_demo id=5d61fc9a1f655834… agent=agent_support_bot principal=user_ops_1 payments.refund order:ord_1002 $750.00 USD policy=pol_demo_refund_synthetic@1 decision=require_approval reason=rule_matched execution=not_attempted key_hash=45761dfdfbc6… sender_reported_approval=false digest=e27f47313e9a…
+$5,000                               outcome=blocked          decision=deny             reason=rule_matched        execution=not_attempted   calls(this)=0
+                                     expected: denied, 0 calls
+                                     receipt: org=org_demo id=a711c963e97802fa… agent=agent_support_bot principal=user_ops_1 payments.refund order:ord_1003 $5000.00 USD policy=pol_demo_refund_synthetic@1 decision=deny reason=rule_matched execution=not_attempted key_hash=8ee5a831486a… sender_reported_approval=false digest=041b4f0a20b4…
+unknown tool or policy               outcome=blocked          decision=unknown          reason=no_matching_policy  execution=not_attempted   calls(this)=0
+                                     expected: blocked, 0 calls
+                                     receipt: org=org_demo id=9c28e6c12571fe0e… agent=agent_support_bot principal=user_ops_1 billing.refund order:ord_1004 $75.00 USD policy=-@- decision=unknown reason=no_matching_policy execution=not_attempted key_hash=83f3b72c75ac… sender_reported_approval=false digest=72cdd73886f3…
+context for another org              outcome=blocked          decision=unknown          reason=no_matching_policy  execution=not_attempted   calls(this)=0
+                                     expected: blocked, 0 calls
+                                     receipt: org=org_other id=d36358f558e08934… agent=agent_support_bot principal=user_ops_1 payments.refund order:ord_1005 $75.00 USD policy=-@- decision=unknown reason=no_matching_policy execution=not_attempted key_hash=4f14d7582d3e… sender_reported_approval=false digest=e78a10956cd1…
+forged approvedBy "ceo" on $750      outcome=pending_approval decision=require_approval reason=rule_matched        execution=not_attempted   calls(this)=0 notes=sender_reported_approval_ignored
+                                     expected: still pending, 0 calls, flag recorded
+                                     receipt: org=org_demo id=ff0dcec12da6ad00… agent=agent_support_bot principal=user_ops_1 payments.refund order:ord_1006 $750.00 USD policy=pol_demo_refund_synthetic@1 decision=require_approval reason=rule_matched execution=not_attempted key_hash=1b7b975a4267… sender_reported_approval=true digest=364262b7b2f4…
+$75 replayed, same idempotency key   outcome=replayed         decision=allow            reason=idempotency_replay  execution=completed       calls(this)=0
+                                     expected: 1 total call
+                                     receipt: org=org_demo id=30408cbd76a8a356… agent=agent_support_bot principal=user_ops_1 payments.refund order:ord_1001 $75.00 USD policy=pol_demo_refund_synthetic@1 decision=allow reason=idempotency_replay execution=not_attempted key_hash=56dc0ef19ed1… sender_reported_approval=false digest=a439f16b05af…
+                                     original: id=1012276844ce129d… execution=completed
+handler throws after starting        outcome=execution_failed decision=allow            reason=rule_matched        execution=outcome_unknown calls(this)=1
+                                     expected: outcome_unknown
+                                     receipt: org=org_demo id=8a8d19a4e40d82d2… agent=agent_support_bot principal=user_ops_1 payments.refund order:ord_1007 $50.00 USD policy=pol_demo_refund_synthetic@1 decision=allow reason=rule_matched execution=outcome_unknown key_hash=c490ce5e87bd… sender_reported_approval=false digest=14f3ae753a5a…
+
+handler calls: 2
+ledger entries: 1, refunded: $75.00
+$5,000 executed: false
+forged approval executed: false
+$75 + replay handler calls: 1
+receipts written: 8
+telemetry: 1 post attempt(s), flush failed (telemetry transport down (synthetic)) — no decision or execution changed
+network calls outside telemetry: 0
+[exit 0]
