@@ -53,12 +53,12 @@ Each of these is a published refusal in [`00-thesis.md`](00-thesis.md). Lifting 
 
 ## Phase 5 — Agent control plane
 
-v0.1 is in-repo: Agent Manifest, bounded repository discovery, materialize, ARK Assurance, `agents` / `discovery_runs` / `assurance_runs`, Control `/discover` `/agents` `/assurance`, optional runtime `agentId`, policy schema without request-path enforcement. See [ARK Control v0.1](09-agent-control-v01.md).
+v0.1 is in-repo: Agent Manifest, bounded repository discovery, materialize, ARK Assurance, `agents` / `discovery_runs` / `assurance_runs`, Control `/discover` `/agents` `/assurance`, optional runtime `agentId`. See [ARK Control v0.1](09-agent-control-v01.md).
 
-Next milestone: **Observe → Govern → Enforce** — richer runtime join (actions and protocol evidence carrying `agentId` directly), policy evaluation visible on the agent, then enforcement that is tested before it sits anywhere near a request.
+Follow-up **Observe → Govern → Enforce** (this station): `agent_id` on actions and protocol evidence, `enforceAgentPolicies` on Runtime `execute()` when a manifest is attached, fail-closed GitHub trees, live Discover.
 
-**Exit:** an org can name the agents in a repository, say which ones are production, and show the last assurance run next to observed spend.
-**Kill:** if discovery claims agents without evidence paths, or assurance reports pass without running the check, stop shipping UI and fix the contracts.
+**Exit:** an org can name the agents in a repository, say which ones are production, show the last assurance run next to observed spend, and have production-sensitive agents denied before a model call when the manifest is attached.
+**Kill:** if discovery claims agents without evidence paths, or assurance reports pass without running the check, or enforcement fires when no agent is attached, stop shipping UI and fix the contracts.
 
 ## What is deliberately not on this roadmap
 

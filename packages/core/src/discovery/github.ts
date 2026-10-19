@@ -5,6 +5,8 @@ export const GITHUB_FETCH_LIMITS = {
   maxFileBytes: 64_000,
   maxTotalBytes: 512_000,
   maxTreeEntries: 400,
+  /** Recursive tree JSON is not parsed past this. Oversized / truncated trees fail closed. */
+  maxTreeBytes: 256_000,
   timeoutMs: 8_000,
   overallMs: 20_000,
 } as const;
@@ -143,13 +145,41 @@ export async function fetchGithubSnapshot(opts: {
     `https://api.github.com/repos/${owner}/${repo}/git/trees/${encodeURIComponent(branch)}?recursive=1`,
   );
   if (!treeRes.ok) throw new Error(`GitHub tree lookup failed (${treeRes.status}).`);
-  const treeJson = (await treeRes.json()) as {
+  const warnings: string[] = [];
+  const treeBody = await readCapped(treeRes, limits.maxTreeBytes);
+  if (!treeBody.ok) {
+    return {
+      repository: `https://github.com/${owner}/${repo}`,
+      branch,
+      files: [],
+      warnings: [treeBody.reason],
+    };
+  }
+  let treeJson: {
     sha?: string;
     truncated?: boolean;
     tree?: { path?: string; type?: string; size?: number }[];
   };
-  const warnings: string[] = [];
-  if (treeJson.truncated) warnings.push('GitHub truncated the tree; discovery is incomplete.');
+  try {
+    treeJson = JSON.parse(treeBody.text) as typeof treeJson;
+  } catch {
+    return {
+      repository: `https://github.com/${owner}/${repo}`,
+      branch,
+      files: [],
+      warnings: ['GitHub tree response was not JSON; discovery failed closed.'],
+    };
+  }
+  if (treeJson.truncated) {
+    // Fail closed: a truncated listing is not evidence the missing paths are absent.
+    return {
+      repository: `https://github.com/${owner}/${repo}`,
+      branch,
+      commitSha: treeJson.sha?.slice(0, 40),
+      files: [],
+      warnings: ['GitHub truncated the tree; discovery failed closed and no files were fetched.'],
+    };
+  }
   const paths = (treeJson.tree ?? [])
     .filter((e) => e.type === 'blob' && e.path)
     .slice(0, limits.maxTreeEntries)
@@ -197,3 +227,25 @@ export async function fetchGithubSnapshot(opts: {
     warnings,
   };
 }
+
+async function readCapped(
+  res: Response,
+  maxBytes: number,
+): Promise<{ ok: true; text: string } | { ok: false; reason: string }> {
+  const cl = res.headers.get('content-length');
+  if (cl && Number(cl) > maxBytes) {
+    return {
+      ok: false,
+      reason: `Tree payload exceeded ${maxBytes} bytes (Content-Length ${cl}); discovery failed closed.`,
+    };
+  }
+  const buf = Buffer.from(await res.arrayBuffer());
+  if (buf.byteLength > maxBytes) {
+    return {
+      ok: false,
+      reason: `Tree payload exceeded ${maxBytes} bytes; discovery failed closed.`,
+    };
+  }
+  return { ok: true, text: buf.toString('utf8') };
+}
+

@@ -246,4 +246,69 @@ describe('execute', () => {
     );
     assert.equal(postedModel, 'llama3.2');
   });
+
+  test('attached production PII agent is denied before complete()', async () => {
+    let called = 0;
+    const adapter = fakeAdapter({
+      id: 'openai-compatible',
+      residency: 'cloud',
+      complete: async () => {
+        called++;
+        throw new Error('must not run');
+      },
+    });
+    await assert.rejects(
+      () =>
+        execute(
+          { messages: [{ role: 'user', content: 'hi' }], agentId: 'support-agent' },
+          {
+            adapters: [adapter],
+            agent: {
+              id: 'support-agent',
+              name: 'Support',
+              environment: 'production',
+              dataAccess: { dataClasses: ['pii'] },
+            },
+          },
+        ),
+      (err: unknown) => {
+        assert.ok(err instanceof PolicyError);
+        assert.match(err.message, /agent policy denied/);
+        return true;
+      },
+    );
+    assert.equal(called, 0);
+  });
+
+  test('omitting agent still executes (backward compatible)', async () => {
+    const adapter = trio.frontier();
+    const result = await execute(
+      { messages: [{ role: 'user', content: 'hi' }], agentId: 'support-agent' },
+      { adapters: [adapter] },
+    );
+    assert.equal(result.adapterId, 'openai-compatible');
+    assert.equal(result.text, 'ok:openai-compatible');
+  });
+
+  test('governed production PII agent is allowed', async () => {
+    const adapter = trio.frontier();
+    const result = await execute(
+      { messages: [{ role: 'user', content: 'hi' }], agentId: 'support-agent' },
+      {
+        adapters: [adapter],
+        agent: {
+          id: 'support-agent',
+          name: 'Support',
+          environment: 'production',
+          dataAccess: { dataClasses: ['pii'] },
+          governance: {
+            policyRefs: ['pol_production_pii'],
+            evaluationRefs: ['eval_1'],
+            humanEscalation: true,
+          },
+        },
+      },
+    );
+    assert.equal(result.text, 'ok:openai-compatible');
+  });
 });

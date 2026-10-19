@@ -6,6 +6,7 @@ import {
   latestAssuranceForAgent,
   agentObservations,
 } from '@ark/db';
+import { DEFAULT_AGENT_POLICIES, enforceAgentPolicies } from '@ark/core';
 import { Panel, Grid, Stat, Badge, Table, Td, Callout, fmt, type Tone } from '@ark/ui';
 import { requireOrg, WINDOW_DAYS } from '@/lib/org';
 import { runAssuranceAction } from '../../discover/actions';
@@ -33,6 +34,7 @@ export default async function AgentDetail({ params }: { params: Promise<{ id: st
   ]);
   const m = agent.manifest;
   const report = assurance?.report;
+  const policyVerdict = enforceAgentPolicies(m, DEFAULT_AGENT_POLICIES);
 
   return (
     <div className="space-y-6">
@@ -186,16 +188,31 @@ export default async function AgentDetail({ params }: { params: Promise<{ id: st
         )}
       </Section>
 
-      <Section title="Policies">
+      <Section title="Policies" subtitle="DEFAULT_AGENT_POLICIES evaluated against this manifest. fail blocks execute().">
         {(m.governance?.policyRefs?.length ?? 0) === 0 ? (
-          <Unknown>No policy references.</Unknown>
+          <Unknown>No policy references on the manifest.</Unknown>
         ) : (
-          <ul className="font-mono text-xs text-ink-200">
+          <ul className="mb-3 font-mono text-xs text-ink-200">
             {m.governance!.policyRefs.map((p) => (
               <li key={p}>{p}</li>
             ))}
           </ul>
         )}
+        <Table head={['Policy', 'Matched', 'Status', 'Failures']}>
+          {policyVerdict.evaluations.map((e) => (
+            <tr key={e.policyId}>
+              <Td align="left" mono>{e.policyId}</Td>
+              <Td align="left">{e.matched ? 'yes' : 'no'}</Td>
+              <Td align="left">
+                <Badge tone={TONE[e.status] ?? 'neutral'}>{e.status}</Badge>
+              </Td>
+              <Td align="left">{e.failures.join('; ') || '—'}</Td>
+            </tr>
+          ))}
+        </Table>
+        <p className="mt-2 text-xs text-ink-500">
+          Request path: {policyVerdict.allowed ? 'allowed' : 'denied'}. unknown does not block.
+        </p>
       </Section>
 
       <Section title="Evaluations">
@@ -253,7 +270,7 @@ export default async function AgentDetail({ params }: { params: Promise<{ id: st
         )}
       </Section>
 
-      <Section title="Runtime observations" subtitle={`Last ${WINDOW_DAYS} days, joined by agentId on events.`}>
+      <Section title="Runtime observations" subtitle={`Last ${WINDOW_DAYS} days. Events, actions and protocol evidence join on agent_id.`}>
         <Grid cols={4}>
           <Stat label="Calls" value={fmt.int(obs.calls)} />
           <Stat label="Traces" value={fmt.int(obs.traces)} />

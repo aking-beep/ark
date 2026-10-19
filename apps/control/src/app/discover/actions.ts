@@ -8,6 +8,7 @@ import {
   materializeAgentManifests,
   runAssurance,
   AgentEnvironment,
+  AgentManifest,
 } from '@ark/core';
 import {
   createDiscoveryRun,
@@ -59,8 +60,15 @@ export async function registerCandidate(formData: FormData) {
   const { orgId } = await requireOrg();
   const runId = String(formData.get('runId') ?? '');
   const candidateId = String(formData.get('candidateId') ?? '');
-  const ownerRaw = String(formData.get('owner') ?? '').trim().slice(0, 200);
-  const owner = ownerRaw || undefined;
+  const ownerRaw = String(formData.get('owner') ?? '').trim();
+  let owner: string | undefined;
+  if (ownerRaw) {
+    const ownerParsed = AgentManifest.shape.owner.safeParse(ownerRaw);
+    if (!ownerParsed.success) {
+      redirect(`/discover?run=${encodeURIComponent(runId)}&error=` + encodeURIComponent('Owner is invalid or too long.'));
+    }
+    owner = ownerParsed.data;
+  }
   const envParsed = AgentEnvironment.safeParse(String(formData.get('environment') ?? 'unknown'));
   const environment = envParsed.success ? envParsed.data : 'unknown';
 

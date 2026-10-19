@@ -56,8 +56,8 @@ function applies(when: PolicyCondition, agent: Manifest): boolean {
 }
 
 /**
- * Evaluate a policy against a manifest. Does not enforce at runtime.
- * Unmatched policies return status unknown (they did not apply).
+ * Evaluate a policy against a manifest. Unmatched policies return status
+ * unknown (they did not apply). Request-path blocking lives in `enforce.ts`.
  */
 export function evaluatePolicy(rawPolicy: unknown, rawAgent: unknown): PolicyEvaluation {
   const policy = AgentPolicy.parse(rawPolicy);

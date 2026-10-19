@@ -21,3 +21,4 @@ export * from './discovery/github.js';
 export * from './discovery/materialize.js';
 export * from './assurance/index.js';
 export * from './governance/policy.js';
+export * from './governance/enforce.js';

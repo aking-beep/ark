@@ -60,4 +60,29 @@ describe('ingest contract', () => {
     });
     assert.equal(tooLong.success, false);
   });
+
+  test('action and evidence agentId is optional and bounded', () => {
+    const action = IngestBody.safeParse({
+      actions: [{
+        id: 'a1', traceId: 't1', name: 'refund', system: 'stripe', blastRadius: 'costly',
+        agentId: 'support-agent',
+      }],
+    });
+    assert.equal(action.success, true);
+    if (action.success) assert.equal(action.data.actions[0]!.agentId, 'support-agent');
+    const evidence = IngestBody.safeParse({
+      evidence: [{
+        id: 'pe1', protocol: 'mcp', kind: 'tool', operation: 'tools/call:x', agentId: 'support-agent',
+      }],
+    });
+    assert.equal(evidence.success, true);
+    if (evidence.success) assert.equal(evidence.data.evidence[0]!.agentId, 'support-agent');
+    const tooLong = IngestBody.safeParse({
+      actions: [{
+        id: 'a1', traceId: 't1', name: 'x', system: 'y', blastRadius: 'none',
+        agentId: 'a'.repeat(200),
+      }],
+    });
+    assert.equal(tooLong.success, false);
+  });
 });

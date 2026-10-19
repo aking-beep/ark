@@ -1,0 +1,14 @@
+@ark/core resolves                                       yes
+enforceAgentPolicies export                              ABSENT
+DEFAULT_AGENT_POLICIES export                            ABSENT
+enforce denies production PII without governance         ABSENT
+enforce allows production PII with governance            ABSENT
+DDL actions.agent_id                                     ABSENT
+DDL protocol_evidence.agent_id                           ABSENT
+truncated tree fail-closed (0 files)                     files=1 warnings=["GitHub truncated the tree; discovery is incomplete."]
+live GitHub fetch octocat/Hello-World                    empty
+execute blocks production PII agent (no complete)        ABSENT
+GET :3002/discover (anon)                                307
+GET /discover authed                                     200
+GET /agents authed                                       200
+nav has Calibration                                      yes
