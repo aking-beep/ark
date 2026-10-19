@@ -1,0 +1,29 @@
+# guarded-refund-tool before capture
+# commit 1507543  node v22.22.0  2026-10-19T07:11:47Z
+
+$ node evidence/guarded-refund-tool/unguarded-demo.mjs
+@ark/guard: absent (ERR_MODULE_NOT_FOUND)
+
+$75                                  decision=none  execution=executed                                         calls(this)=1 receipt=none
+$750                                 decision=none  execution=executed                                         calls(this)=1 receipt=none
+$5,000                               decision=none  execution=executed                                         calls(this)=1 receipt=none
+unknown tool or policy               decision=none  execution=executed                                         calls(this)=1 receipt=none
+context for another org              decision=none  execution=executed                                         calls(this)=1 receipt=none
+forged approvedBy "ceo" on $750      decision=none  execution=executed                                         calls(this)=1 receipt=none
+$75 replayed, same idempotency key   decision=none  execution=executed                                         calls(this)=1 receipt=none
+handler throws after starting        decision=none  execution=threw: synthetic processor crash after start     calls(this)=1 receipt=none
+
+handler calls: 8
+ledger entries: 7, refunded: $6800.00
+$5,000 executed: true
+forged approval executed: true
+receipts written: 0
+[exit 0]
+
+$ npm run demo:guard
+npm error Missing script: "demo:guard"
+npm error
+npm error To see a list of scripts, run:
+npm error   npm run
+npm error A complete log of this run can be found in: <npm log path>
+[exit 1]
