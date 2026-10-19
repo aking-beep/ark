@@ -20,7 +20,7 @@ kernel to authorize money movement.
 
 ---
 
-## High
+## High — resolved (H1 fixed in b5f9234; confirmed by re-review 9304b3e and sign-off 35ea533)
 
 ### H1. Unknown keys on a rule are silently stripped, so a malformed policy fails open to `allow`
 
