@@ -162,3 +162,56 @@ handler's return value. Two caveats:
 npm run demo:guard              # the eight synthetic scenarios, temp libSQL, no network
 npm run test --workspace @ark/guard
 ```
+
+## Human approval
+
+Without `approvals`, a `require_approval` decision stops the call. That is the
+whole of what the guard could do before: allow and deny, never ask.
+
+```ts
+import { MemoryApprovalStore } from '@ark/guard';
+
+const approvals = { store: new MemoryApprovalStore(), secret: process.env.ARK_APPROVAL_SECRET! };
+const refund = guardTool({ /* … */, approvals });
+```
+
+With it, a `require_approval` decision does this:
+
+1. **Redeem first.** The guard asks the store for a grant for this exact
+   decision id. Redeeming is what makes a grant single-use, so it happens
+   before verification — a grant that fails to verify is still spent, rather
+   than left for an attacker to retry.
+2. **No grant yet.** The ask is recorded (idempotently, so a retrying agent
+   does not flood the queue) and the call stops with `pending_approval`. No
+   receipt is written for the ask: a receipt's id is the decision id, and
+   `claim` refuses an id that already has a row, so a pending receipt would
+   make the approved attempt unclaimable — a person could approve an action
+   that could then never run.
+3. **A grant.** It is verified against the decision: signature, org, decision
+   id, issue time, expiry, and that it does not outlive the decision. On
+   success the action runs and the receipt records `allow` with the reason
+   `approved_by_person`. The result's `decision` stays the kernel's
+   `require_approval`, because that is what the kernel decided.
+
+### The grant is not the decision id
+
+ADR-0009 is explicit about this. A decision id is a content hash: anyone who
+knows the request, the policies and the expiry can compute it, so it addresses
+a decision and authenticates nothing. A grant is a separate credential —
+HMAC-SHA256 under a secret only the approval service holds, bound to one org,
+one decision and one nonce, expiring no later than the decision does, and
+spendable exactly once.
+
+The secret must be at least 32 bytes. A shorter one is refused rather than
+weakly accepted, and a guard configured with one cannot approve anything.
+
+### What it refuses
+
+- A grant signed with another secret, or tampered in any field.
+- A grant for a different decision, a different amount, or a different org.
+- A grant that has already been redeemed, including concurrently: of eight
+  simultaneous redemptions, exactly one returns the grant.
+- A grant that outlives its decision, or either having expired.
+- An approval attached to an ask that was already denied or already approved.
+- An approval store that throws or hangs. A store that cannot answer is not
+  permission, so the call is blocked and nothing runs.

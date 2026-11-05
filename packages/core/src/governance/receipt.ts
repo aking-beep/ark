@@ -46,6 +46,17 @@ export const GUARD_REASON_CODES = [
   'policy_source_failed',
   'policy_source_timeout',
   'decision_expired',
+  /**
+   * The kernel asked for a person and a person said yes: a signed, single-use
+   * approval grant was verified and redeemed, so the action ran.
+   *
+   * The receipt's `decision` is `allow` on these, not `require_approval`. Once
+   * a person has approved, the action IS allowed, and the storage layer agrees:
+   * `action_receipts` CHECKs that anything which executed is an `allow` with an
+   * idempotency key. The provenance of the approval — who, when, which grant —
+   * lives in the `ApprovalStore` under the same decision id.
+   */
+  'approved_by_person',
   'idempotency_replay',
   'idempotency_conflict',
   'receipt_conflict',

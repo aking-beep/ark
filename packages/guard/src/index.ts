@@ -15,8 +15,13 @@ export {
   type GuardedHandler,
 } from './guard.js';
 export { MemoryReceiptStore } from './memory-store.js';
+export { MemoryApprovalStore } from './memory-approval-store.js';
 export type {
   ActionReceipt,
+  ApprovalGrant,
+  ApprovalRequestRecord,
+  ApprovalStatus,
+  ApprovalStore,
   ActionReceiptStore,
   ClaimResult,
   ExecutionStatus,

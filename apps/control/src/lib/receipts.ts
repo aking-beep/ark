@@ -39,8 +39,14 @@ export const DECISION_LABELS: readonly DecisionLabel[] = ['allow', 'deny', 'pend
 export const EXECUTION_LABELS: readonly ExecutionLabel[] = ['completed', 'not attempted', 'failed', 'outcome unknown', 'unknown'];
 
 /**
- * `require_approval` is "pending approval": there is no approval service, so
- * nothing can move it on. Anything unrecognised is `unknown`.
+ * `require_approval` is "pending approval": the kernel asked for a person and
+ * nobody has answered yet. An approval service exists now (`ApprovalStore` in
+ * `@ark/core`, wired through `guardTool`'s `approvals` option), so these can
+ * move on: once a person approves, the guard redeems the grant and the action
+ * runs, and the receipt it writes is an `allow` carrying `approved_by_person`.
+ * A receipt therefore never sits at `require_approval` after the fact — the
+ * pending asks live in the approval queue, not here. Anything unrecognised is
+ * `unknown`.
  */
 export function decisionLabel(decision: string | null | undefined): DecisionLabel {
   switch (decision) {

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DEMO_REFUND_POLICY, type ActionReceiptStore } from '@ark/core';
+import { DEMO_REFUND_POLICY, type ActionReceiptStore, type ApprovalStore } from '@ark/core';
 import { guardTool, type GuardTelemetry, type GuardedAction, type HandlerInput, type TrustedContext } from '../guard.js';
 
 /**
@@ -98,6 +98,8 @@ export interface RefundToolOptions {
   timeouts?: { contextMs?: number; policyMs?: number; handlerMs?: number; storeMs?: number };
   /** Defaults to `refundKeyFromOrder`. */
   idempotencyKey?: (a: Readonly<RefundArgs>) => string | undefined;
+  /** Opt-in human approval for the `require_approval` band ($100-$1,000). */
+  approvals?: { store: ApprovalStore; secret: string | Uint8Array };
 }
 
 /** `refund_order` wrapped with `guardTool`. */
@@ -114,5 +116,6 @@ export function guardedRefundTool(o: RefundToolOptions) {
     ...(o.clock ? { clock: o.clock } : {}),
     ...(o.telemetry ? { telemetry: o.telemetry } : {}),
     ...(o.timeouts ? { timeouts: o.timeouts } : {}),
+    ...(o.approvals ? { approvals: o.approvals } : {}),
   });
 }

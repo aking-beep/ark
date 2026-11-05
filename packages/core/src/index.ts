@@ -26,3 +26,4 @@ export * from './governance/policy.js';
 export * from './governance/enforce.js';
 export * from './governance/action.js';
 export * from './governance/receipt.js';
+export * from './governance/approval.js';

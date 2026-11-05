@@ -1,14 +1,17 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import {
+  approvalRequestFor,
   decideAction,
   EXECUTION_STATUSES,
+  verifyApprovalGrant,
   type ActionAttributes,
   type ActionDecision,
   type ActionDecisionValue,
   type ActionReceipt,
   type ActionReceiptStore,
   type ActionRequest,
+  type ApprovalStore,
   type ActionResource,
   type EvidenceObservation,
   type ExecutionStatus,
@@ -119,6 +122,20 @@ export interface GuardToolOptions<A, R> {
    */
   idempotency: { key: (args: Readonly<A>) => string | undefined };
   receipts: ActionReceiptStore;
+  /**
+   * Opt-in human approval. Without it a `require_approval` decision stops the
+   * call, which is what the guard did before this existed.
+   *
+   * With it, the guard asks the store whether a person has already approved
+   * THIS decision, verifies the grant's signature and binding, and redeems it
+   * exactly once. A redeemed grant runs the action; anything else stops it and
+   * opens (or leaves open) the ask so a person can answer.
+   *
+   * The secret signs grants. It belongs to the approval service, not to the
+   * caller, and anything shorter than 32 bytes is refused rather than weakly
+   * accepted.
+   */
+  approvals?: { store: ApprovalStore; secret: string | Uint8Array };
   /** The guard's clock. Defaults to `Date.now`. `now` never comes from the request. */
   clock?: () => number;
   /** Pin the policy version in force; any other version is `unknown`. */
@@ -136,7 +153,15 @@ export type GuardNote =
   /** The receipt could not be written. The outcome stands; the call was not executed unless it says so. */
   | 'receipt_write_failed'
   /** The receipt was claimed but its final status could not be written; it still reads `attempted`. */
-  | 'receipt_update_failed';
+  | 'receipt_update_failed'
+  /** A person's approval was verified and spent; the action ran under it. */
+  | 'approval_redeemed'
+  /** The call is waiting on a person. The ask is on record for them to answer. */
+  | 'approval_pending'
+  /** A grant existed but did not verify. It was spent by the redeem and is now gone. */
+  | 'approval_grant_invalid'
+  /** The approval store failed or timed out. Nothing ran. */
+  | 'approval_store_failed';
 
 export interface GuardResultBase {
   outcome: GuardOutcome;
@@ -456,7 +481,7 @@ export function guardTool<A, R>(opts: GuardToolOptions<A, R>): GuardedHandler<R>
     );
 
     const n = decision.normalizedRequest;
-    const receipt: ActionReceipt = {
+    let receipt: ActionReceipt = {
       orgId: ctx.orgId,
       id: decision.decisionId,
       traceId: ctx.traceId ?? null,
@@ -524,8 +549,77 @@ export function guardTool<A, R>(opts: GuardToolOptions<A, R>): GuardedHandler<R>
     };
 
     if (guardReason !== null) return stop('blocked', guardReason);
-    if (decision.decision === 'require_approval') return stop('pending_approval', decision.reasonCode);
-    if (decision.decision !== 'allow') return stop('blocked', decision.reasonCode);
+
+    if (decision.decision === 'require_approval') {
+      const approvals = opts.approvals;
+      // No approval service wired: behave exactly as before, and stop.
+      if (approvals === undefined) return stop('pending_approval', decision.reasonCode);
+
+      let redeemed: unknown;
+      try {
+        // Redeem first, verify second. Redeeming is what makes a grant
+        // single-use, so a grant that fails verification must still be spent:
+        // leaving it redeemable would let an attacker who can make
+        // verification fail once keep retrying the same credential.
+        redeemed = await storeCall(() => approvals.store.redeem(ctx.orgId, decision.decisionId, now));
+      } catch {
+        // Fail closed. A store that cannot answer is not permission.
+        notes.push('approval_store_failed');
+        return stop('blocked', 'receipt_store_failed');
+      }
+
+      if (redeemed === null || redeemed === undefined) {
+        // Nobody has approved it yet. Put the ask on record so they can, then
+        // stop. `open` is idempotent, so a retrying agent does not flood it.
+        const ask = approvalRequestFor(decision, { orgId: ctx.orgId, now });
+        if (ask !== null) {
+          try {
+            await storeCall(() => approvals.store.open(ask));
+          } catch {
+            // The ask not being recorded does not change this outcome: the
+            // call stops either way. It only means nobody was told.
+            notes.push('approval_store_failed');
+          }
+        }
+        notes.push('approval_pending');
+        // No receipt is written here, and that is deliberate. A receipt's id is
+        // the decision id, and `claim` refuses an id that already has a row, so
+        // a not_attempted receipt now would make the approved attempt
+        // unclaimable later: a person could approve an action that could then
+        // never run. The ask carries the same audit content (org, decision,
+        // policy and version, reason, request digest, expiry), so nothing is
+        // lost by letting the approval queue be the pending surface. Without an
+        // approval store wired, the pending receipt is still written as before.
+        return done({
+          ...base,
+          outcome: 'pending_approval',
+          reasonCode: decision.reasonCode,
+          executionStatus: 'not_attempted',
+          receipt: null,
+        });
+      }
+
+      const verified = verifyApprovalGrant(approvals.secret, redeemed, {
+        orgId: ctx.orgId,
+        decision,
+        now,
+      });
+      if (!verified.ok) {
+        notes.push('approval_grant_invalid');
+        return stop('blocked', decision.reasonCode);
+      }
+
+      // A person approved it, so the action is allowed. The receipt records
+      // `allow` (which is also what `action_receipts` CHECKs for anything that
+      // executed) and carries `approved_by_person` as its reason. The result's
+      // `decision` stays the kernel's `require_approval`, because that is what
+      // the kernel decided. Who approved it is in the ApprovalStore under the
+      // same decision id.
+      notes.push('approval_redeemed');
+      receipt = { ...receipt, decision: 'allow', reasonCode: 'approved_by_person' };
+    } else if (decision.decision !== 'allow') {
+      return stop('blocked', decision.reasonCode);
+    }
 
     // 5. Allow. Defensive: an allow must carry what was decided and an expiry.
     if (n === null || decision.expiresAt === undefined || keyHash === null) {
